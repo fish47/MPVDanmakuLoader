@@ -1,8 +1,7 @@
 local base = require('src/base')    --= base base
 
 
-local _MovingArea = {}
-base.declareClass(_MovingArea, nil,
+local _MovingArea =
 {
     width = 0,      -- 宽度
     height = 0,     -- 高度
@@ -12,7 +11,7 @@ base.declareClass(_MovingArea, nil,
 
 
     new = function(obj, copyArea)
-        obj = base.allocateInstance(_MovingArea, obj)
+        obj = base.allocateInstance(obj)
         obj.width = copyArea and copyArea.width or 0
         obj.height = copyArea and copyArea.height or 0
         obj.start = copyArea and copyArea.start or 0
@@ -94,7 +93,9 @@ base.declareClass(_MovingArea, nil,
         self.speed = newSpeed
         self.width = newWidth
     end,
-});
+}
+
+base.declareClass(_MovingArea);
 
 
 local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
@@ -122,8 +123,7 @@ local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
 end
 
 
-local _BasePosCalculator = {}
-base.declareClass(_BasePosCalculator, nil,
+local _BasePosCalculator =
 {
     _mScreenWidth = nil,
     _mScreenHeight = nil,
@@ -132,7 +132,7 @@ base.declareClass(_BasePosCalculator, nil,
 
 
     new = function(obj, width, height)
-        obj = base.allocateInstance(_BasePosCalculator, obj)
+        obj = base.allocateInstance(obj)
         obj._mScreenWidth = width
         obj._mScreenHeight = height
         obj._mMovingAreas = obj:_doInitMovingArea(width, height, 0, 0)
@@ -328,25 +328,28 @@ base.declareClass(_BasePosCalculator, nil,
         end
         base.clearTable(self)
     end
-});
+}
+
+base.declareClass(_BasePosCalculator);
+
 
 
 local L2RPosCalculator = {}
 base.declareClass(L2RPosCalculator, _BasePosCalculator)
 
 
-local R2LPosCalculaotr = {}
-base.declareClass(R2LPosCalculaotr, _BasePosCalculator,
+local R2LPosCalculaotr =
 {
     calculate = function(...)
         local x, y = _BasePosCalculator.calculate(self, ...)
         return self._mScreenWidth, y
     end,
-})
+}
+
+base.declareClass(R2LPosCalculaotr, _BasePosCalculator)
 
 
-local T2BPosCalculator = {}
-base.declareClass(T2BPosCalculator, _BasePosCalculator,
+local T2BPosCalculator =
 {
     _doInitMovingArea = function(self, w, h, start, lifeTime, outArea)
         -- 这里把 speed 这个字段 hack 成存活时间了
@@ -386,11 +389,12 @@ base.declareClass(T2BPosCalculator, _BasePosCalculator,
         local x = math.min((self._mScreenWidth - w) / 2, 0)
         return x, y
     end
-})
+}
+
+base.declareClass(T2BPosCalculator, _BasePosCalculator)
 
 
-local B2TPosCalcluator = {}
-base.declareClass(B2TPosCalcluator, T2BPosCalculator,
+local B2TPosCalcluator =
 {
     calculate = function(w, h, start, lifeTime, enumStep)
         -- 竖直镜面反转
@@ -398,7 +402,9 @@ base.declareClass(B2TPosCalcluator, T2BPosCalculator,
         local y = self._mScreenHeight - (offset + h)
         return x, y
     end,
-})
+}
+
+base.declareClass(B2TPosCalcluator, T2BPosCalculator)
 
 
 local _M = {}
