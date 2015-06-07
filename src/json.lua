@@ -10,12 +10,6 @@ local _TOKEN_COMMA      = ","
 local _TOKEN_BACKSLASH  = "\\"
 local _TOKEN_QUOTE      = "\""
 
--- 花括号和方括号的英文也太相近了，起个别名吧
-local _TOKEN_ARRAY_START    = _TOKEN_LBRACKET
-local _TOKEN_ARRAY_END      = _TOKEN_RBRACKET
-local _TOKEN_OBJECT_START   = _TOKEN_LBRACE
-local _TOKEN_OBJECT_END     = _TOKEN_RBRACE
-
 local _TOKEN_ESCAPABLE_QUOTE            = "\""
 local _TOKEN_ESCAPABLE_REVERSE_SOLIDUS  = "\\"
 local _TOKEN_ESCAPABLE_SOLIDUS          = "/"
@@ -49,69 +43,97 @@ local _MAP_CONSTANT =
 }
 
 
+local _WORD_TYPE_ARRAY_START        = 0
+local _WORD_TYPE_ARRAY_END          = 1
+local _WORD_TYPE_OBJECT_START       = 2
+local _WORD_TYPE_OBJECT_END         = 3
+local _WORD_TYPE_COLLECTION_SEP     = 4
+local _WORD_TYPE_STRING             = 5
+local _WORD_TYPE_CONSTANT           = 6
+local _WORD_TYPE_NUMBER             = 7
+local _WORD_TYPE_END_OF_CONTENT     = 8
+local _WORD_TYPE_UNKNOWN            = 9
+
+local _MAP_WORD_TYPE =
+{
+    _TOKEN_LBRACKET     = _WORD_TYPE_ARRAY_END,
+    _TOKEN_RBRACKET     = _WORD_TYPE_ARRAY_END,
+    _TOKEN_LBRACE       = _WORD_TYPE_OBJECT_START,
+    _TOKEN_RBRACE       = _WORD_TYPE_OBJECT_END,
+    _TOKEN_COMMA        = _WORD_TYPE_COLLECTION_SEP,
+    _TOKEN_QUOTE        = _WORD_TYPE_STRING,
+
+    "t"                 = _WORD_TYPE_CONSTANT,      -- true
+    "f"                 = _WORD_TYPE_CONSTANT,      -- false
+    "n"                 = _WORD_TYPE_CONSTANT,      -- null
+
+    "-"                 = _WORD_TYPE_NUMBER,
+    "0"                 = _WORD_TYPE_NUMBER,
+    "1"                 = _WORD_TYPE_NUMBER,
+    "2"                 = _WORD_TYPE_NUMBER,
+    "3"                 = _WORD_TYPE_NUMBER,
+    "4"                 = _WORD_TYPE_NUMBER,
+    "5"                 = _WORD_TYPE_NUMBER,
+    "6"                 = _WORD_TYPE_NUMBER,
+    "7"                 = _WORD_TYPE_NUMBER,
+    "8"                 = _WORD_TYPE_NUMBER,
+    "9"                 = _WORD_TYPE_NUMBER,
+}
+
+
 local _PATTERN_NONSPACE_CHAR        = "([^%s])"
 local _PATTERN_QUOTE_OR_ESCAPE      = "([\"\\])"
 local _PATTERN_FOUR_HEX             = "(%x%x%x%x)"
 local _PATTERN_NUMBER               = "%s*(%-?%d+%.?%d*[eE]?[+-]?%d*)"
 
-local _NUMBER_START_CHARS           = "0123456789-"
-
 local _UNICODE_NUMBER_BASE          = 16
-
-local RET_SUCCEED   = 0
-local RET_FAILED    = nil
-
 
 local function __getCharAt(str, idx)
     return str and idx and str:sub(idx, idx + 1) or nil
+end
+
+local function __getStackTop(stack)
+    return stack[#stack]
 end
 
 local function __convertByteToString(byteVal)
     return string.char(byteVal)
 end
 
-local function __isCollectionStartToken(token)
-    return token == _TOKEN_ARRAY_START or token == _TOKEN_OBJECT_START
-end
-
-local function __isCollectionEndToken(token)
-    return token == _TOKEN_ARRAY_END or token == _TOKEN_OBJECT_END
-end
 
 
-
---@tparam string str
-local function __parseString(str, startIdx, buf)
-    buf = base.clearTable(buf or {})
+local function _onParseString(ctx)
+    local buf = ctx.stringBuf
+    local content = ctx.content
 
     local result = nil
-    local findStartIdx = startIdx
-    local nextStartIdx = startIdx
+    local findStartIdx = ctx.readIndex
+    local nextStartIdx = ctx.readIndex
     while true
     do
-        local idx = str:find(_PATTERN_QUOTE_OR_ESCAPE, findStartIdx, false)
+        local idx = content:find(_PATTERN_QUOTE_OR_ESCAPE, findStartIdx, false)
         if not idx
         then
             -- 读到结尾字符串还没结束
             break
-        elseif __getCharAt(str, idx) == _TOKEN_QUOTE
+        elseif __getCharAt(content, idx) == _TOKEN_QUOTE
         then
             -- 字符串结束
-            table.insert(buf, str:sub(startIdx, idx))
+            table.insert(buf, content:sub(content, idx))
             result = table.concat(buf)
             nextStartIdx = idx + 1,
             break
         else
             -- 注意有可能最后一个字符就是反斜杠
             local nextChIdx = idx + 1
-            local nextCh = (nextChIdx == #str) and nil or __getCharAt(str, nextChIdx)
+            local nextCh = (nextChIdx == #content) and nil or __getCharAt(content, nextChIdx)
             if not nextCh
             then
                 break;
             elseif nextCh == _TOKEN_ESCAPABLE_UNICODE_PREFIX
             then
                 -- \uXXXX
-                local hexStr = str:find(_PATTERN_FOUR_HEX, nextChIdx + 1, false)
+                local hexStr = content:find(_PATTERN_FOUR_HEX, nextChIdx + 1, false)
                 local codePoint = hexStr and tonumber(hexStr, _UNICODE_NUMBER_BASE) or nil
                 if codePoint
                 then
@@ -135,52 +157,47 @@ local function __parseString(str, startIdx, buf)
         end
     end
 
-    local ret = result and RET_SUCCEED or RET_FAILED
-    return ret, nextStartIdx, result
+    if result
+    then
+        ctx.readIndex = math.min(ctx.readIndex, nextStartIdx - 1)
+        return true, result
+    else
+        return false
+    end
 end
 
 
---@tparam string str
-local function __parseNumber(str, startIdx)
-    local numStr = str:find(startIdx, _PATTERN_NUMBER, false)
+
+local function _onParseNumber(ctx)
+    local content = ctx.content
+    local numStr = content:find(ctx.readIndex, _PATTERN_NUMBER, false)
     local num = numStr and tonumber(numStr) or nil
-    local ret = num and RET_SUCCEED or RET_FAILED
-    local nextStartIdx = num and startIdx + #numStr or nil
-    return ret, nextStartIdx, num
+    if num
+    then
+        ctx.readIndex = ctx.readIndex + #numStr - 1
+        return true, num
+    else
+        return false
+    end
 end
 
 
---@tparam string str
-local function __parseConstant(str, startIdx)
-    local strEndIdx = #str
+
+local function _onParseConstant(ctx)
+    local content = ctx.content
+    local startIdx = ctx.readIndex
+    local strEndIdx = #content
     for constName, val in ipairs(_MAP_CONSTANT)
     do
         local subStrEndIdx = startIdx + #constName - 1
-        if subStrEndIdx <= strEndIdx and str:sub(startIdx, subStrEndIdx) == constName
+        if subStrEndIdx <= strEndIdx and :sub(startIdx, subStrEndIdx) == constName
         then
-            return RET_SUCCEED, subStrEndIdx + 1, val
+            ctx.readIndex = ctx.readIndex + #constName - 1
+            return true, val
         end
     end
 
-    return RET_FAILED
-end
-
-
--- 只处理 字符串 / 数字 / 常量
-local function __parsePlainValue(str, startIdx)
-    local ch = __getCharAt(str, startIdx)
-    if not ch
-    then
-        return RET_FAILED
-    elseif ch == _TOKEN_QUOTE
-    then
-        return __parseString(str, startIdx)
-    elseif _NUMBER_START_CHARS:find(ch, 0, true)
-    then
-        return __parseNumber(str, startIdx)
-    else
-        return __parseConstant(str, startIdx)
-    end
+    return false
 end
 
 
@@ -189,15 +206,19 @@ local JSONParseContext =
 {
     content = nil,
     readIndex = nil,
+    stringBuf = nil,
     keyStack = nil,
     collectionStack = nil,
+    parseElemFuncStack = nil
 
     new = function(obj, content)
         obj = base.allocateInstance(obj)
         obj.content = content
         obj.readIndex = 0
+        obj.stringBuf = obj.stringBuf or {}
         obj.keyStack = base.clearTable(obj.keyStack or {})
         obj.collectionStack = base.clearTable(obj.collectionStack or {})
+        obj.parseElemFuncStack = base.clearTable(obj.parseElemFuncStack or {})
     end,
 }
 
@@ -205,12 +226,24 @@ base.declareClass(JSONParseContext)
 
 
 -- 尾调用基本需要提前声明，因为状态需要跳来跳去
-local __onParseArrayStart           = nil
-local __onParseArrayElements        = nil
-local __onParseArrayEnd             = nil
-local __onParseObjectStart          = nil
-local __onParseObjectPairs          = nil
-local __onParseObjectEnd            = nil
+local _onParseArrayStart            = nil
+local _onParseArrayItems            = nil
+local _onParseArrayEnd              = nil
+local _onParseObjectStart           = nil
+local _onParseObjectPairs           = nil
+local _onParseObjectEnd             = nil
+local _onParsePlainValue            = nil
+local _onParseCollectionSep         = nil
+local _onCheckParseSucceed          = nil
+
+
+local _JUMP_TABLE_ARRAY_START       = nil
+local _JUMP_TABLE_ARRAY_ITEMS       = nil
+local _JUMP_TABLE_ARRAY_END         = nil
+local _JUMP_TABLE_OBJECT_START      = nil
+local _JUMP_TABLE_OBJECT_PAIRS      = nil
+local _JUMP_TABLE_OBJECT_END        = nil
+local _JUMP_TABLE_PLAIN_VALUE       = nil
 
 
 local function __readNextNonspaceChar(ctx)
@@ -219,176 +252,122 @@ local function __readNextNonspaceChar(ctx)
     if nextIdx
     then
         ctx.readIndex = nextIdx
-        return __getCharAt(content, nextIdx)
+        local ch = __getCharAt(content, nextIdx)
+        local wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
+        return wordType, ch
     else
-        return nil
+        return _WORD_TYPE_END_OF_CONTENT
     end
 end
 
 
-local function __doOnParseCollectionStart = function(ctx,
-                                                       endToken,
-                                                       parseEndTokenFunc,
-                                                       parseElementsFunc)
-    local newCollection = {}
-    table.insert(ctx.collectionStack, newCollection)
+local function __doJumpState(jumpTbl, ctx, wordType)
+    -- 有可能在此之前已经读了一次
+    wordType = wordType or __readNextNonspaceChar(ctx)
 
-    local nextCh = __readNextNonspaceChar(ctx)
-    if not nextCh
+    -- 跳不到合法状态
+    local jumpFunc = jumpTbl[wordType]
+    if not jumpFunc
     then
-        -- 读到最后也没有结束这个集合
-        return RET_FAILED
+        return false
     end
 
-    if __isCollectionEndToken(nextCh)
-    then
-        -- 注意空集合和不匹配的结束符
-        return nextCh == endToken and parseEndTokenFunc(ctx) or RET_FAILED
-    else
-        return parseElementsFunc(ctx)
-    end
+    return jumpFunc(ctx, wordType)
 end
 
 
-__onParseArrayStart = function(ctx)
-    return __doOnParseCollectionStart(ctx,
-                                       _TOKEN_ARRAY_END,
-                                       __onParseArrayEnd,
-                                       __onParseArrayElements)
-end
+_onParseArrayStart = function(ctx)
+    table.insert(ctx.collectionStack, {})
+    table.insert(ctx.parseElemFuncStack, _onParseArrayItems)
 
-__onParseObjectStart = function(ctx)
-    return __doOnParseCollectionStart(ctx,
-                                       _TOKEN_OBJECT_END,
-                                       __onParseObjectEnd,
-                                       __onParseObjectPairs)
-end
-
-
-
-
-local function __doOnParseParentCollectionEnd(endToken, ctx)
-    if endToken == _TOKEN_ARRAY_END
+    if _JUMP_TABLE_ARRAY_START == nil
     then
-        return __onParseArrayEnd(ctx)
-    elseif endToken == _TOKEN_OBJECT_END
-    then
-        return __onParseObjectEnd(ctx)
-    else
-        return RET_FAILED
-    end
-end
-
-
--- 刚好 JSON 的 Object 只能用 String 作为 key
--- 那索性用 Number 作为 Array 的 key 好了
-local __isArrayElementKey   = base.isNumber
-local __isObjectPairKey     = base.isString
-
-local function __doOnParseNextElements(prevCollectionKey, ctx)
-    if __isArrayElementKey(prevCollectionKey)
-    then
-        return __onParseArrayElements(ctx)
-    elseif __isObjectPairKey(prevCollectionKey)
-    then
-        return __onParseObjectPairs(ctx)
-    else
-        return RET_FAILED
-    end
-end
-
-
-local function __doOnParseCollectionEnd(ctx, testKeyTypeFunc)
-    local keyStack = ctx.keyStack
-    local collectionStack = ctx.collectionStack
-
-    -- 即使最外层的集合结束了，可能也有多余的内容，例如 "[ 1, 2 ] 3"
-    if base.isEmptyTable(keyStack)
-    then
-        local nextCh = __readNextNonspaceChar(ctx)
-        if not nextCh
-        then
-            return RET_FAILED
-        else
-            return RET_SUCCEED, collectionStack[1]
-        end
+        _JUMP_TABLE_ARRAY_START =
+        {
+            _WORD_TYPE_CONSTANT     =   _onParseArrayItems,
+            _WORD_TYPE_NUMBER       =   _onParseArrayItems,
+            _WORD_TYPE_STRING       =   _onParseArrayItems,
+            _WORD_TYPE_ARRAY_START  =   _onParseArrayItems,
+            _WORD_TYPE_OBJECT_START =   _onParseArrayItems,
+            _WORD_TYPE_ARRAY_END    =   _onParseArrayEnd,
+        }
     end
 
-
-    -- 检查一下结束符是否合法
-    local key = table.remove(keyStack)
-    if not testKeyTypeFunc(key)
-    then
-        return RET_FAILED
-    end
-
-    local value = table.remove(collectionStack)
-    local topCollection = collectionStack[#collectionStack]
-    topCollection[key] = value
-
-    local nextCh = __readNextNonspaceChar(ctx)
-    if __isCollectionEndToken(nextCh) and not base.isEmptyTable(keyStack)
-    then
-        -- 父集合也刚好结束
-        return __doOnParseParentCollectionEnd(nextCh, ctx)
-    elseif nextCh == _TOKEN_COMMA
-    then
-        nextCh = __readNextNonspaceChar(ctx)
-        if nextCh
-        then
-            return __doOnParseNextElements(key, ctx)
-        end
-    end
-
-    return RET_FAILED
+    return __doJumpState(_JUMP_TABLE_ARRAY_START, ctx)
 end
 
 
-__onParseArrayEnd = function(ctx)
-    return __doOnParseCollectionEnd(ctx, __isArrayElementKey)
-end
+_onParseObjectStart = function(ctx)
+    table.insert(ctx.collectionStack, {})
+    table.insert(ctx.parseElemFuncStack, _onParseObjectPairs)
 
-__onParseObjectEnd = function(ctx)
-    return __doOnParseCollectionEnd(ctx, __isObjectPairKey)
-end
-
-
-__onParseArrayElements = function(ctx)
-    local collectionStack = ctx.collectionStack
-    local content = ctx.content
-    local curArray = collectionStack[#collectionStack]
-
-    -- 指针总是指向非空格字符
-    local ch = __getCharAt(content, ctx.readIndex)
-    while true
-    do
-        if ch == _TOKEN_ARRAY_START
-        then
-            table.insert(ctx.keyStack, #curArray)
-            return __onParseObjectStart(ctx)
-        elseif ch == _TOKEN_OBJECT_START
-        then
-            table.insert(ctx.keyStack, #curArray)
-            return __onParseArrayStart(ctx)
-        else
-            local ret, nextStartIdx, val = __parsePlainValue(content, ctx.readIndex)
-            if ret != RET_SUCCEED
-            then
-                return ret
-            end
-
-            table.insert(curArray, val)
-            ctx.readIndex = nextStartIdx
-
-            local nextCh = __readNextNonspaceChar(ctx)
-            if nextCh == _TOKEN_COMMA
-            then
-
-            end
-        end
-
-        ch = __readNextNonspaceChar(ctx)
+    if _JUMP_TABLE_OBJECT_START == nil
+    then
+        _JUMP_TABLE_OBJECT_START =
+        {
+            _WORD_TYPE_STRING       =   _onParseObjectPairs,
+            _WORD_TYPE_OBJECT_END   =   _onParseObjectEnd,
+        }
     end
+
+    return __doJumpState(_JUMP_TABLE_OBJECT_START, ctx)
+end
+
+
+local function __doParsePlainValue(ctx, wordType)
+    if _JUMP_TABLE_PLAIN_VALUE == nil
+    then
+        _JUMP_TABLE_PLAIN_VALUE =
+        {
+            _WORD_TYPE_CONSTANT     = _onParseConstant,
+            _WORD_TYPE_NUMBER       = _onParseNumber,
+            _WORD_TYPE_STRING       = _onParseString,
+        }
+    end
+
+    local parseFunc = _JUMP_TABLE_PLAIN_VALUE[wordType]
+    local ret, val = parseFunc and parseFunc(ctx) or false
+    return ret, val
+end
+
+
+local function __doOnParseCollectionSep(ctx)
+end
+
+
+local function __doOnParseCollectionItems(ctx, jumpTble)
+
+end
+
+_onParseArrayItems = function(ctx, wordType)
+    local ret, val = __doParsePlainValue(ctx, wordType)
+    if not ret
+    then
+        return false
+    end
+
+    table.insert(__getStackTop(ctx.collectionStack), val)
+
+    if _JUMP_TABLE_ARRAY_ITEMS == nil
+    then
+        _JUMP_TABLE_ARRAY_ITEMS =
+        {
+            _WORD_TYPE_COLLECTION_SEP   =   __doOnParseCollectionSep,
+            _WORD_TYPE_ARRAY_END        =   _onParseArrayEnd,
+        }
+    end
+
+    return __doJumpState(_JUMP_TABLE_ARRAY_ITEMS, ctx)
+end
+
+
+_onParseObjectPairs = function(ctx, wordType)
+    local ret, val = __doParsePlainValue(ctx, wordType)
+    if not ret
+    then
+        return false
+    end
+
 end
 
 
