@@ -10,24 +10,24 @@ local _TOKEN_COMMA      = ","
 local _TOKEN_BACKSLASH  = "\\"
 local _TOKEN_QUOTE      = "\""
 
-local _TOKEN_ESCAPABLE_QUOTE            = "\""
-local _TOKEN_ESCAPABLE_REVERSE_SOLIDUS  = "\\"
-local _TOKEN_ESCAPABLE_SOLIDUS          = "/"
-local _TOKEN_ESCAPABLE_FORMFEED         = "b"
-local _TOKEN_ESCAPABLE_NEWLINE          = "n"
-local _TOKEN_ESCAPABLE_CARRIAGE_RETURN  = "r"
-local _TOKEN_ESCAPABLE_HORIZONTAL_TAB   = "t"
-local _TOKEN_ESCAPABLE_UNICODE_PREFIX   = "u"
+local _TOKEN_ESCAPABLE_QUOTE                = "\""
+local _TOKEN_ESCAPABLE_REVERSE_SOLIDUS      = "\\"
+local _TOKEN_ESCAPABLE_SOLIDUS              = "/"
+local _TOKEN_ESCAPABLE_FORMFEED             = "b"
+local _TOKEN_ESCAPABLE_NEWLINE              = "n"
+local _TOKEN_ESCAPABLE_CARRIAGE_RETURN      = "r"
+local _TOKEN_ESCAPABLE_HORIZONTAL_TAB       = "t"
+local _TOKEN_ESCAPABLE_UNICODE_PREFIX       = "u"
 
 local _MAP_ESCAPABLE_ =
 {
-    _TOKEN_ESCAPABLE_QUOTE              = "\"",
-    _TOKEN_ESCAPABLE_REVERSE_SOLIDUS    = "\\",
-    _TOKEN_ESCAPABLE_SOLIDUS            = "/",
-    _TOKEN_ESCAPABLE_FORMFEED           = "\f",
-    _TOKEN_ESCAPABLE_NEWLINE            = "\n",
-    _TOKEN_ESCAPABLE_CARRIAGE_RETURN    = "\r",
-    _TOKEN_ESCAPABLE_HORIZONTAL_TAB     = "\t",
+    [_TOKEN_ESCAPABLE_QUOTE]                = "\"",
+    [_TOKEN_ESCAPABLE_REVERSE_SOLIDUS]      = "\\",
+    [_TOKEN_ESCAPABLE_SOLIDUS]              = "/",
+    [_TOKEN_ESCAPABLE_FORMFEED]             = "\f",
+    [_TOKEN_ESCAPABLE_NEWLINE]              = "\n",
+    [_TOKEN_ESCAPABLE_HORIZONTAL_TAB]       = "\t",
+    [_TOKEN_ESCAPABLE_CARRIAGE_RETURN]      = "\r",
 }
 
 
@@ -35,61 +35,138 @@ local _CONSTANT_TRUE    = "true"
 local _CONSTANT_FALSE   = "false"
 local _CONSTANT_NULL    = "null"
 
+-- 在 table 里声明 key = nil 是没用的囧
 local _MAP_CONSTANT =
 {
-    _CONSTANT_TRUE      = true,
-    _CONSTANT_FALSE     = false,
-    _CONSTANT_NULL      = nil,
+    _CONSTANT_NULL,   nil,
+    _CONSTANT_TRUE,   true,
+    _CONSTANT_FALSE,  false,
 }
 
 
-local _WORD_TYPE_ARRAY_START        = 0
-local _WORD_TYPE_ARRAY_END          = 1
-local _WORD_TYPE_OBJECT_START       = 2
-local _WORD_TYPE_OBJECT_END         = 3
-local _WORD_TYPE_COLLECTION_SEP     = 4
-local _WORD_TYPE_STRING             = 5
-local _WORD_TYPE_CONSTANT           = 6
-local _WORD_TYPE_NUMBER             = 7
-local _WORD_TYPE_END_OF_CONTENT     = 8
-local _WORD_TYPE_UNKNOWN            = 9
+local _WORD_TYPE_ARRAY_START        = 1
+local _WORD_TYPE_ARRAY_END          = 2
+local _WORD_TYPE_OBJECT_START       = 3
+local _WORD_TYPE_OBJECT_END         = 4
+local _WORD_TYPE_PAIR_SEP           = 5
+local _WORD_TYPE_COLLECTION_SEP     = 6
+local _WORD_TYPE_STRING             = 7
+local _WORD_TYPE_CONSTANT           = 8
+local _WORD_TYPE_NUMBER             = 9
+local _WORD_TYPE_END_OF_CONTENT     = 10
+local _WORD_TYPE_UNKNOWN            = 11
 
 local _MAP_WORD_TYPE =
 {
-    _TOKEN_LBRACKET     = _WORD_TYPE_ARRAY_END,
-    _TOKEN_RBRACKET     = _WORD_TYPE_ARRAY_END,
-    _TOKEN_LBRACE       = _WORD_TYPE_OBJECT_START,
-    _TOKEN_RBRACE       = _WORD_TYPE_OBJECT_END,
-    _TOKEN_COMMA        = _WORD_TYPE_COLLECTION_SEP,
-    _TOKEN_QUOTE        = _WORD_TYPE_STRING,
+    [_TOKEN_LBRACKET]   = _WORD_TYPE_ARRAY_START,
+    [_TOKEN_RBRACKET]   = _WORD_TYPE_ARRAY_END,
+    [_TOKEN_LBRACE]     = _WORD_TYPE_OBJECT_START,
+    [_TOKEN_RBRACE]     = _WORD_TYPE_OBJECT_END,
+    [_TOKEN_COLON]      = _WORD_TYPE_PAIR_SEP,
+    [_TOKEN_COMMA]      = _WORD_TYPE_COLLECTION_SEP,
+    [_TOKEN_QUOTE]      = _WORD_TYPE_STRING,
 
-    "t"                 = _WORD_TYPE_CONSTANT,      -- true
-    "f"                 = _WORD_TYPE_CONSTANT,      -- false
-    "n"                 = _WORD_TYPE_CONSTANT,      -- null
 
-    "-"                 = _WORD_TYPE_NUMBER,
-    "0"                 = _WORD_TYPE_NUMBER,
-    "1"                 = _WORD_TYPE_NUMBER,
-    "2"                 = _WORD_TYPE_NUMBER,
-    "3"                 = _WORD_TYPE_NUMBER,
-    "4"                 = _WORD_TYPE_NUMBER,
-    "5"                 = _WORD_TYPE_NUMBER,
-    "6"                 = _WORD_TYPE_NUMBER,
-    "7"                 = _WORD_TYPE_NUMBER,
-    "8"                 = _WORD_TYPE_NUMBER,
-    "9"                 = _WORD_TYPE_NUMBER,
+    ["t"]               = _WORD_TYPE_CONSTANT,      -- true
+    ["f"]               = _WORD_TYPE_CONSTANT,      -- false
+    ["n"]               = _WORD_TYPE_CONSTANT,      -- null
+
+    ["-"]               = _WORD_TYPE_NUMBER,
+    ["0"]               = _WORD_TYPE_NUMBER,
+    ["1"]               = _WORD_TYPE_NUMBER,
+    ["2"]               = _WORD_TYPE_NUMBER,
+    ["3"]               = _WORD_TYPE_NUMBER,
+    ["4"]               = _WORD_TYPE_NUMBER,
+    ["5"]               = _WORD_TYPE_NUMBER,
+    ["6"]               = _WORD_TYPE_NUMBER,
+    ["7"]               = _WORD_TYPE_NUMBER,
+    ["8"]               = _WORD_TYPE_NUMBER,
+    ["9"]               = _WORD_TYPE_NUMBER,
 }
+
+
+local JSONParseContext =
+{
+    result = nil,
+    content = nil,
+    readIndex = nil,
+    stringBuf = nil,
+    keyStack = nil,
+    collectionStack = nil,
+    addItemFuncStack = nil,
+    parseItemListFuncStack = nil,
+
+    new = function(obj)
+        obj = base.allocateInstance(obj)
+        obj.content = nil
+        obj.readIndex = 0
+        obj.stringBuf = {}
+        obj.keyStack = {}
+        obj.collectionStack = {}
+        obj.addItemFuncStack = {}
+        obj.parseItemListFuncStack = {}
+        return obj
+    end,
+
+    _reset = function(self, content)
+        self.result = nil
+        self.content = content
+        self.readIndex = 0
+        base.clearTable(self.stringBuf)
+        base.clearTable(self.keyStack)
+        base.clearTable(self.collectionStack)
+        base.clearTable(self.addItemFuncStack)
+        base.clearTable(self.parseItemListFuncStack)
+    end
+}
+
+base.declareClass(JSONParseContext)
+
+
+local _onParseArrayStart            = nil
+local _onParseArrayElementList      = nil
+local _onAddArrayElement            = nil
+local _onParseArrayEnd              = nil
+
+local _onParseObjectStart           = nil
+local _onParseObjectPairList        = nil
+local _onParseObjectPair            = nil
+local _onParseObjectPairSep         = nil
+local _onAddObjectKey               = nil
+local _onAddObjectValue             = nil
+local _onParseObjectEnd             = nil
+
+local _onParseCollectionItemSep     = nil
+local _onCheckHasRemainingContent   = nil
+
+local _onParseNumber                = nil
+local _onParseString                = nil
+local _onParseConstant              = nil
+
+
+local _JUMP_TABLE_PARSE_ARRAY_START             = nil
+local _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST      = nil
+local _JUMP_TABLE_ADD_ARRAY_ELEMENT             = nil
+
+local _JUMP_TABLE_PARSE_OBJECT_START            = nil
+local _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST        = nil
+local _JUMP_TABLE_ADD_OBJECT_KEY                = nil
+local _JUMP_TABLE_ADD_OBJECT_VALUE              = nil
+
+local _JUMP_TABLE_INITIAL                        = nil
+
 
 
 local _PATTERN_NONSPACE_CHAR        = "([^%s])"
 local _PATTERN_QUOTE_OR_ESCAPE      = "([\"\\])"
 local _PATTERN_FOUR_HEX             = "(%x%x%x%x)"
-local _PATTERN_NUMBER               = "%s*(%-?%d+%.?%d*[eE]?[+-]?%d*)"
+local _PATTERN_NUMBER               = "(%-?%d+%.?%d+[eE]?[+-]?%d*)"
 
 local _UNICODE_NUMBER_BASE          = 16
 
+
 local function __getCharAt(str, idx)
-    return str and idx and str:sub(idx, idx + 1) or nil
+    return str and idx and str:sub(idx, idx) or nil
 end
 
 local function __getStackTop(stack)
@@ -100,15 +177,50 @@ local function __convertByteToString(byteVal)
     return string.char(byteVal)
 end
 
+local function __callAddItemFuncSafelly(ctx, arg)
+    local func = __getStackTop(ctx.addItemFuncStack)
+    return func and func(ctx, arg) or false
+end
 
 
-local function _onParseString(ctx)
+local function __readNextNonspaceChar(ctx)
+    local content = ctx.content
+    local nextIdx = content:find(_PATTERN_NONSPACE_CHAR, ctx.readIndex + 1, false)
+    if nextIdx
+    then
+        ctx.readIndex = nextIdx
+        local ch = __getCharAt(content, nextIdx)
+        local wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
+        return wordType, ch
+    else
+        return _WORD_TYPE_END_OF_CONTENT
+    end
+end
+
+
+local function __doJumpState(jumpTbl, ctx, wordType)
+    -- 有可能在此之前已经读了一次
+    wordType = wordType or __readNextNonspaceChar(ctx)
+
+    -- 跳不到合法状态
+    local jumpFunc = jumpTbl[wordType]
+    if not jumpFunc
+    then
+        return false
+    end
+
+    return jumpFunc(ctx, wordType)
+end
+
+
+_onParseString = function(ctx)
     local buf = ctx.stringBuf
     local content = ctx.content
 
     local result = nil
+    local hasStartQuote = false
     local findStartIdx = ctx.readIndex
-    local nextStartIdx = ctx.readIndex
+    local stringEndIdx = ctx.readIndex
     while true
     do
         local idx = content:find(_PATTERN_QUOTE_OR_ESCAPE, findStartIdx, false)
@@ -116,14 +228,29 @@ local function _onParseString(ctx)
         then
             -- 读到结尾字符串还没结束
             break
+        elseif not hasStartQuote
+        then
+            if idx == findStartIdx
+            then
+                findStartIdx = findStartIdx + 1
+                hasStartQuote = true
+            else
+                return false
+            end
         elseif __getCharAt(content, idx) == _TOKEN_QUOTE
         then
             -- 字符串结束
-            table.insert(buf, content:sub(content, idx))
+            table.insert(buf, content:sub(findStartIdx, idx - 1))
             result = table.concat(buf)
-            nextStartIdx = idx + 1,
+            stringEndIdx = idx + 1
             break
         else
+            -- 例如 "abc\n123" 遇到转义起始字符，先保存已解释的部分
+            if findStartIdx < idx
+            then
+                table.insert(buf, content:sub(findStartIdx, idx - 1))
+            end
+
             -- 注意有可能最后一个字符就是反斜杠
             local nextChIdx = idx + 1
             local nextCh = (nextChIdx == #content) and nil or __getCharAt(content, nextChIdx)
@@ -159,41 +286,42 @@ local function _onParseString(ctx)
 
     if result
     then
-        ctx.readIndex = math.min(ctx.readIndex, nextStartIdx - 1)
-        return true, result
+        ctx.readIndex = stringEndIdx
+        return __callAddItemFuncSafelly(ctx, result)
     else
         return false
     end
 end
 
 
-
-local function _onParseNumber(ctx)
+_onParseNumber = function(ctx)
+    local result = nil
     local content = ctx.content
-    local numStr = content:find(ctx.readIndex, _PATTERN_NUMBER, false)
-    local num = numStr and tonumber(numStr) or nil
-    if num
+    local startIdx = ctx.readIndex
+    local matchIdx = content:find(_PATTERN_NUMBER, startIdx, false)
+    if matchIdx == startIdx
     then
+        local numStr = content:match(_PATTERN_NUMBER, startIdx)
         ctx.readIndex = ctx.readIndex + #numStr - 1
-        return true, num
-    else
-        return false
+        result = tonumber(numStr)
     end
+
+    return result and __callAddItemFuncSafelly(ctx, result) or false
 end
 
 
 
-local function _onParseConstant(ctx)
+_onParseConstant = function(ctx)
     local content = ctx.content
     local startIdx = ctx.readIndex
     local strEndIdx = #content
-    for constName, val in ipairs(_MAP_CONSTANT)
+    for _, constName, val in base.iteratePairsArray(_MAP_CONSTANT)
     do
         local subStrEndIdx = startIdx + #constName - 1
-        if subStrEndIdx <= strEndIdx and :sub(startIdx, subStrEndIdx) == constName
+        if subStrEndIdx <= strEndIdx and content:sub(startIdx, subStrEndIdx) == constName
         then
             ctx.readIndex = ctx.readIndex + #constName - 1
-            return true, val
+            return __callAddItemFuncSafelly(ctx, val)
         end
     end
 
@@ -201,175 +329,183 @@ local function _onParseConstant(ctx)
 end
 
 
-
-local JSONParseContext =
-{
-    content = nil,
-    readIndex = nil,
-    stringBuf = nil,
-    keyStack = nil,
-    collectionStack = nil,
-    parseElemFuncStack = nil
-
-    new = function(obj, content)
-        obj = base.allocateInstance(obj)
-        obj.content = content
-        obj.readIndex = 0
-        obj.stringBuf = obj.stringBuf or {}
-        obj.keyStack = base.clearTable(obj.keyStack or {})
-        obj.collectionStack = base.clearTable(obj.collectionStack or {})
-        obj.parseElemFuncStack = base.clearTable(obj.parseElemFuncStack or {})
-    end,
-}
-
-base.declareClass(JSONParseContext)
-
-
--- 尾调用基本需要提前声明，因为状态需要跳来跳去
-local _onParseArrayStart            = nil
-local _onParseArrayItems            = nil
-local _onParseArrayEnd              = nil
-local _onParseObjectStart           = nil
-local _onParseObjectPairs           = nil
-local _onParseObjectEnd             = nil
-local _onParsePlainValue            = nil
-local _onParseCollectionSep         = nil
-local _onCheckParseSucceed          = nil
-
-
-local _JUMP_TABLE_ARRAY_START       = nil
-local _JUMP_TABLE_ARRAY_ITEMS       = nil
-local _JUMP_TABLE_ARRAY_END         = nil
-local _JUMP_TABLE_OBJECT_START      = nil
-local _JUMP_TABLE_OBJECT_PAIRS      = nil
-local _JUMP_TABLE_OBJECT_END        = nil
-local _JUMP_TABLE_PLAIN_VALUE       = nil
-
-
-local function __readNextNonspaceChar(ctx)
-    local content = ctx.content
-    local nextIdx = content:find(_PATTERN_NONSPACE_CHAR, ctx.readIndex + 1, false)
-    if nextIdx
-    then
-        ctx.readIndex = nextIdx
-        local ch = __getCharAt(content, nextIdx)
-        local wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
-        return wordType, ch
-    else
-        return _WORD_TYPE_END_OF_CONTENT
-    end
+_onParseCollectionItemSep = function(ctx)
+    local wordType = __readNextNonspaceChar(ctx)
+    local topParseListFunc = __getStackTop(ctx.addItemFuncStack)
+    return topParseListFunc and topParseListFunc(ctx, wordType) or false
 end
 
 
-local function __doJumpState(jumpTbl, ctx, wordType)
-    -- 有可能在此之前已经读了一次
-    wordType = wordType or __readNextNonspaceChar(ctx)
+local function __doOnParseCollectionStart(ctx, addItemFunc, parseItemListFunc)
+    table.insert(ctx.collectionStack, {})
+    table.insert(ctx.addItemFuncStack, addItemFunc)
+    table.insert(ctx.parseItemListFuncStack, parseItemListFunc)
 
-    -- 跳不到合法状态
-    local jumpFunc = jumpTbl[wordType]
-    if not jumpFunc
-    then
-        return false
-    end
-
-    return jumpFunc(ctx, wordType)
+    local wordType = __readNextNonspaceChar(ctx)
+    return parseItemListFunc(ctx, wordType)
 end
 
 
 _onParseArrayStart = function(ctx)
-    table.insert(ctx.collectionStack, {})
-    table.insert(ctx.parseElemFuncStack, _onParseArrayItems)
-
-    if _JUMP_TABLE_ARRAY_START == nil
-    then
-        _JUMP_TABLE_ARRAY_START =
-        {
-            _WORD_TYPE_CONSTANT     =   _onParseArrayItems,
-            _WORD_TYPE_NUMBER       =   _onParseArrayItems,
-            _WORD_TYPE_STRING       =   _onParseArrayItems,
-            _WORD_TYPE_ARRAY_START  =   _onParseArrayItems,
-            _WORD_TYPE_OBJECT_START =   _onParseArrayItems,
-            _WORD_TYPE_ARRAY_END    =   _onParseArrayEnd,
-        }
-    end
-
-    return __doJumpState(_JUMP_TABLE_ARRAY_START, ctx)
+    return __doOnParseCollectionStart(ctx, _onAddArrayElement, _onParseArrayElementList)
 end
-
 
 _onParseObjectStart = function(ctx)
-    table.insert(ctx.collectionStack, {})
-    table.insert(ctx.parseElemFuncStack, _onParseObjectPairs)
+    -- JSON 规定对象的 key 只能是字符串
+    return __doOnParseCollectionStart(ctx, _onAddObjectKey, _onParseObjectPairList)
+end
 
-    if _JUMP_TABLE_OBJECT_START == nil
+
+local function __doOnParseCollectionEnd(ctx)
+    table.remove(ctx.addItemFuncStack)
+    table.remove(ctx.parseItemListFuncStack)
+    local collection = table.remove(ctx.collectionStack)
+    return __callAddItemFuncSafelly(ctx, collection)
+end
+
+_onParseArrayEnd = __doOnParseCollectionEnd
+_onParseObjectEnd = __doOnParseCollectionEnd
+
+
+
+_onParseArrayElementList = function(ctx, wordType)
+    -- 分派到对应的解释流程
+    if _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST == nil
     then
-        _JUMP_TABLE_OBJECT_START =
+        _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST =
         {
-            _WORD_TYPE_STRING       =   _onParseObjectPairs,
-            _WORD_TYPE_OBJECT_END   =   _onParseObjectEnd,
+            [_WORD_TYPE_CONSTANT]       = _onParseConstant,
+            [_WORD_TYPE_NUMBER]         = _onParseNumber,
+            [_WORD_TYPE_STRING]         = _onParseString,
+            [_WORD_TYPE_ARRAY_START]    = _onParseArrayStart,
+            [_WORD_TYPE_OBJECT_START]   = _onParseObjectStart,
+            [_WORD_TYPE_ARRAY_END]      = _onParseArrayEnd,
         }
     end
 
-    return __doJumpState(_JUMP_TABLE_OBJECT_START, ctx)
+    return __doJumpState(_JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST, ctx, wordType)
 end
 
 
-local function __doParsePlainValue(ctx, wordType)
-    if _JUMP_TABLE_PLAIN_VALUE == nil
+_onAddArrayElement = function(ctx, val)
+    local curArray = __getStackTop(ctx.collectionStack)
+    local elementIdx = table.remove(ctx.keyStack)
+    curArray[#curArray] = val
+
+    if _JUMP_TABLE_ADD_ARRAY_ELEMENT == nil
     then
-        _JUMP_TABLE_PLAIN_VALUE =
+        _JUMP_TABLE_ADD_ARRAY_ELEMENT =
         {
-            _WORD_TYPE_CONSTANT     = _onParseConstant,
-            _WORD_TYPE_NUMBER       = _onParseNumber,
-            _WORD_TYPE_STRING       = _onParseString,
+            _WORD_TYPE_COLLECTION_SEP   = _onParseCollectionItemSep,
+            _WORD_TYPE_ARRAY_END        = _onParseArrayEnd,
         }
     end
 
-    local parseFunc = _JUMP_TABLE_PLAIN_VALUE[wordType]
-    local ret, val = parseFunc and parseFunc(ctx) or false
-    return ret, val
+    return __doJumpState(_JUMP_TABLE_ADD_ARRAY_ELEMENT, ctx)
 end
 
 
-local function __doOnParseCollectionSep(ctx)
+
+_onParseObjectPairList = function(ctx, wordType)
+    -- 接收到字符串作为 key
+    local addItemFuncStack = ctx.addItemFuncStack
+    addItemFuncStack[#addItemFuncStack] = _onAddObjectKey
+
+    if _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST == nil
+    then
+        _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST =
+        {
+            [_WORD_TYPE_STRING]         = _onParseString,
+            [_WORD_TYPE_OBJECT_END]     = _onParseObjectEnd,
+        }
+    end
+
+    return __doJumpState(ctx, _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST, wordType)
 end
 
 
-local function __doOnParseCollectionItems(ctx, jumpTble)
+_onAddObjectKey = function(ctx, val)
+    table.insert(ctx.keyStack, val)
 
-end
-
-_onParseArrayItems = function(ctx, wordType)
-    local ret, val = __doParsePlainValue(ctx, wordType)
-    if not ret
+    -- 跳过 key-value 分割符
+    if __readNextNonspaceChar(ctx) ~= _WORD_TYPE_PAIR_SEP
     then
         return false
     end
 
-    table.insert(__getStackTop(ctx.collectionStack), val)
+    -- 下次接收的值就是 value 所以要把回调状态改一下
+    local addItemFuncStack = ctx.addItemFuncStack
+    addItemFuncStack[#addItemFuncStack] = _onAddObjectValue
 
-    if _JUMP_TABLE_ARRAY_ITEMS == nil
+    if _JUMP_TABLE_ADD_OBJECT_KEY == nil
     then
-        _JUMP_TABLE_ARRAY_ITEMS =
+        _JUMP_TABLE_ADD_OBJECT_KEY =
         {
-            _WORD_TYPE_COLLECTION_SEP   =   __doOnParseCollectionSep,
-            _WORD_TYPE_ARRAY_END        =   _onParseArrayEnd,
+            [_WORD_TYPE_CONSTANT]       = _onParseConstant,
+            [_WORD_TYPE_NUMBER]         = _onParseNumber,
+            [_WORD_TYPE_STRING]         = _onParseString,
+            [_WORD_TYPE_ARRAY_START]    = _onParseArrayStart,
+            [_WORD_TYPE_OBJECT_START]   = _onParseObjectStart,
         }
     end
 
-    return __doJumpState(_JUMP_TABLE_ARRAY_ITEMS, ctx)
+    return __doJumpState(ctx)
 end
 
 
-_onParseObjectPairs = function(ctx, wordType)
-    local ret, val = __doParsePlainValue(ctx, wordType)
-    if not ret
+_onAddObjectValue = function(ctx, val)
+    local key = table.remove(ctx.keyStack)
+    __getStackTop(ctx.collectionStack)[key] = val
+
+    if _JUMP_TABLE_ADD_OBJECT_VALUE == nil
     then
-        return false
+        _JUMP_TABLE_ADD_OBJECT_VALUE =
+        {
+            [_WORD_TYPE_COLLECTION_SEP]     = _onParseCollectionItemSep,
+            [_WORD_TYPE_OBJECT_END]         = _onParseObjectEnd
+        }
     end
 
+    return __doJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_VALUE)
+end
+
+
+_onCheckHasRemainingContent = function(ctx, val)
+    if __readNextNonspaceChar(ctx) == _WORD_TYPE_END_OF_CONTENT
+    then
+        ctx.result = val
+        return true
+    else
+        return false
+    end
+end
+
+
+
+local function parse(content, ctx)
+    ctx = ctx or JSONParseContext:new()
+    ctx:_reset(content)
+
+    -- 完成解释后，检测有没有多余的内容，例如 "[ 1 ] abc"
+    table.insert(ctx.addItemFuncStack, _onCheckHasRemainingContent)
+
+    if _JUMP_TABLE_INITIAL == nil
+    then
+        _JUMP_TABLE_INITIAL =
+        {
+            [_WORD_TYPE_CONSTANT]       = _onParseConstant,
+            [_WORD_TYPE_NUMBER]         = _onParseNumber,
+            [_WORD_TYPE_STRING]         = _onParseString,
+            [_WORD_TYPE_ARRAY_START]    = _onParseArrayStart,
+            [_WORD_TYPE_OBJECT_START]   = _onParseObjectStart,
+        }
+    end
+
+    local succeed = __doJumpState(_JUMP_TABLE_INITIAL, ctx)
+    return succeed, ctx.result
 end
 
 
 local _M = {}
+_M.parse = parse
 return _M

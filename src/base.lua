@@ -109,17 +109,17 @@ function _M.binarySearchList(list, cond, val)
 end
 
 
-function _M.iteratePairsArray(array, startIdx)
-    local function __impl(array, idx)
-        if idx + 1 > #array
-        then
-            return nil
-        end
-
-        return idx + 2, array[idx], array[idx + 1]
+local function __doIteratePairsArray(array, idx)
+    if idx + 1 > #array
+    then
+        return nil
     end
 
-    return __impl, array, startIdx or 1
+    return idx + 2, array[idx], array[idx + 1]
+end
+
+function _M.iteratePairsArray(array, startIdx)
+    return __doIteratePairsArray, array, startIdx or 1
 end
 
 
