@@ -159,8 +159,8 @@ local _JUMP_TABLE_INITIAL                        = nil
 
 local _PATTERN_NONSPACE_CHAR        = "([^%s])"
 local _PATTERN_QUOTE_OR_ESCAPE      = "([\"\\])"
-local _PATTERN_FOUR_HEX             = "(%x%x%x%x)"
-local _PATTERN_NUMBER               = "(%-?%d+%.?%d+[eE]?[+-]?%d*)"
+local _PATTERN_FOUR_HEX             = "^(%x%x%x%x)"
+local _PATTERN_NUMBER               = "^(%-?%d+%.%d+?[eE]?[+-]?%d*)" --TODO !!!!
 
 local _UNICODE_NUMBER_BASE          = 16
 
@@ -173,43 +173,36 @@ local function __getStackTop(stack)
     return stack[#stack]
 end
 
-local function __convertByteToString(byteVal)
-    return string.char(byteVal)
-end
-
 local function __callAddItemFuncSafelly(ctx, arg)
     local func = __getStackTop(ctx.addItemFuncStack)
     return func and func(ctx, arg) or false
 end
 
 
-local function __readNextNonspaceChar(ctx)
+local function __readNextWord(ctx, jumpFunc, jumpTbl)
     local content = ctx.content
     local nextIdx = content:find(_PATTERN_NONSPACE_CHAR, ctx.readIndex + 1, false)
+    local wordType = _WORD_TYPE_END_OF_CONTENT
     if nextIdx
     then
         ctx.readIndex = nextIdx
         local ch = __getCharAt(content, nextIdx)
-        local wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
-        return wordType, ch
-    else
-        return _WORD_TYPE_END_OF_CONTENT
+        wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
     end
+
+    return jumpFunc and jumpFunc(ctx, wordType, jumpTbl) or wordType
 end
 
 
-local function __doJumpState(jumpTbl, ctx, wordType)
-    -- 有可能在此之前已经读了一次
-    wordType = wordType or __readNextNonspaceChar(ctx)
-
-    -- 跳不到合法状态
+local function __jumpState(ctx, wordType, jumpTbl)
+    -- 有可能跳不到合法状态
     local jumpFunc = jumpTbl[wordType]
-    if not jumpFunc
-    then
-        return false
-    end
+    return jumpFunc and jumpFunc(ctx, wordType) or false
+end
 
-    return jumpFunc(ctx, wordType)
+
+local function __readNextAndJumpState(ctx, jumpTbl)
+    return __readNextWord(ctx, __jumpState, jumpTbl)
 end
 
 
@@ -260,11 +253,11 @@ _onParseString = function(ctx)
             elseif nextCh == _TOKEN_ESCAPABLE_UNICODE_PREFIX
             then
                 -- \uXXXX
-                local hexStr = content:find(_PATTERN_FOUR_HEX, nextChIdx + 1, false)
+                local hexStr = content:match(_PATTERN_FOUR_HEX, nextChIdx + 1)
                 local codePoint = hexStr and tonumber(hexStr, _UNICODE_NUMBER_BASE) or nil
                 if codePoint
                 then
-                    encoding.getUTF8Bytes(codePoint, buf, #buf + 1, __convertByteToString)
+                    encoding.getUTF8Bytes(codePoint, buf, string.char)
                     findStartIdx = nextChIdx + #hexStr + 1
                 else
                     break
@@ -295,13 +288,12 @@ end
 
 
 _onParseNumber = function(ctx)
-    local result = nil
     local content = ctx.content
     local startIdx = ctx.readIndex
-    local matchIdx = content:find(_PATTERN_NUMBER, startIdx, false)
-    if matchIdx == startIdx
+    local numStr = content:match(_PATTERN_NUMBER, startIdx)
+    local result = nil
+    if numStr
     then
-        local numStr = content:match(_PATTERN_NUMBER, startIdx)
         ctx.readIndex = ctx.readIndex + #numStr - 1
         result = tonumber(numStr)
     end
@@ -330,7 +322,7 @@ end
 
 
 _onParseCollectionItemSep = function(ctx)
-    local wordType = __readNextNonspaceChar(ctx)
+    local wordType = __readNextWord(ctx)
     local topParseListFunc = __getStackTop(ctx.addItemFuncStack)
     return topParseListFunc and topParseListFunc(ctx, wordType) or false
 end
@@ -341,7 +333,7 @@ local function __doOnParseCollectionStart(ctx, addItemFunc, parseItemListFunc)
     table.insert(ctx.addItemFuncStack, addItemFunc)
     table.insert(ctx.parseItemListFuncStack, parseItemListFunc)
 
-    local wordType = __readNextNonspaceChar(ctx)
+    local wordType = __readNextWord(ctx)
     return parseItemListFunc(ctx, wordType)
 end
 
@@ -383,7 +375,7 @@ _onParseArrayElementList = function(ctx, wordType)
         }
     end
 
-    return __doJumpState(_JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST, ctx, wordType)
+    return __jumpState(ctx, wordType, _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST)
 end
 
 
@@ -401,7 +393,7 @@ _onAddArrayElement = function(ctx, val)
         }
     end
 
-    return __doJumpState(_JUMP_TABLE_ADD_ARRAY_ELEMENT, ctx)
+    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_ARRAY_ELEMENT)
 end
 
 
@@ -420,7 +412,7 @@ _onParseObjectPairList = function(ctx, wordType)
         }
     end
 
-    return __doJumpState(ctx, _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST, wordType)
+    return __jumpState(ctx, wordType, _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST)
 end
 
 
@@ -428,7 +420,7 @@ _onAddObjectKey = function(ctx, val)
     table.insert(ctx.keyStack, val)
 
     -- 跳过 key-value 分割符
-    if __readNextNonspaceChar(ctx) ~= _WORD_TYPE_PAIR_SEP
+    if __readNextWord(ctx) ~= _WORD_TYPE_PAIR_SEP
     then
         return false
     end
@@ -449,7 +441,7 @@ _onAddObjectKey = function(ctx, val)
         }
     end
 
-    return __doJumpState(ctx)
+    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_KEY)
 end
 
 
@@ -466,12 +458,12 @@ _onAddObjectValue = function(ctx, val)
         }
     end
 
-    return __doJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_VALUE)
+    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_VALUE)
 end
 
 
 _onCheckHasRemainingContent = function(ctx, val)
-    if __readNextNonspaceChar(ctx) == _WORD_TYPE_END_OF_CONTENT
+    if __readNextWord(ctx) == _WORD_TYPE_END_OF_CONTENT
     then
         ctx.result = val
         return true
@@ -501,7 +493,7 @@ local function parse(content, ctx)
         }
     end
 
-    local succeed = __doJumpState(_JUMP_TABLE_INITIAL, ctx)
+    local succeed = __readNextAndJumpState(ctx, _JUMP_TABLE_INITIAL)
     return succeed, ctx.result
 end
 
