@@ -141,15 +141,15 @@ end
 
 
 function _M.clearTable(t)
-    if not _M.isTable(t)
+    if _M.isTable(t)
     then
-        return
+        for k, v in pairs(t)
+        do
+            t[k] = nil
+        end
     end
 
-    for k, v in pairs(t)
-    do
-        t[k] = nil
-    end
+    return t
 end
 
 

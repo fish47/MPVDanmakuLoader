@@ -125,18 +125,18 @@ base.declareClass(JSONParseContext)
 
 local _onParseArrayStart            = nil
 local _onParseArrayElementList      = nil
-local _onAddArrayElement            = nil
 local _onParseArrayEnd              = nil
 
 local _onParseObjectStart           = nil
 local _onParseObjectPairList        = nil
 local _onParseObjectPair            = nil
-local _onParseObjectPairSep         = nil
-local _onAddObjectKey               = nil
-local _onAddObjectValue             = nil
 local _onParseObjectEnd             = nil
 
 local _onParseCollectionItemSep     = nil
+
+local _onAddArrayElement            = nil
+local _onAddObjectKey               = nil
+local _onAddObjectValue             = nil
 local _onCheckHasRemainingContent   = nil
 
 local _onParseNumber                = nil
@@ -157,10 +157,13 @@ local _JUMP_TABLE_INITIAL                        = nil
 
 
 
-local _PATTERN_NONSPACE_CHAR        = "([^%s])"
-local _PATTERN_QUOTE_OR_ESCAPE      = "([\"\\])"
-local _PATTERN_FOUR_HEX             = "^(%x%x%x%x)"
-local _PATTERN_NUMBER               = "^(%-?%d+%.%d+?[eE]?[+-]?%d*)" --TODO !!!!
+local _PATTERN_NONSPACE_CHAR            = "([^%s])"
+local _PATTERN_QUOTE_OR_ESCAPE          = "([\"\\])"
+local _PATTERN_FOUR_HEX                 = "^(%x%x%x%x)"
+local _PATTERN_NUMBER_DECIMAL_PART      = "^(%-?%d+)"
+local _PATTERN_NUMBER_FRACTIONAL_PART   = "^(%.%d+)"
+local _PATTERN_NUMBER_EXPONENTIAL_PART  = "^([eE][+-]?%d+)"
+local _PATTERN_NUMBER_LEADING_ZREOS     = "^00+"
 
 local _UNICODE_NUMBER_BASE          = 16
 
@@ -173,13 +176,18 @@ local function __getStackTop(stack)
     return stack[#stack]
 end
 
-local function __callAddItemFuncSafelly(ctx, arg)
+local function __jumpAddItemStateSafelly(ctx, arg)
     local func = __getStackTop(ctx.addItemFuncStack)
-    return func and func(ctx, arg) or false
+    if func
+    then
+        return func(ctx, arg)
+    else
+        return false
+    end
 end
 
 
-local function __readNextWord(ctx, jumpFunc, jumpTbl)
+local function __readNextWord(ctx, nextCallFunc, arg)
     local content = ctx.content
     local nextIdx = content:find(_PATTERN_NONSPACE_CHAR, ctx.readIndex + 1, false)
     local wordType = _WORD_TYPE_END_OF_CONTENT
@@ -190,30 +198,52 @@ local function __readNextWord(ctx, jumpFunc, jumpTbl)
         wordType = _MAP_WORD_TYPE[ch] or _WORD_TYPE_UNKNOWN
     end
 
-    return jumpFunc and jumpFunc(ctx, wordType, jumpTbl) or wordType
+    -- 不要用 return CONDITION and CALL_F1() or CALL_F2() 的写法，
+    -- 只要判断条件内的方法未执行完，都不会退栈，就样就不是尾调用了囧
+    if nextCallFunc
+    then
+        return nextCallFunc(ctx, wordType, arg)
+    else
+        return wordType
+    end
 end
 
 
 local function __jumpState(ctx, wordType, jumpTbl)
     -- 有可能跳不到合法状态
     local jumpFunc = jumpTbl[wordType]
-    return jumpFunc and jumpFunc(ctx, wordType) or false
+    if jumpFunc
+    then
+        return jumpFunc(ctx, wordType)
+    else
+        return false
+    end
 end
 
 
-local function __readNextAndJumpState(ctx, jumpTbl)
+local function __readNextAndJumpStateByTable(ctx, jumpTbl)
     return __readNextWord(ctx, __jumpState, jumpTbl)
 end
 
 
+local function __readNextAndJumpState(ctx, stateFunc)
+    if stateFunc
+    then
+        return __readNextWord(ctx, stateFunc)
+    else
+        return false
+    end
+end
+
+
 _onParseString = function(ctx)
-    local buf = ctx.stringBuf
+    local buf = base.clearTable(ctx.stringBuf)
     local content = ctx.content
 
     local result = nil
     local hasStartQuote = false
     local findStartIdx = ctx.readIndex
-    local stringEndIdx = ctx.readIndex
+    local stringLastIdx = ctx.readIndex
     while true
     do
         local idx = content:find(_PATTERN_QUOTE_OR_ESCAPE, findStartIdx, false)
@@ -235,7 +265,7 @@ _onParseString = function(ctx)
             -- 字符串结束
             table.insert(buf, content:sub(findStartIdx, idx - 1))
             result = table.concat(buf)
-            stringEndIdx = idx + 1
+            stringLastIdx = idx
             break
         else
             -- 例如 "abc\n123" 遇到转义起始字符，先保存已解释的部分
@@ -279,8 +309,8 @@ _onParseString = function(ctx)
 
     if result
     then
-        ctx.readIndex = stringEndIdx
-        return __callAddItemFuncSafelly(ctx, result)
+        ctx.readIndex = stringLastIdx
+        return __jumpAddItemStateSafelly(ctx, result)
     else
         return false
     end
@@ -290,7 +320,32 @@ end
 _onParseNumber = function(ctx)
     local content = ctx.content
     local startIdx = ctx.readIndex
-    local numStr = content:match(_PATTERN_NUMBER, startIdx)
+    local matchedPart = content:match(_PATTERN_NUMBER_DECIMAL_PART, startIdx)
+
+    -- 整数部分，不能有多余的前导 0
+    if not matchedPart or matchedPart:find(_PATTERN_NUMBER_LEADING_ZREOS, 1, false)
+    then
+        return false
+    end
+
+    -- 小数部分
+    local numStr = matchedPart
+    startIdx = startIdx + #matchedPart
+    matchedPart = content:match(_PATTERN_NUMBER_FRACTIONAL_PART, startIdx)
+    if matchedPart
+    then
+        numStr = numStr .. matchedPart
+        startIdx = startIdx + #matchedPart
+    end
+
+    -- 指数部分
+    matchedPart = content:match(_PATTERN_NUMBER_EXPONENTIAL_PART, startIdx)
+    if matchedPart
+    then
+        numStr = numStr .. matchedPart
+        startIdx = startIdx + #matchedPart
+    end
+
     local result = nil
     if numStr
     then
@@ -298,7 +353,12 @@ _onParseNumber = function(ctx)
         result = tonumber(numStr)
     end
 
-    return result and __callAddItemFuncSafelly(ctx, result) or false
+    if result
+    then
+        return __jumpAddItemStateSafelly(ctx, result)
+    else
+        return false
+    end
 end
 
 
@@ -313,7 +373,7 @@ _onParseConstant = function(ctx)
         if subStrEndIdx <= strEndIdx and content:sub(startIdx, subStrEndIdx) == constName
         then
             ctx.readIndex = ctx.readIndex + #constName - 1
-            return __callAddItemFuncSafelly(ctx, val)
+            return __jumpAddItemStateSafelly(ctx, val)
         end
     end
 
@@ -322,9 +382,8 @@ end
 
 
 _onParseCollectionItemSep = function(ctx)
-    local wordType = __readNextWord(ctx)
-    local topParseListFunc = __getStackTop(ctx.addItemFuncStack)
-    return topParseListFunc and topParseListFunc(ctx, wordType) or false
+    local topParseListFunc = __getStackTop(ctx.parseItemListFuncStack)
+    return __readNextAndJumpState(ctx, topParseListFunc)
 end
 
 
@@ -332,9 +391,7 @@ local function __doOnParseCollectionStart(ctx, addItemFunc, parseItemListFunc)
     table.insert(ctx.collectionStack, {})
     table.insert(ctx.addItemFuncStack, addItemFunc)
     table.insert(ctx.parseItemListFuncStack, parseItemListFunc)
-
-    local wordType = __readNextWord(ctx)
-    return parseItemListFunc(ctx, wordType)
+    return __readNextAndJumpState(ctx, parseItemListFunc)
 end
 
 
@@ -352,7 +409,7 @@ local function __doOnParseCollectionEnd(ctx)
     table.remove(ctx.addItemFuncStack)
     table.remove(ctx.parseItemListFuncStack)
     local collection = table.remove(ctx.collectionStack)
-    return __callAddItemFuncSafelly(ctx, collection)
+    return __jumpAddItemStateSafelly(ctx, collection)
 end
 
 _onParseArrayEnd = __doOnParseCollectionEnd
@@ -381,19 +438,18 @@ end
 
 _onAddArrayElement = function(ctx, val)
     local curArray = __getStackTop(ctx.collectionStack)
-    local elementIdx = table.remove(ctx.keyStack)
-    curArray[#curArray] = val
+    curArray[#curArray + 1] = val
 
     if _JUMP_TABLE_ADD_ARRAY_ELEMENT == nil
     then
         _JUMP_TABLE_ADD_ARRAY_ELEMENT =
         {
-            _WORD_TYPE_COLLECTION_SEP   = _onParseCollectionItemSep,
-            _WORD_TYPE_ARRAY_END        = _onParseArrayEnd,
+            [_WORD_TYPE_COLLECTION_SEP]   = _onParseCollectionItemSep,
+            [_WORD_TYPE_ARRAY_END]        = _onParseArrayEnd,
         }
     end
 
-    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_ARRAY_ELEMENT)
+    return __readNextAndJumpStateByTable(ctx, _JUMP_TABLE_ADD_ARRAY_ELEMENT)
 end
 
 
@@ -441,7 +497,7 @@ _onAddObjectKey = function(ctx, val)
         }
     end
 
-    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_KEY)
+    return __readNextAndJumpStateByTable(ctx, _JUMP_TABLE_ADD_OBJECT_KEY)
 end
 
 
@@ -458,7 +514,7 @@ _onAddObjectValue = function(ctx, val)
         }
     end
 
-    return __readNextAndJumpState(ctx, _JUMP_TABLE_ADD_OBJECT_VALUE)
+    return __readNextAndJumpStateByTable(ctx, _JUMP_TABLE_ADD_OBJECT_VALUE)
 end
 
 
@@ -493,7 +549,7 @@ local function parse(content, ctx)
         }
     end
 
-    local succeed = __readNextAndJumpState(ctx, _JUMP_TABLE_INITIAL)
+    local succeed = __readNextAndJumpStateByTable(ctx, _JUMP_TABLE_INITIAL)
     return succeed, ctx.result
 end
 
