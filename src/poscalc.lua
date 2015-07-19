@@ -22,6 +22,11 @@ local _MovingArea =
 
 
     getCollidingDuration = function(a1, a2, screenWidth)
+        if a1.speed == math.huge or a2.speed == math.huge
+        then
+            return 0
+        end
+
         -- 保证最先出现的是 a1
         if a1.start > a2.start
         then
@@ -30,10 +35,10 @@ local _MovingArea =
             a2 = tmp
         end
 
-        -- a2 开始出现在屏幕右边缘，此时 a1 右侧距屏幕右边缘的距离
-        -- 如果 a2 要追上 a1 必须要走完的长度
+        -- a2 要追上 a1 要走的相对距离
         local startTimeDelta = math.max(a2.start - a1.start, 0)
-        local chasingDistance = math.max(a1.speed * startTimeDelta - a1.width, 0)
+        local movedDistance1 = a1.speed * startTimeDelta
+        local chasingDistance = math.max(movedDistance1 - a1.width, 0)
 
         -- 计算 a1 / a2 存活时间
         local lifeTime1 = (a1.width + screenWidth) / a1.speed
@@ -55,29 +60,52 @@ local _MovingArea =
             end
         end
 
+
         -- 明显追不上
-        if a2.speed <= a1.speed and chasingDistance >= 0
+        if a2.speed <= a1.speed and chasingDistance > 0
         then
             return 0
         end
 
-        -- 计算 刚好接触 / 刚好相离 所花费的时间，注意区分是 a2 超越还是 a2 追不上
+
+        -- 计算从 刚好接触 到 刚好分离 需要走的相对距离，注意判断 a2 最终是否会赶上 a1
+        local disjointDistance = 0
+        if a2.speed > a1.speed
+        then
+            disjointDistance = movedDistance1 < a1.width
+                               and a1.width - movedDistance1 + a2.width
+                               or a1.width + a2.width
+        else
+            disjointDistance = movedDistance1 < a1.width
+                               and a1.width - movedDistance1
+                               or 0
+        end
+
+
+        -- 计算 刚好追上 / 刚好相离 所花费的时间
         local speedDelta = math.abs(a2.speed - a1.speed)
         local chasedElapsed = math.max(chasingDistance / speedDelta, 0)
-        local disjointDistance = a2.speed > a1.speed
-                                 and (a1.width + a2.width)
-                                 or (chasingDistance)
         local disjointElapsed = math.max(disjointDistance / speedDelta, 0)
 
-        -- 以 a2 刚好出现作为基准点，刚好追上和分离的时间
+        -- 以 a2 刚好出现作为基准点时刻
         local chasedTime = chasedElapsed
         local disjointTime = chasedTime + disjointElapsed
 
         return math.min(disjointTime - chasedTime, dieOutTime1, dieOutTime2)
+
     end,
 
 
     update = function(self, a2)
+        -- 特判初始状态
+        if self.speed == math.huge
+        then
+            self.start = a2.start
+            self.speed = a2.speed
+            self.width = a2.width
+            return
+        end
+
         -- 以最先出现的区域起始时间，作为基准点
         local a1 = self
         local newStartTime = math.min(a1.start, a2.start)
@@ -86,8 +114,9 @@ local _MovingArea =
         local newSpeed = math.min(a1.speed, a2.speed)
 
         -- 将两个区域拼起来
-        local movedWidth = a1.speed * math.abs(a1.start - a2.start)
-        local newWidth = movedWidth + a2.width
+        local startDelta = math.max(math.abs(a1.start - a2.start), 0)
+        local movedWidth = a1.speed * startDelta
+        local newWidth = movedWidth + a2.width + math.max(a1.width - movedWidth, 0)
 
         self.start = newStartTime
         self.speed = newSpeed
@@ -123,18 +152,23 @@ local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
 end
 
 
+
+local _DEFAULT_POS_CALC_ENUM_STEP = 1
+
 local _BasePosCalculator =
 {
     _mScreenWidth = nil,
     _mScreenHeight = nil,
+    _mEnumStep = nil,
     _mMovingAreas = nil,
     __mDanmakuMovingArea = nil,
 
 
-    new = function(obj, width, height)
+    new = function(obj, width, height, enumStep)
         obj = base.allocateInstance(obj)
         obj._mScreenWidth = width
         obj._mScreenHeight = height
+        obj._mEnumStep = enumStep or _DEFAULT_POS_CALC_ENUM_STEP
         obj._mMovingAreas = obj:_doInitMovingArea(width, height, 0, 0)
         obj.__mDanmakuMovingArea = _MovingArea:new()
         return obj
@@ -162,6 +196,8 @@ local _BasePosCalculator =
             iterAreaTop = iterAreaBottom
             iterAreaBottom = iterAreaTop + (iterArea and iterArea.height or 0)
         end
+
+        return scoreSum
     end,
 
 
@@ -183,8 +219,10 @@ local _BasePosCalculator =
             -- 很多时候只是部分相交，所以需要切割
             if h2 > 0
             then
-                local splitH1, _, splitH3 = _getIntersectedHeight(newAreaTop, newAreaBottom,
-                                                                  iterAreaTop, iterAreaBottom)
+                local splitH1, _, splitH3 = _getIntersectedHeight(newAreaTop,
+                                                                  newAreaBottom,
+                                                                  iterAreaTop,
+                                                                  iterAreaBottom)
 
                 -- 把 node2 插在 node1 后面
                 local function __insertAfter(node1, node2)
@@ -236,7 +274,7 @@ local _BasePosCalculator =
         if lifeTime == 0
         then
             -- 防止出现除零错误
-            w = 0
+            w = 1
             speed = math.huge
         else
             speed = (w + self._mScreenWidth) / lifeTime
@@ -256,7 +294,7 @@ local _BasePosCalculator =
     end,
 
 
-    calculate = function(self, w, h, start, lifeTime, enumStep)
+    calculate = function(self, w, h, start, lifeTime)
         local screenTop = 0
         local screenBottom = self._mScreenHeight
         local danmakuTop = screenTop
@@ -264,11 +302,10 @@ local _BasePosCalculator =
 
         local minScore = math.huge
         local retY = screenTop
-        local insertArea = self.__mMovingAreas
+        local insertArea = self._mMovingAreas
         local insertAreaTop = screenTop
 
-        local iterArea = self.__mMovingAreas
-        local prevArea = iterArea
+        local iterArea = self._mMovingAreas
         local area2 = self:_doInitMovingArea(w, h, start, lifeTime,
                                              self.__mDanmakuMovingArea)
 
@@ -279,13 +316,20 @@ local _BasePosCalculator =
             local iterAreaTop = iterAreaBottom
             iterAreaBottom = iterAreaTop + iterArea.height
 
-            if iterAreaBottom <= danmakuTop
+            -- 不一定总是迭代下一个链表结点的
+            local nextArea = nil
+
+            if iterAreaBottom >= danmakuTop
             then
-                local score = self:__getCollisionScoreSum(iterAreaTop, iterArea,
-                                                          danmakuTop, area2)
-                if score == 0 or danmakuTop + enumStep >= screenBottom
+                local score = self:__getCollisionScoreSum(iterAreaTop,
+                                                          iterArea,
+                                                          danmakuTop,
+                                                          area2)
+
+                if score == 0
                 then
-                    -- 找到完全合适的位置，或者再向下枚举就会出界
+                    -- 找到完全合适的位置
+                    retY = danmakuTop
                     break
                 else
                     if minScore > score
@@ -298,28 +342,34 @@ local _BasePosCalculator =
 
                     -- 弹幕的 y 坐标只会是 0, enumStep, enumStep*2, enumStep*3, ...
                     -- 应该不是最优算法，只是比较好写而已
-                    danmakuTop = danmakuTop + enumStep
-                    danmakuBottom = danmakuBottom + enumStep
+                    danmakuTop = danmakuTop + self._mEnumStep
+                    danmakuBottom = danmakuBottom + self._mEnumStep
+
+                    -- 不允许超出屏幕底边界
+                    if danmakuBottom > self._mScreenHeight
+                    then
+                        break
+                    end
 
                     -- 向下移也不一定能超出这个区域的
                     if danmakuTop <= iterAreaBottom
                     then
-                        iterArea = prevArea
+                        nextArea = iterArea
                         iterAreaBottom = iterAreaBottom - iterArea.height
                     end
                 end
             end
 
-            iterArea = iterArea._next
+            iterArea = nextArea or iterArea._next
         end
 
         self:__addMovingArea(insertArea, insertAreaTop, area2, retY)
-        return 0, retY
+        return retY
     end,
 
 
     dispose = function(self)
-        local area = self.__mMovingAreas
+        local area = self._mMovingAreas
         while area ~= nil
         do
             local org = area
@@ -338,21 +388,11 @@ local L2RPosCalculator = {}
 base.declareClass(L2RPosCalculator, _BasePosCalculator)
 
 
-local R2LPosCalculaotr =
-{
-    calculate = function(...)
-        local x, y = _BasePosCalculator.calculate(self, ...)
-        return self._mScreenWidth, y
-    end,
-}
-
-base.declareClass(R2LPosCalculaotr, _BasePosCalculator)
-
-
 local T2BPosCalculator =
 {
     _doInitMovingArea = function(self, w, h, start, lifeTime, outArea)
         -- 这里把 speed 这个字段 hack 成存活时间了
+        outArea = outArea or _MovingArea:new()
         outArea.start = start
         outArea.width = 1
         outArea.height = h
@@ -371,7 +411,7 @@ local T2BPosCalculator =
         end
 
         -- 计算同时出现的时间
-        return math.max(area1.start + area1.speed, area2.start, 0)
+        return math.max(area1.start + area1.speed - area2.start, 0)
     end,
 
 
@@ -381,37 +421,18 @@ local T2BPosCalculator =
             area1:new(area2)
         end
     end,
-
-
-    calculate = function(self, w, h, start, lifeTime, enumStep)
-        -- 返回结果需要居中
-        local _, y = _BasePosCalculator.calculate(self, w, h, start, lifeTime, enumStep)
-        local x = math.min((self._mScreenWidth - w) / 2, 0)
-        return x, y
-    end
 }
 
 base.declareClass(T2BPosCalculator, _BasePosCalculator)
 
 
-local B2TPosCalcluator =
+
+return
 {
-    calculate = function(w, h, start, lifeTime, enumStep)
-        -- 竖直镜面反转
-        local x, offset = T2BPosCalculator:calculate(w, h, start, lifeTime, enumStep)
-        local y = self._mScreenHeight - (offset + h)
-        return x, y
-    end,
+    _MovingArea             = _MovingArea,
+
+    _getIntersectedHeight   = _getIntersectedHeight,
+
+    L2RPosCalculator        = L2RPosCalculator,
+    T2BPosCalculator        = T2BPosCalculator,
 }
-
-base.declareClass(B2TPosCalcluator, T2BPosCalculator)
-
-
-local _M = {}
-_M._MovingArea = _MovingArea
-_M._getIntersectedHeight = _getIntersectedHeight
-_M.L2RPosCalculator = L2RPosCalculator
-_M.R2LPosCalculaotr = R2LPosCalculaotr
-_M.T2BPosCalculator = T2BPosCalculator
-_M.B2TPosCalcluator = B2TPosCalcluator
-return _M

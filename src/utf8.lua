@@ -140,8 +140,11 @@ local function getUTF8Bytes(codePoint, outList, convertFunc)
 end
 
 
-local _M = {}
-_M.INVALID_CODEPOINT = INVALID_CODEPOINT
-_M.iterateUTF8CodePoints = iterateUTF8CodePoints
-_M.getUTF8Bytes = getUTF8Bytes
-return _M
+
+return
+{
+    INVALID_CODEPOINT       = INVALID_CODEPOINT,
+
+    iterateUTF8CodePoints   = iterateUTF8CodePoints,
+    getUTF8Bytes            = getUTF8Bytes,
+}

@@ -1,7 +1,7 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
 local base = require('src/base')            --= base base
 local json = require('src/json')            --= json json
-local encoding = require('src/encoding')    --= encoding encoding
+local utf8 = require('src/utf8')            --= utf8 utf8
 
 
 local function __doAssertParseValue(content, expected)
@@ -36,9 +36,9 @@ TestJSON =
                              "123\\456/789\f01\n23\r456\t7890")
 
         local buf = { "asdf" }
-        encoding.getUTF8Bytes(0x9ae3, buf, string.char)
+        utf8.getUTF8Bytes(0x9ae3, buf, string.char)
         table.insert(buf, "fff")
-        encoding.getUTF8Bytes(0x1343, buf, string.char)
+        utf8.getUTF8Bytes(0x1343, buf, string.char)
         table.insert(buf, "aab")
         __doAssertParseValue([[ "asdf\u9ae3fff\u1343aab" ]], table.concat(buf))
     end,

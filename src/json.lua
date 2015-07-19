@@ -1,5 +1,5 @@
-local base = require('src/base')            --= base base
-local encoding = require('src/encoding')    --= encoding encoding
+local base = require('src/base')    --= base base
+local utf8 = require('src/utf8')    --= utf8 utf8
 
 local _TOKEN_LBRACE     = "{"
 local _TOKEN_RBRACE     = "}"
@@ -287,7 +287,7 @@ _onParseString = function(ctx)
                 local codePoint = hexStr and tonumber(hexStr, _UNICODE_NUMBER_BASE) or nil
                 if codePoint
                 then
-                    encoding.getUTF8Bytes(codePoint, buf, string.char)
+                    utf8.getUTF8Bytes(codePoint, buf, string.char)
                     findStartIdx = nextChIdx + #hexStr + 1
                 else
                     break
@@ -554,6 +554,8 @@ local function parse(content, ctx)
 end
 
 
-local _M = {}
-_M.parse = parse
-return _M
+
+return
+{
+    parse = parse,
+}

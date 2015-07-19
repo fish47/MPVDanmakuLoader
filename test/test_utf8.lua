@@ -1,6 +1,6 @@
 local lu = require('3rdparties/luaunit')    --= lu luaunit
 local base = require('src/base')            --= base base
-local encoding = require('src/encoding')    --= encoding encoding
+local utf8 = require('src/utf8')            --= utf8 utf8
 
 local __UTF8_TEST_CASES =
 {
@@ -214,7 +214,7 @@ TestIterateUTF8CodePoints =
         do
             local iterCount = 0
             local str = string.char(table.unpack(stringBytes))
-            for _, codePoint in encoding.iterateUTF8CodePoints(str)
+            for _, codePoint in utf8.iterateUTF8CodePoints(str)
             do
                 iterCount = iterCount + 1
                 lu.assertEquals(codePoint, codePoints[iterCount])
@@ -232,7 +232,7 @@ TestIterateUTF8CodePoints =
             local byteIdx = 1
             for _, codePoint in ipairs(codePoints)
             do
-                byteIdx = byteIdx + encoding.getUTF8Bytes(codePoint, encodedBytes)
+                byteIdx = byteIdx + utf8.getUTF8Bytes(codePoint, encodedBytes)
             end
 
             lu.assertEquals(encodedBytes, stringBytes)

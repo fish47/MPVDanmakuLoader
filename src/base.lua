@@ -5,14 +5,13 @@ _M.__gClassMetaTables = {}
 
 local function __createClassMetaTable(clzDefObj)
     local ret = _M.__gClassMetaTables[clzDefObj]
-    assert(rat == nil)
     ret = { __index = clzDefObj }
     _M.__gClassMetaTables[clzDefObj] = ret
     return ret
 end
 
 
-local function __updateTable(destTable, newTable)
+local function __addMissedEntries(destTable, newTable)
     if newTable == nil
     then
         return
@@ -20,18 +19,19 @@ local function __updateTable(destTable, newTable)
 
     for k, v in pairs(newTable)
     do
-        destTable[k] = v
+        if not destTable[k]
+        then
+            destTable[k] = v
+        end
     end
 end
 
 
 function _M.declareClass(clzDefObj, baseClzDefObj)
-    assert(_M.isTable(clzDefObj))
-
     -- 有可能是继承
     if baseClzDefObj ~= nil
     then
-        __updateTable(clzDefObj, baseClzDefObj)
+        __addMissedEntries(clzDefObj, baseClzDefObj)
 
         -- 如果没有声明构造方法
         if clzDefObj.new == nil
@@ -43,16 +43,12 @@ function _M.declareClass(clzDefObj, baseClzDefObj)
         end
     end
 
-    __updateTable(clzDefObj, baseClzDefObj)
     __createClassMetaTable(clzDefObj)
     return clzDefObj
 end
 
 
 function _M.allocateInstance(objArg)
-    -- 出现这种情况，一般是想 new 对象，但是写成了 ClazDefObj.new()
-    assert(objArg ~= nil)
-
     local mt = _M.__gClassMetaTables[objArg]
     if mt ~= nil
     then
@@ -122,6 +118,11 @@ function _M.iteratePairsArray(array, startIdx)
     return __doIteratePairsArray, array, startIdx or 1
 end
 
+local __unpackImpl = table.unpack or unpack
+
+function _M.unpack(tbl)
+    return __unpackImpl(tbl)
+end
 
 function _M.isTable(o)
     return type(o) == "table"
