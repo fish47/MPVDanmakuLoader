@@ -557,5 +557,7 @@ end
 
 return
 {
+    JSONParseContext = JSONParseContext,
+
     parse = parse,
 }

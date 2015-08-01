@@ -586,5 +586,6 @@ return
     __lrotate   = __lrotate,
 
     MD5_CHUNK_BYTE_COUNT    = MD5_CHUNK_BYTE_COUNT,
+
     calcMD5HashSum          = calcMD5HashSum,
 }

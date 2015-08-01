@@ -1,13 +1,13 @@
 local base = require('src/base')    --= base base
 
 
-local _MovingArea =
+local __DanmakuArea =
 {
-    width = 0,      -- 宽度
-    height = 0,     -- 高度
-    start = 0,      -- 刚好出现屏幕边缘的时刻
-    speed = 0,      -- 水平移动速度
-    _next = nil,    -- 链表指针
+    width   = 0,    -- 宽度
+    height  = 0,    -- 高度
+    start   = 0,    -- 刚好出现屏幕边缘的时刻
+    speed   = 0,    -- 水平移动速度
+    _next   = nil,  -- 链表指针
 
 
     new = function(obj, copyArea)
@@ -87,44 +87,23 @@ local _MovingArea =
         local chasedElapsed = math.max(chasingDistance / speedDelta, 0)
         local disjointElapsed = math.max(disjointDistance / speedDelta, 0)
 
-        -- 以 a2 刚好出现作为基准点时刻
-        local chasedTime = chasedElapsed
-        local disjointTime = chasedTime + disjointElapsed
+        -- 如果某一方提前消失，从该时刻开始就不算碰撞
+        local remainingTime = math.min(dieOutTime1, dieOutTime2)
+        local remainingTimeAfterChased = math.max(remainingTime - chasedElapsed, 0)
+        local collidingDuration = math.min(remainingTimeAfterChased, disjointElapsed)
 
-        return math.min(disjointTime - chasedTime, dieOutTime1, dieOutTime2)
-
-    end,
-
-
-    update = function(self, a2)
-        -- 特判初始状态
-        if self.speed == math.huge
-        then
-            self.start = a2.start
-            self.speed = a2.speed
-            self.width = a2.width
-            return
-        end
-
-        -- 以最先出现的区域起始时间，作为基准点
-        local a1 = self
-        local newStartTime = math.min(a1.start, a2.start)
-
-        -- 优先取最慢的速度
-        local newSpeed = math.min(a1.speed, a2.speed)
-
-        -- 将两个区域拼起来
-        local startDelta = math.max(math.abs(a1.start - a2.start), 0)
-        local movedWidth = a1.speed * startDelta
-        local newWidth = movedWidth + a2.width + math.max(a1.width - movedWidth, 0)
-
-        self.start = newStartTime
-        self.speed = newSpeed
-        self.width = newWidth
+        return collidingDuration
     end,
 }
 
-base.declareClass(_MovingArea);
+base.declareClass(__DanmakuArea);
+
+
+-- 把 node2 插在 node1 后面
+local function __insertAfter(node1, node2)
+    node2._next = node1._next
+    node1._next = node2
+end
 
 
 local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
@@ -146,6 +125,7 @@ local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
         h3 = math.max(bottom2 - math.max(bottom1, top2), 0)
     end
 
+
     -- 结果只针对第二个区域而言
     -- 上溢出高度, 相交高度, 下溢出高度
     return h1, h2, h3
@@ -153,24 +133,20 @@ end
 
 
 
-local _DEFAULT_POS_CALC_ENUM_STEP = 1
-
-local _BasePosCalculator =
+local __BasePosCalculator =
 {
-    _mScreenWidth = nil,
-    _mScreenHeight = nil,
-    _mEnumStep = nil,
-    _mMovingAreas = nil,
-    __mDanmakuMovingArea = nil,
+    _mScreenWidth       = nil,
+    _mScreenHeight      = nil,
+    _mDanmakuAreas      = nil,
+    __mTmpDanmakuArea   = nil,
 
 
-    new = function(obj, width, height, enumStep)
+    new = function(obj, width, height)
         obj = base.allocateInstance(obj)
-        obj._mScreenWidth = width
-        obj._mScreenHeight = height
-        obj._mEnumStep = enumStep or _DEFAULT_POS_CALC_ENUM_STEP
-        obj._mMovingAreas = obj:_doInitMovingArea(width, height, 0, 0)
-        obj.__mDanmakuMovingArea = _MovingArea:new()
+        obj._mScreenWidth = math.floor(width)
+        obj._mScreenHeight = math.floor(height)
+        obj._mDanmakuAreas = obj:_doInitDanmakuArea(width, height, 0, 0)
+        obj.__mTmpDanmakuArea = __DanmakuArea:new()
         return obj
     end,
 
@@ -201,7 +177,7 @@ local _BasePosCalculator =
     end,
 
 
-    __addMovingArea = function(self, iterArea, iterAreaTop, area2, newAreaTop)
+    __addDanmakuArea = function(self, iterArea, iterAreaTop, area2, newAreaTop)
         local iterAreaBottom = iterAreaTop
         local newAreaBottom = newAreaTop + area2.height
         while iterArea ~= nil
@@ -224,17 +200,11 @@ local _BasePosCalculator =
                                                                   iterAreaTop,
                                                                   iterAreaBottom)
 
-                -- 把 node2 插在 node1 后面
-                local function __insertAfter(node1, node2)
-                    node2._next = node1._next
-                    node1._next = node2
-                end
-
                 -- 切割不相交的上半部分
                 if splitH1 > 0
                 then
                     local prevArea = iterArea
-                    local newArea = _MovingArea:new(prevArea)
+                    local newArea = __DanmakuArea:new(prevArea)
                     prevArea.height = splitH1
                     newArea.height = h2
                     __insertAfter(prevArea, newArea)
@@ -245,7 +215,7 @@ local _BasePosCalculator =
                 -- 切割不相交的下半部分
                 if splitH3 > 0
                 then
-                    local newArea = _MovingArea:new(iterArea)
+                    local newArea = __DanmakuArea:new(iterArea)
                     newArea.height = splitH3
                     __insertAfter(iterArea, newArea)
                 end
@@ -256,7 +226,7 @@ local _BasePosCalculator =
 
                 -- 切割之后两者区域上下边界都相同
                 iterArea.height = h2
-                self:_doUpdateMovingArea(iterArea, area2)
+                self:_doUpdateDanmakuArea(iterArea, area2)
             end
 
             iterArea = iterArea._next
@@ -265,36 +235,20 @@ local _BasePosCalculator =
 
 
     _doGetCollisionScore = function(self, area1, area2)
-        return area1:getCollidingDuration(area2, self._mScreenWidth)
     end,
 
-
-    _doInitMovingArea = function(self, w, h, start, lifeTime, outArea)
-        local speed = 0
-        if lifeTime == 0
-        then
-            -- 防止出现除零错误
-            w = 1
-            speed = math.huge
-        else
-            speed = (w + self._mScreenWidth) / lifeTime
-        end
-
-        outArea = outArea or _MovingArea:new()
-        outArea.width = w
-        outArea.height = h
-        outArea.start = start
-        outArea.speed = speed
-        return outArea
+    _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
     end,
 
-
-    _doUpdateMovingArea = function(self, area1, area2)
-        area1:update(area2)
+    _doUpdateDanmakuArea = function(self, area1, area2)
     end,
 
 
     calculate = function(self, w, h, start, lifeTime)
+
+        -- 区域位置全部用整数表示
+        h = math.ceil(h)
+
         local screenTop = 0
         local screenBottom = self._mScreenHeight
         local danmakuTop = screenTop
@@ -302,12 +256,12 @@ local _BasePosCalculator =
 
         local minScore = math.huge
         local retY = screenTop
-        local insertArea = self._mMovingAreas
+        local insertArea = self._mDanmakuAreas
         local insertAreaTop = screenTop
 
-        local iterArea = self._mMovingAreas
-        local area2 = self:_doInitMovingArea(w, h, start, lifeTime,
-                                             self.__mDanmakuMovingArea)
+        local iterArea = self._mDanmakuAreas
+        local area2 = self:_doInitDanmakuArea(w, h, start, lifeTime,
+                                             self.__mTmpDanmakuArea)
 
         local iterAreaBottom = 0
         while iterArea ~= nil
@@ -315,9 +269,6 @@ local _BasePosCalculator =
             -- 移动区域不记录上下边界，因为总是紧接的
             local iterAreaTop = iterAreaBottom
             iterAreaBottom = iterAreaTop + iterArea.height
-
-            -- 不一定总是迭代下一个链表结点的
-            local nextArea = nil
 
             if iterAreaBottom >= danmakuTop
             then
@@ -340,36 +291,28 @@ local _BasePosCalculator =
                         insertAreaTop = iterAreaTop
                     end
 
-                    -- 弹幕的 y 坐标只会是 0, enumStep, enumStep*2, enumStep*3, ...
-                    -- 应该不是最优算法，只是比较好写而已
-                    danmakuTop = danmakuTop + self._mEnumStep
-                    danmakuBottom = danmakuBottom + self._mEnumStep
+                    local downHeight = iterArea.height
+                    danmakuTop = danmakuTop + downHeight
+                    danmakuBottom = danmakuBottom + downHeight
 
                     -- 不允许超出屏幕底边界
                     if danmakuBottom > self._mScreenHeight
                     then
                         break
                     end
-
-                    -- 向下移也不一定能超出这个区域的
-                    if danmakuTop <= iterAreaBottom
-                    then
-                        nextArea = iterArea
-                        iterAreaBottom = iterAreaBottom - iterArea.height
-                    end
                 end
             end
 
-            iterArea = nextArea or iterArea._next
+            iterArea = iterArea._next
         end
 
-        self:__addMovingArea(insertArea, insertAreaTop, area2, retY)
+        self:__addDanmakuArea(insertArea, insertAreaTop, area2, retY)
         return retY
     end,
 
 
     dispose = function(self)
-        local area = self._mMovingAreas
+        local area = self._mDanmakuAreas
         while area ~= nil
         do
             local org = area
@@ -380,19 +323,53 @@ local _BasePosCalculator =
     end
 }
 
-base.declareClass(_BasePosCalculator);
+base.declareClass(__BasePosCalculator);
 
 
 
-local L2RPosCalculator = {}
-base.declareClass(L2RPosCalculator, _BasePosCalculator)
-
-
-local T2BPosCalculator =
+local MovingPosCalculator =
 {
-    _doInitMovingArea = function(self, w, h, start, lifeTime, outArea)
+    _doGetCollisionScore = function(self, area1, area2)
+        return area1:getCollidingDuration(area2, self._mScreenWidth)
+    end,
+
+
+    _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
+        local speed = 0
+        if lifeTime == 0
+        then
+            -- 防止出现除零错误
+            w = 1
+            speed = math.huge
+        else
+            speed = (w + self._mScreenWidth) / lifeTime
+        end
+
+        outArea = outArea or __DanmakuArea:new()
+        outArea.width = w
+        outArea.height = h
+        outArea.start = start
+        outArea.speed = speed
+        return outArea
+    end,
+
+
+    _doUpdateDanmakuArea = function(self, area1, area2)
+        area1.start = area2.start
+        area1.speed = area2.speed
+        area1.width = area2.width
+    end,
+}
+
+base.declareClass(MovingPosCalculator, __BasePosCalculator)
+
+
+
+local StaticPosCalculator =
+{
+    _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
         -- 这里把 speed 这个字段 hack 成存活时间了
-        outArea = outArea or _MovingArea:new()
+        outArea = outArea or __DanmakuArea:new()
         outArea.start = start
         outArea.width = 1
         outArea.height = h
@@ -415,24 +392,26 @@ local T2BPosCalculator =
     end,
 
 
-    _doUpdateMovingArea = function(self, area1, area2)
-        if area1.start + area1.speed < area2.start + area2.speed
-        then
-            area1:new(area2)
-        end
+    _doUpdateDanmakuArea = function(self, area1, area2)
+        local endTime1 = area1.start + area1.speed
+        local endTime2 = area2.start + area2.speed
+
+        area1.start = math.max(area1.start, area2.start)
+        area1.speed = math.max(endTime1, endTime2) - area1.start
+        area1.width = area2.width
     end,
 }
 
-base.declareClass(T2BPosCalculator, _BasePosCalculator)
+base.declareClass(StaticPosCalculator, __BasePosCalculator)
 
 
 
 return
 {
-    _MovingArea             = _MovingArea,
+    __DanmakuArea           = __DanmakuArea,
 
     _getIntersectedHeight   = _getIntersectedHeight,
 
-    L2RPosCalculator        = L2RPosCalculator,
-    T2BPosCalculator        = T2BPosCalculator,
+    MovingPosCalculator     = MovingPosCalculator,
+    StaticPosCalculator     = StaticPosCalculator,
 }

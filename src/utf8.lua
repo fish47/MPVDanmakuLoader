@@ -9,7 +9,7 @@ local _UTF8_DECODE_SHIFT_POW_LIST               = {  1,    64,   32,   16,   8, 
 local _UTF8_DECODE_TRAILING_BYTE_RANGE_INDEX    = 2
 local _UTF8_DECODE_BYTE_RANGE_LIST_LEN          = #_UTF8_DECODE_BYTE_RANGE_START_LIST
 
-local INVALID_CODEPOINT            = -1
+local INVALID_CODEPOINT                         = -1
 
 local function __compareNumber(rangEnd, val)
     return rangEnd - val

@@ -1,11 +1,10 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
 local base = require('src/base')            --= base base
 local poscalc = require('src/poscalc')      --= poscalc poscalc
-local MovingArea = poscalc._MovingArea
 
 TestMovingArea =
 {
-    __doInitMovingArea = function(self, a, start, speed, width)
+    __doInitDanmakuArea = function(self, a, start, speed, width)
         a.start = start
         a.speed = speed
         a.width = width
@@ -19,89 +18,62 @@ TestMovingArea =
             lu.assertEquals(ret, duration)
         end
 
-        local a1 = MovingArea:new()
-        local a2 = MovingArea:new()
+        local a1 = poscalc.__DanmakuArea:new()
+        local a2 = poscalc.__DanmakuArea:new()
 
         -- 不相交而且追不上
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 100, 5, 100)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 100, 5, 100)
         __doAssertDuration(a1, a2, 100000000, 0)
 
         -- 接近右边界，但因为速度相同，所以也追不上
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 10.0001, 10, 100)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 10.0001, 10, 100)
         __doAssertDuration(a1, a2, 100000000, 0)
 
         -- 后来刚出现，前者刚消失
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 20, 20, 100)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 20, 20, 100)
         __doAssertDuration(a1, a2, 100, 0)
 
         -- 如果一开始就相交，存活时间影响碰撞时间
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 9, 10, 100)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 9, 10, 100)
         __doAssertDuration(a1, a2, 100, 11)
 
-        -- 碰撞时间 = 相交 + 分离
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 20, 20, 100)
-        for i = 0, 10
-        do
-            local screenWidth = 100 + i * 10
-            __doAssertDuration(a1, a2, screenWidth, i)
-        end
-
         -- 速度为极值，暂认为完全不相交
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 0, math.huge, 100)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 0, math.huge, 100)
         __doAssertDuration(a1, a2, 100, 0)
 
         -- 出现较早且速度较快，而且部分相交
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 1, 5, 20)
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 1, 5, 20)
         __doAssertDuration(a1, a2, 10000, 18)
 
         -- 出现较早且速度较快，而且与后来者不相交，也就不碰撞了
-        self:__doInitMovingArea(a1, 0, 10, 10)
-        self:__doInitMovingArea(a2, 1, 5, 20)
+        self:__doInitDanmakuArea(a1, 0, 10, 10)
+        self:__doInitDanmakuArea(a2, 1, 5, 20)
         __doAssertDuration(a1, a2, 1000, 0)
-    end,
 
 
-    test_update = function(self)
-        local function __doAssertArea(a, areaArg, start, speed, width)
-            a:update(areaArg)
-            lu.assertEquals(start, a.start)
-            lu.assertEquals(speed, a.speed)
-            lu.assertEquals(width, a.width)
+        -- a2 需要用 10 单位时间才追上 a1 ，接触后在 20 单位时间后才分离
+        self:__doInitDanmakuArea(a1, 0, 10, 100)
+        self:__doInitDanmakuArea(a2, 20, 20, 100)
+        for i = 0, 10
+        do
+            local screenWidth = 200 + i * 10
+            __doAssertDuration(a1, a2, screenWidth, i)
         end
 
-        local a1 = MovingArea:new()
-        local a2 = MovingArea:new()
+        -- 在这个区间 a2 反而会先消失，注意消失后不算碰撞
+        for i = 10, 20
+        do
+            local screenWidth = 300 + i * 10
+            __doAssertDuration(a1, a2, screenWidth, 10 + i / 2)
+        end
 
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 10, 10, 100)
-        __doAssertArea(a1, a2, 0, 10, 200)
-
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 30, 10, 100)
-        __doAssertArea(a1, a2, 0, 10, 400)
-
-        self:__doInitMovingArea(a1, 0, 20, 100)
-        self:__doInitMovingArea(a2, 40, 10, 100)
-        __doAssertArea(a1, a2, 0, 10, 900)
-
-        self:__doInitMovingArea(a1, 0, math.huge, 100000)
-        self:__doInitMovingArea(a2, 2, 10, 20)
-        __doAssertArea(a1, a2, 2, 10, 20)
-
-        self:__doInitMovingArea(a1, 0, 10, 100)
-        self:__doInitMovingArea(a2, 1, 10, 1)
-        __doAssertArea(a1, a2, 0, 10, 101)
-
-        self:__doInitMovingArea(a1, 0, 10, 1)
-        self:__doInitMovingArea(a2, 20, 10, 200)
-        __doAssertArea(a1, a2, 0, 10, 400)
+        __doAssertDuration(a1, a2, 10000, 20)
     end,
 }
 
@@ -132,11 +104,11 @@ TestIntersectedHeight =
 TestPosCalculator =
 {
     __doInitAreaHeights = function(self, calc, heights)
-        local area = calc._mMovingAreas
+        local area = calc._mDanmakuAreas
         local heightSum = 0
         for i, h in ipairs(heights)
         do
-            local newArea = (i == 1) and area or MovingArea:new()
+            local newArea = (i == 1) and area or poscalc.__DanmakuArea:new()
             newArea.height = h
             area._next = newArea
             newArea._next = nil
@@ -152,16 +124,16 @@ TestPosCalculator =
     test_add_area = function(self)
         local function __doAddArea(calc, top, bottom)
             -- 只为防止被相容才做些奇怪数据而已
-            local newArea = MovingArea:new()
+            local newArea = poscalc.__DanmakuArea:new()
             newArea.speed = 1234
             newArea.width = 4321
             newArea.start = 5555
             newArea.height = bottom - top
-            calc:__addMovingArea(calc._mMovingAreas, 0, newArea, top)
+            calc:__addDanmakuArea(calc._mDanmakuAreas, 0, newArea, top)
         end
 
         local function __doAssertAreaHeights(calc, heights)
-            local area = calc._mMovingAreas
+            local area = calc._mDanmakuAreas
             local calcHeightList = {}
             while area ~= nil
             do
@@ -174,7 +146,7 @@ TestPosCalculator =
 
         local function __doTest(heights, areaBounds, assertHeights)
             local addTop, addBottom = table.unpack(areaBounds)
-            local calc = poscalc.L2RPosCalculator:new()
+            local calc = poscalc.MovingPosCalculator:new()
             self:__doInitAreaHeights(calc, heights)
             __doAddArea(calc, addTop, addBottom)
             __doAssertAreaHeights(calc, assertHeights)
@@ -191,13 +163,13 @@ TestPosCalculator =
 
     test_score_sum = function(self)
         local function __doTest(heights, areaBounds, assertAreaIndexes)
-            local calc = poscalc.L2RPosCalculator:new()
+            local calc = poscalc.MovingPosCalculator:new()
             self:__doInitAreaHeights(calc, heights)
 
             -- 编号
             local idx = 1
             local areaIndexes = {}
-            local iterArea = calc._mMovingAreas
+            local iterArea = calc._mDanmakuAreas
             while iterArea ~= nil
             do
                 areaIndexes[iterArea] = idx
@@ -211,10 +183,10 @@ TestPosCalculator =
                 return 0
             end
 
-            local newArea = MovingArea:new()
+            local newArea = poscalc.__DanmakuArea:new()
             local newAreaTop, newAreaBottom = table.unpack(areaBounds)
             newArea.height = newAreaBottom - newAreaTop
-            calc:__getCollisionScoreSum(0, calc._mMovingAreas, newAreaTop, newArea)
+            calc:__getCollisionScoreSum(0, calc._mDanmakuAreas, newAreaTop, newArea)
 
             lu.assertEquals(sumedAreaIndexes, assertAreaIndexes)
 
@@ -240,7 +212,7 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = poscalc.T2BPosCalculator:new(100, 50)
+        local calc = poscalc.StaticPosCalculator:new(100, 50)
         __doTest(calc, 10, 0, 5, 0)
         __doTest(calc, 10, 1, 5, 10)
         __doTest(calc, 10, 2, 5, 20)
@@ -264,7 +236,7 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = poscalc.L2RPosCalculator:new(100, 50)
+        local calc = poscalc.MovingPosCalculator:new(100, 50)
         __doTest(calc, 100, 10, 0, 5, 0)
         __doTest(calc, 100, 10, 3, 5, 0)
         __doTest(calc, 100, 10, 8, 5, 0)
