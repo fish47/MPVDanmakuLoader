@@ -63,22 +63,6 @@ function _M.allocateInstance(objArg)
 end
 
 
-function _M.findIf(iter, list, cond, val)
-    if not list
-    then
-        return nil
-    end
-
-    for i, v in iter(list)
-    do
-        if cond(v, val)
-        then
-            return i, v
-        end
-    end
-    return nil
-end
-
 
 function _M.binarySearchList(list, cond, val)
     local low = 1
@@ -142,10 +126,16 @@ end
 
 
 function _M.clearTable(t)
-    if _M.isTable(t)
+    if not _M.isTable(t)
     then
-        for k, v in pairs(t)
+        while true
         do
+            local k = next(t)
+            if not k
+            then
+                break
+            end
+
             t[k] = nil
         end
     end

@@ -1,4 +1,3 @@
-local base = require('src/base')    --= base base
 local utils = require('src/utils')  --= utils utils
 
 
@@ -36,7 +35,7 @@ end
 local function writeScriptInfo(f, width, height)
     __writeHeader(f, _ASS_SCRIPT_INFO_HEADERNAME)
 
-    for _, k, v in base.iteratePairsArray(_PAIRS_SCRIPT_INFO)
+    for _, k, v in utils.iteratePairsArray(_PAIRS_SCRIPT_INFO)
     do
         __writeKeyValue(f, k, v)
     end
@@ -154,7 +153,7 @@ local DialogueBuilder =
     _mContent = nil,
 
     new = function(obj)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj._mContent = {}
         return obj
     end,
@@ -242,6 +241,7 @@ local DialogueBuilder =
     end,
 }
 
+utils.declareClass(DialogueBuilder)
 
 
 return

@@ -1,5 +1,4 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
-local base = require('src/base')            --= base base
 local json = require('src/json')            --= json json
 local utf8 = require('src/utf8')            --= utf8 utf8
 

@@ -1,4 +1,4 @@
-local base = require('src/base')    --= base base
+local utils = require('src/utils')  --= utils utils
 
 
 local __DanmakuArea =
@@ -11,7 +11,7 @@ local __DanmakuArea =
 
 
     new = function(obj, copyArea)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj.width = copyArea and copyArea.width or 0
         obj.height = copyArea and copyArea.height or 0
         obj.start = copyArea and copyArea.start or 0
@@ -96,7 +96,7 @@ local __DanmakuArea =
     end,
 }
 
-base.declareClass(__DanmakuArea);
+utils.declareClass(__DanmakuArea);
 
 
 -- 把 node2 插在 node1 后面
@@ -142,7 +142,7 @@ local __BasePosCalculator =
 
 
     new = function(obj, width, height)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj._mScreenWidth = math.floor(width)
         obj._mScreenHeight = math.floor(height)
         obj._mDanmakuAreas = obj:_doInitDanmakuArea(width, height, 0, 0)
@@ -317,13 +317,13 @@ local __BasePosCalculator =
         do
             local org = area
             area = area._next
-            base.clearTable(org)
+            utils.clearTable(org)
         end
-        base.clearTable(self)
+        utils.clearTable(self)
     end
 }
 
-base.declareClass(__BasePosCalculator);
+utils.declareClass(__BasePosCalculator);
 
 
 
@@ -361,7 +361,7 @@ local MovingPosCalculator =
     end,
 }
 
-base.declareClass(MovingPosCalculator, __BasePosCalculator)
+utils.declareClass(MovingPosCalculator, __BasePosCalculator)
 
 
 
@@ -402,7 +402,7 @@ local StaticPosCalculator =
     end,
 }
 
-base.declareClass(StaticPosCalculator, __BasePosCalculator)
+utils.declareClass(StaticPosCalculator, __BasePosCalculator)
 
 
 

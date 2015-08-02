@@ -1,4 +1,4 @@
-local base = require('src/base')    --= base base
+local utils = require('src/utils')  --= utils utils
 local utf8 = require('src/utf8')    --= utf8 utf8
 
 local _TOKEN_LBRACE     = "{"
@@ -97,7 +97,7 @@ local JSONParseContext =
     parseItemListFuncStack = nil,
 
     new = function(obj)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj.content = nil
         obj.readIndex = 0
         obj.stringBuf = {}
@@ -112,15 +112,15 @@ local JSONParseContext =
         self.result = nil
         self.content = content
         self.readIndex = 0
-        base.clearTable(self.stringBuf)
-        base.clearTable(self.keyStack)
-        base.clearTable(self.collectionStack)
-        base.clearTable(self.addItemFuncStack)
-        base.clearTable(self.parseItemListFuncStack)
+        utils.clearTable(self.stringBuf)
+        utils.clearTable(self.keyStack)
+        utils.clearTable(self.collectionStack)
+        utils.clearTable(self.addItemFuncStack)
+        utils.clearTable(self.parseItemListFuncStack)
     end
 }
 
-base.declareClass(JSONParseContext)
+utils.declareClass(JSONParseContext)
 
 
 local _onParseArrayStart            = nil
@@ -237,7 +237,7 @@ end
 
 
 _onParseString = function(ctx)
-    local buf = base.clearTable(ctx.stringBuf)
+    local buf = utils.clearTable(ctx.stringBuf)
     local content = ctx.content
 
     local result = nil
@@ -367,7 +367,7 @@ _onParseConstant = function(ctx)
     local content = ctx.content
     local startIdx = ctx.readIndex
     local strEndIdx = #content
-    for _, constName, val in base.iteratePairsArray(_MAP_CONSTANT)
+    for _, constName, val in utils.iteratePairsArray(_MAP_CONSTANT)
     do
         local subStrEndIdx = startIdx + #constName - 1
         if subStrEndIdx <= strEndIdx and content:sub(startIdx, subStrEndIdx) == constName
