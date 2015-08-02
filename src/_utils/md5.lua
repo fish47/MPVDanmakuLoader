@@ -1,4 +1,4 @@
-local base = require('src/_utils/base')
+local _base = require('src/_utils/_base')
 
 local __band        = nil
 local __bor         = nil
@@ -506,7 +506,7 @@ local function __doDigestLastChunkAndPaddings(a, b, c, d,
     end
 
     -- 再填位长度余数
-    buf = base.clearTable(buf or {})
+    buf = _base.clearTable(buf or {})
     table.insert(buf, lastChunk)
 
     local totalBitCount = readByteCount * _BYTE_BIT_COUNT
@@ -560,7 +560,7 @@ local function calcMD5HashSum(iterFunc, iterArg)
     end
 
 
-    base.clearTable(buf)
+    _base.clearTable(buf)
     __getInt32Bytes(a, buf, __convertByteToLowerHex)
     __getInt32Bytes(b, buf, __convertByteToLowerHex)
     __getInt32Bytes(c, buf, __convertByteToLowerHex)
@@ -585,6 +585,5 @@ return
     __lrotate   = __lrotate,
 
     MD5_CHUNK_BYTE_COUNT    = MD5_CHUNK_BYTE_COUNT,
-
     calcMD5HashSum          = calcMD5HashSum,
 }

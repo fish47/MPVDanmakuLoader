@@ -85,7 +85,7 @@ sdf
     end,
 
 
-    -- 简单测一下格式不对吧
+    -- 简单测一下不对的格式吧
     test_malformed = function(self)
         local ret, pool = self:__doParse([[
 1

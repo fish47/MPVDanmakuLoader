@@ -1,4 +1,4 @@
-local base = require('src/_utils/base')
+local _base = require('src/_utils/_base')
 
 
 local _UTF8_DECODE_BYTE_RANGE_START_LIST        = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
@@ -16,7 +16,7 @@ local function __compareNumber(rangEnd, val)
 end
 
 local function __binarySearchNumList(list, val)
-    return base.binarySearchList(list, __compareNumber, val)
+    return _base.binarySearchArray(list, __compareNumber, val)
 end
 
 
@@ -144,7 +144,6 @@ end
 return
 {
     UTF8_INVALID_CODEPOINT  = UTF8_INVALID_CODEPOINT,
-
     iterateUTF8CodePoints   = iterateUTF8CodePoints,
     getUTF8Bytes            = getUTF8Bytes,
 }

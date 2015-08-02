@@ -46,7 +46,26 @@ local function updateTable(destTbl, srcTbl)
 end
 
 
-local function binarySearchList(list, cond, val)
+local _PATTERN_PRIVATE_MEMBER   = "^_"
+
+local function exportModules(...)
+    local destTbl = {}
+    local moduleTables = {...}
+    for _, moduleTbl in ipairs(moduleTables)
+    do
+        for k, v in pairs(moduleTbl)
+        do
+            if not k:match(_PATTERN_PRIVATE_MEMBER)
+            then
+                destTbl[k] = v
+            end
+        end
+    end
+    return destTbl
+end
+
+
+local function binarySearchArray(list, cond, val)
     local low = 1
     local high = #list
     while low <= high
@@ -92,8 +111,10 @@ return
     isEmptyTable        = isEmptyTable,
     isString            = isString,
     isNumber            = isNumber,
+    unpackArray         = unpack or table.unpack,
     clearTable          = clearTable,
     updateTable         = updateTable,
+    exportModules       = exportModules,
     iteratePairsArray   = iteratePairsArray,
-    binarySearchList    = binarySearchList,
+    binarySearchArray   = binarySearchArray,
 }

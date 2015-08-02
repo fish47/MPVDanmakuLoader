@@ -1,17 +1,16 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
-local json = require('src/_utils/json')
-local utf8 = require('src/_utils/utf8')
+local utils = require('src/utils')          --= utils utils
 
 
 local function __doAssertParseValue(content, expected)
-    local ret, val = json.parse(content)
+    local ret, val = utils.parseJSON(content)
     lu.assertTrue(ret)
     lu.assertEquals(val, expected)
 end
 
 
 local function __doAssertParseFailed(content)
-    lu.assertFalse(json.parse(content))
+    lu.assertFalse(utils.parseJSON(content))
 end
 
 
@@ -35,9 +34,9 @@ TestJSON =
                              "123\\456/789\f01\n23\r456\t7890")
 
         local buf = { "asdf" }
-        utf8.getUTF8Bytes(0x9ae3, buf, string.char)
+        utils.getUTF8Bytes(0x9ae3, buf, string.char)
         table.insert(buf, "fff")
-        utf8.getUTF8Bytes(0x1343, buf, string.char)
+        utils.getUTF8Bytes(0x1343, buf, string.char)
         table.insert(buf, "aab")
         __doAssertParseValue([[ "asdf\u9ae3fff\u1343aab" ]], table.concat(buf))
     end,

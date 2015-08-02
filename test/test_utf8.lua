@@ -212,7 +212,7 @@ TestIterateUTF8CodePoints =
         for _, stringBytes, codePoints in utils.iteratePairsArray(__UTF8_TEST_CASES)
         do
             local iterCount = 0
-            local str = string.char(table.unpack(stringBytes))
+            local str = string.char(utils.unpackArray(stringBytes))
             for _, codePoint in utils.iterateUTF8CodePoints(str)
             do
                 iterCount = iterCount + 1

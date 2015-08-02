@@ -253,10 +253,9 @@ return
     LAYER_ADVANCED      = LAYER_ADVANCED,
     LAYER_SUBTITLE      = LAYER_SUBTITLE,
 
-    DialogueBuilder     = DialogueBuilder,
-
     writeScriptInfo     = writeScriptInfo,
     writeStyle          = writeStyle,
     writeEvents         = writeEvents,
 
+    DialogueBuilder     = DialogueBuilder,
 }
