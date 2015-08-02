@@ -1,5 +1,5 @@
 _USE_SOFT_BITWISE_LIB = true
-local md5 = require('src/md5')              --= md5 md5
+local md5 = require('src/_utils/md5')
 local lu = require('3rdparties/luaunit')    --= luaunit lu
 
 

@@ -106,7 +106,7 @@ local function __insertAfter(node1, node2)
 end
 
 
-local function _getIntersectedHeight(top1, bottom1, top2, bottom2)
+local function __getIntersectedHeight(top1, bottom1, top2, bottom2)
     local h1 = 0
     local h2 = 0
     local h3 = 0
@@ -157,8 +157,8 @@ local __BasePosCalculator =
         local newAreaBottom = newAreaTop + area2.height
         while iterArea ~= nil
         do
-            local h1, h2, h3 = _getIntersectedHeight(iterAreaTop, iterAreaBottom,
-                                                     newAreaTop, newAreaBottom)
+            local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,
+                                                      newAreaTop, newAreaBottom)
             local score = h2 > 0 and self:_doGetCollisionScore(iterArea, area2) * h2 or 0
             scoreSum = scoreSum + score
 
@@ -185,8 +185,8 @@ local __BasePosCalculator =
             iterAreaTop = iterAreaBottom
             iterAreaBottom = iterAreaTop + iterArea.height
 
-            local h1, h2, h3 = _getIntersectedHeight(iterAreaTop, iterAreaBottom,
-                                                     newAreaTop, newAreaBottom)
+            local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,
+                                                      newAreaTop, newAreaBottom)
             if h1 > 0 and h2 == 0
             then
                 break
@@ -195,10 +195,10 @@ local __BasePosCalculator =
             -- 很多时候只是部分相交，所以需要切割
             if h2 > 0
             then
-                local splitH1, _, splitH3 = _getIntersectedHeight(newAreaTop,
-                                                                  newAreaBottom,
-                                                                  iterAreaTop,
-                                                                  iterAreaBottom)
+                local splitH1, _, splitH3 = __getIntersectedHeight(newAreaTop,
+                                                                   newAreaBottom,
+                                                                   iterAreaTop,
+                                                                   iterAreaBottom)
 
                 -- 切割不相交的上半部分
                 if splitH1 > 0
@@ -409,8 +409,7 @@ utils.declareClass(StaticPosCalculator, __BasePosCalculator)
 return
 {
     __DanmakuArea           = __DanmakuArea,
-
-    _getIntersectedHeight   = _getIntersectedHeight,
+    __getIntersectedHeight  = __getIntersectedHeight,
 
     MovingPosCalculator     = MovingPosCalculator,
     StaticPosCalculator     = StaticPosCalculator,

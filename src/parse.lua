@@ -1,5 +1,3 @@
-local base = require('src/base')            --= base base
-local utf8 = require('src/utf8')            --= utf8 utf8
 local utils = require('src/utils')          --= utils utils
 local poscalc = require('src/poscalc')      --= poscalc poscalc
 local asswriter = require('src/asswriter')  --= asswriter asswriter
@@ -14,12 +12,12 @@ local Danmaku =
     fontColor = nil,    -- 字体颜色字符串，格式 BBGGRR
 
     new = function(obj)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         return obj
     end,
 }
 
-base.declareClass(Danmaku)
+utils.declareClass(Danmaku)
 
 
 local DanmakuParseContext =
@@ -39,7 +37,7 @@ local DanmakuParseContext =
 
 
     new = function(obj)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj.pool =
         {
             [asswriter.LAYER_MOVING_L2R]    = {},
@@ -58,15 +56,15 @@ local DanmakuParseContext =
         then
             for k in next(self.pool)
             do
-                base.clearTable(self.pool[k])
+                utils.clearTable(self.pool[k])
             end
 
-            base.clearTable(self.pool)
+            utils.clearTable(self.pool)
         end
     end,
 }
 
-base.declareClass(DanmakuParseContext)
+utils.declareClass(DanmakuParseContext)
 
 
 
@@ -77,7 +75,7 @@ local function __measureDanmakuText(text, fontSize)
     local lineCount = 1
     local lineCharCount = 0
     local maxLineCharCount = 0
-    for _, codePoint in utf8.iterateUTF8CodePoints(text)
+    for _, codePoint in utils.iterateUTF8CodePoints(text)
     do
         if codePoint == _NEWLINE_CODEPOINT
         then
@@ -396,7 +394,7 @@ local MockFile =
     _mContent = nil,
 
     new = function(obj)
-        obj = base.allocateInstance(obj)
+        obj = utils.allocateInstance(obj)
         obj._mContent = {}
         return obj
     end,
@@ -414,7 +412,7 @@ local MockFile =
     end,
 }
 
-base.declareClass(MockFile)
+utils.declareClass(MockFile)
 
 
 --local f = io.open("/home/fish47/111/Biligrab/【MV】 LiSA「Rising Hope」完整版【720P】/1 - 【MV】 LiSA「Rising Hope」完整版【720P】.xml")

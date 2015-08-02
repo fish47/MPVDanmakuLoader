@@ -15,7 +15,7 @@ local _STYLE_NAME_MDL           = "_mdl_style"
 local _ASS_SCRIPT_INFO_HEADERNAME       = "Script Info"
 local _ASS_SCRIPT_INFO_KEYNAME_WIDTH    = "PlayResX"
 local _ASS_SCRIPT_INFO_KEYNAME_HEIGHT   = "PlayResY"
-local _PAIRS_SCRIPT_INFO =
+local _PAIRS_SCRIPT_INFO                =
 {
     "Script Updated By",    "MpvDanmakuLoader",
     "ScriptType",           "v4.00+",
@@ -54,7 +54,7 @@ local _ASS_STYLE_KEYNAME_STYLE                  = "Style"
 local _ASS_STYLE_FIELDNAME_FORMAT_STYLE_NAME    = "Name"
 local _ASS_STYLE_FIELDNAME_FORMAT_FONT_NAME     = "Fontname"
 local _ASS_STYLE_FIELDNAME_FORMAT_FONT_SIZE     = "Fontsize"
-local _PAIRS_BASE_STYLE =
+local _PAIRS_BASE_STYLE                         =
 {
     "PrimaryColour",        "&H33FFFFFF",
     "SecondaryColour",      "&H33FFFFFF",
@@ -124,7 +124,7 @@ end
 local _ASS_EVENTS_HEADER_NAME       = "Events"
 local _ASS_EVENTS_KEYNAME_FORMAT    = "Format"
 local _ASS_EVENTS_KEYNAME_DIALOGUE  = "Dialogue"
-local _ARRAY_EVENTS_FORMAT  =
+local _ARRAY_EVENTS_FORMAT          =
 {
     "Layer", "Start", "End", "Style", "Text"
 }

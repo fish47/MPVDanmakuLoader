@@ -1,5 +1,4 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
-local base = require('src/base')            --= base base
 local parse = require('src/parse')          --= parse parse
 local asswriter = require('src/asswriter')  --= asswriter asswriter
 

@@ -1,4 +1,4 @@
-local utils = require('src/utils')  --= utils utils
+local base = require('src/_utils/base')
 
 
 local _UTF8_DECODE_BYTE_RANGE_START_LIST        = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
@@ -9,14 +9,14 @@ local _UTF8_DECODE_SHIFT_POW_LIST               = {  1,    64,   32,   16,   8, 
 local _UTF8_DECODE_TRAILING_BYTE_RANGE_INDEX    = 2
 local _UTF8_DECODE_BYTE_RANGE_LIST_LEN          = #_UTF8_DECODE_BYTE_RANGE_START_LIST
 
-local INVALID_CODEPOINT                         = -1
+local UTF8_INVALID_CODEPOINT                    = -1
 
 local function __compareNumber(rangEnd, val)
     return rangEnd - val
 end
 
 local function __binarySearchNumList(list, val)
-    return utils.binarySearchList(list, __compareNumber, val)
+    return base.binarySearchList(list, __compareNumber, val)
 end
 
 
@@ -28,7 +28,7 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
     end
 
     local codePointByteCount = nil
-    local codePoint = INVALID_CODEPOINT
+    local codePoint = UTF8_INVALID_CODEPOINT
     local remainingByteCount = 0
     local nextStartByteIdx = byteLen
     for byteIdx = byteStartIdx, byteLen
@@ -46,11 +46,11 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
         end
 
         -- 出现连续的首字节，或首字节不合法
-        local hasFirstByte = (codePoint ~= INVALID_CODEPOINT)
+        local hasFirstByte = (codePoint ~= UTF8_INVALID_CODEPOINT)
         local isFirstByte = (rangeIdx ~= _UTF8_DECODE_TRAILING_BYTE_RANGE_INDEX)
         if hasFirstByte == isFirstByte
         then
-            codePoint = INVALID_CODEPOINT
+            codePoint = UTF8_INVALID_CODEPOINT
             break
         end
 
@@ -143,7 +143,7 @@ end
 
 return
 {
-    INVALID_CODEPOINT       = INVALID_CODEPOINT,
+    UTF8_INVALID_CODEPOINT  = UTF8_INVALID_CODEPOINT,
 
     iterateUTF8CodePoints   = iterateUTF8CodePoints,
     getUTF8Bytes            = getUTF8Bytes,

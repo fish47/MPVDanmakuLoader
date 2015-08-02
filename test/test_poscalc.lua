@@ -1,5 +1,5 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
-local base = require('src/base')            --= base base
+local utils = require('src/utils')          --= utils utils
 local poscalc = require('src/poscalc')      --= poscalc poscalc
 
 TestMovingArea =
@@ -82,7 +82,7 @@ TestIntersectedHeight =
 {
     test_main = function()
         local function __doAssert(top1, bottom1, top2, bottom2, heights)
-            local h1, h2, h3 = poscalc._getIntersectedHeight(top1, bottom1, top2, bottom2)
+            local h1, h2, h3 = poscalc.__getIntersectedHeight(top1, bottom1, top2, bottom2)
             lu.assertEquals(h1, heights[1])
             lu.assertEquals(h2, heights[2])
             lu.assertEquals(h3, heights[3])
@@ -121,6 +121,16 @@ TestPosCalculator =
     end,
 
 
+    __sumHeights = function(self, heights)
+        local sum = 0
+        for i, height in ipairs(heights)
+        do
+            sum = sum + height
+        end
+        return sum
+    end,
+
+
     test_add_area = function(self)
         local function __doAddArea(calc, top, bottom)
             -- 只为防止被相容才做些奇怪数据而已
@@ -141,12 +151,12 @@ TestPosCalculator =
                 area = area._next
             end
             lu.assertEquals(heights, calcHeightList)
-            base.clearTable(calcHeightList)
+            utils.clearTable(calcHeightList)
         end
 
         local function __doTest(heights, areaBounds, assertHeights)
             local addTop, addBottom = table.unpack(areaBounds)
-            local calc = poscalc.MovingPosCalculator:new()
+            local calc = poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
             __doAddArea(calc, addTop, addBottom)
             __doAssertAreaHeights(calc, assertHeights)
@@ -163,7 +173,7 @@ TestPosCalculator =
 
     test_score_sum = function(self)
         local function __doTest(heights, areaBounds, assertAreaIndexes)
-            local calc = poscalc.MovingPosCalculator:new()
+            local calc = poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
 
             -- 编号
@@ -190,9 +200,9 @@ TestPosCalculator =
 
             lu.assertEquals(sumedAreaIndexes, assertAreaIndexes)
 
-            base.clearTable(sumedAreaIndexes)
-            base.clearTable(assertAreaIndexes)
-            base.clearTable(areaIndexes)
+            utils.clearTable(sumedAreaIndexes)
+            utils.clearTable(assertAreaIndexes)
+            utils.clearTable(areaIndexes)
             calc:dispose()
         end
 

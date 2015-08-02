@@ -1,6 +1,6 @@
 local lu = require('3rdparties/luaunit')    --= luaunit lu
-local json = require('src/json')            --= json json
-local utf8 = require('src/utf8')            --= utf8 utf8
+local json = require('src/_utils/json')
+local utf8 = require('src/_utils/utf8')
 
 
 local function __doAssertParseValue(content, expected)
