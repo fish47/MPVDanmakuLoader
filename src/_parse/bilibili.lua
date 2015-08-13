@@ -48,7 +48,7 @@ local function parseBiliBiliRawData(rawData, ctx)
             --TODO 神弹幕
         else
             local d = _base._Danmaku:new()
-            d.text = utils.unescapeXMLText(text)
+            d.text = utils.unescapeXMLString(text)
             d.startTime = tonumber(start) * _BILI_FACTOR_TIME_STAMP
             d.lifeTime = _BILI_LIFETIME_MAP[biliPos]
 

@@ -46,6 +46,14 @@ local function declareClass(clzDefObj, baseClzDefObj)
         __addMissedEntries(clzDefObj, baseClzDefObj)
     end
 
+    -- 生成默认构造方法，如果没有的话
+    if clzDefObj.new == nil
+    then
+        clzDefObj.new = function(obj)
+            return allocateInstance(obj)
+        end
+    end
+
     __createClassMetaTable(clzDefObj)
     return clzDefObj
 end

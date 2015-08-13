@@ -1,3 +1,4 @@
+local _base = require('src/_utils/_base')
 local utf8 = require('src/_utils/utf8')
 
 
@@ -38,7 +39,7 @@ local function __replaceEscapedXMLText(text)
     return nil
 end
 
-local function unescapeXMLText(text)
+local function unescapeXMLString(text)
     local str = text:gsub(_XML_ESCAPE_STR_PATTERN, __replaceEscapedXMLText)
     return str
 end
@@ -100,16 +101,41 @@ local _ASS_ESCAPABLE_CHAR_MAP       =
     [" "]       = "\\h",
 }
 
-local function escapeASSText(text, outList)
+local function escapeASSString(text, outList)
     local str = text:gsub(_ASS_ESCAPABLE_CHARS_PATTERN, _ASS_ESCAPABLE_CHAR_MAP)
     return str
 end
 
 
+
+local _URL_ESCAPED_CHAR_FORMAT      = "%%%02X"
+local _URL_PATTERN_SPECIAL_CHARS    = "[^A-Za-z0-9%-_%.~]"
+
+local function __replaceURLSpecialChars(text)
+    return string.format(_URL_ESCAPED_CHAR_FORMAT, text:byte(1))
+end
+
+local function escapeURLString(text)
+    return text:gsub(_URL_PATTERN_SPECIAL_CHARS, __replaceURLSpecialChars)
+end
+
+
+local _BASH_STRONG_QUOTE            = "\'"
+local _BASH_ESCAPED_STRONG_QUOTE    = "'\"'\"'"
+
+local function escapeBashString(text)
+    -- 这是从 pipes.py 抄过来的
+    local replaced = text:gsub(_BASH_STRONG_QUOTE, _BASH_ESCAPED_STRONG_QUOTE)
+    return _BASH_STRONG_QUOTE .. replaced .. _BASH_STRONG_QUOTE
+end
+
+
 return
 {
-    escapeASSText               = escapeASSText,
-    unescapeXMLText             = unescapeXMLText,
+    escapeASSString             = escapeASSString,
+    unescapeXMLString           = unescapeXMLString,
+    escapeURLString             = escapeURLString,
+    escapeBashString            = escapeBashString,
     convertTimeToHHMMSS         = convertTimeToHHMMSS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
     convertRGBHexToBGRString    = convertRGBHexToBGRString,

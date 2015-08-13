@@ -46,6 +46,14 @@ local function updateTable(destTbl, srcTbl)
 end
 
 
+local function appendArray(destArray, srcArray)
+    for _, v in ipairs(srcArray)
+    do
+        table.insert(destArray, v)
+    end
+end
+
+
 local _PATTERN_PRIVATE_MEMBER   = "^_"
 
 local function exportModules(...)
@@ -76,7 +84,7 @@ local function binarySearchArray(list, cond, val)
 
         if cmpRet == 0
         then
-            return mid, midVal
+            return true, mid, midVal
         elseif cmpRet > 0
         then
             high = mid - 1
@@ -86,7 +94,7 @@ local function binarySearchArray(list, cond, val)
     end
 
     -- 找不到返回的是插入位置
-    return low, nil
+    return false, low, nil
 end
 
 
@@ -112,6 +120,7 @@ return
     isString            = isString,
     isNumber            = isNumber,
     unpackArray         = unpack or table.unpack,
+    appendArray         = appendArray,
     clearTable          = clearTable,
     updateTable         = updateTable,
     exportModules       = exportModules,

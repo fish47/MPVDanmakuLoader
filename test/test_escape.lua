@@ -4,35 +4,44 @@ local utils = require('src/utils')          --= utils utils
 
 TestEscapeASSText =
 {
-    test1 = function()
-        local function __doTest(orgin, expected)
-            local escaped = utils.escapeASSText(orgin)
-            lu.assertEquals(escaped, expected)
-        end
-
-        __doTest("\n", "\\N")
-        __doTest("\\", "\\\\")
-        __doTest("{", "\\{")
-        __doTest("}", "\\}")
-        __doTest(" ", "\\h")
-    end,
 }
 
-
-TestUnescapeXMLText =
+TestEscape =
 {
-    test1 = function()
-        local function __doTest(origin, expected)
-            local unescaped = utils.unescapeXMLText(origin)
-            lu.assertEquals(unescaped, expected)
-        end
+    __doTest = function(self, func, origin, expected)
+        local ret = func(origin)
+        lu.assertEquals(ret, expected)
+    end,
 
-        __doTest("&lt;", "<")
-        __doTest("&gt;", ">")
-        __doTest("&amp;", "&")
-        __doTest("&apos;", "\'")
-        __doTest("&quot;", "\"")
-        __doTest("&#x00020;", " ")
+
+    test_escape_ass_text = function(self)
+        local func = utils.escapeASSString
+        self:__doTest(func, "\n", "\\N")
+        self:__doTest(func, "\\", "\\\\")
+        self:__doTest(func, "{", "\\{")
+        self:__doTest(func, "}", "\\}")
+        self:__doTest(func, " ", "\\h")
+    end,
+
+
+    test_unescape_xml_text = function(self)
+        local func = utils.unescapeXMLString
+        self:__doTest(func, "&lt;", "<")
+        self:__doTest(func, "&gt;", ">")
+        self:__doTest(func, "&amp;", "&")
+        self:__doTest(func, "&apos;", "\'")
+        self:__doTest(func, "&quot;", "\"")
+        self:__doTest(func, "&#x00020;", " ")
+    end,
+
+
+    test_escape_url_text = function(self)
+        local func = utils.escapeURLString
+        self:__doTest(func, "要要", "%E8%A6%81%E8%A6%81")
+        self:__doTest(func, "%", "%25")
+        self:__doTest(func,
+                      "!#$&'()*+,/:;=?@[]",
+                      "%21%23%24%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D")
     end,
 }
 

@@ -9,11 +9,6 @@ local _Danmaku =
     lifeTime = nil,     -- 弹幕存活时间，单位 ms
     fontSize = nil,     -- 字体大小，单位 pt
     fontColor = nil,    -- 字体颜色字符串，格式 BBGGRR
-
-    new = function(obj)
-        obj = utils.allocateInstance(obj)
-        return obj
-    end,
 }
 
 utils.declareClass(_Danmaku)

@@ -1,6 +1,7 @@
-local utf8 = require('src/_utils/utf8')
 local _base = require('src/_utils/_base')
+local utf8 = require('src/_utils/utf8')
 local classlite = require('src/_utils/classlite')
+
 
 local _TOKEN_LBRACE     = "{"
 local _TOKEN_RBRACE     = "}"
@@ -160,7 +161,7 @@ local _JUMP_TABLE_INITIAL                        = nil
 
 local _PATTERN_NONSPACE_CHAR            = "([^%s])"
 local _PATTERN_QUOTE_OR_ESCAPE          = "([\"\\])"
-local _PATTERN_FOUR_HEX                 = "^(%x%x%x%x)"
+local _PATTERN_UNICODE_HEX              = "^(%x%x%x%x)"
 local _PATTERN_NUMBER_DECIMAL_PART      = "^(%-?%d+)"
 local _PATTERN_NUMBER_FRACTIONAL_PART   = "^(%.%d+)"
 local _PATTERN_NUMBER_EXPONENTIAL_PART  = "^([eE][+-]?%d+)"
@@ -284,7 +285,7 @@ _onParseString = function(ctx)
             elseif nextCh == _TOKEN_ESCAPABLE_UNICODE_PREFIX
             then
                 -- \uXXXX
-                local hexStr = content:match(_PATTERN_FOUR_HEX, nextChIdx + 1)
+                local hexStr = content:match(_PATTERN_UNICODE_HEX, nextChIdx + 1)
                 local codePoint = hexStr and tonumber(hexStr, _UNICODE_NUMBER_BASE) or nil
                 if codePoint
                 then
@@ -420,7 +421,7 @@ _onParseObjectEnd = __doOnParseCollectionEnd
 
 _onParseArrayElementList = function(ctx, wordType)
     -- 分派到对应的解释流程
-    if _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST == nil
+    if not _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST
     then
         _JUMP_TABLE_PARSE_ARRAY_ELEMENT_LIST =
         {
@@ -441,7 +442,7 @@ _onAddArrayElement = function(ctx, val)
     local curArray = __getStackTop(ctx.collectionStack)
     curArray[#curArray + 1] = val
 
-    if _JUMP_TABLE_ADD_ARRAY_ELEMENT == nil
+    if not _JUMP_TABLE_ADD_ARRAY_ELEMENT
     then
         _JUMP_TABLE_ADD_ARRAY_ELEMENT =
         {
@@ -460,7 +461,7 @@ _onParseObjectPairList = function(ctx, wordType)
     local addItemFuncStack = ctx.addItemFuncStack
     addItemFuncStack[#addItemFuncStack] = _onAddObjectKey
 
-    if _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST == nil
+    if not _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST
     then
         _JUMP_TABLE_PARSE_OBJECT_PAIR_LIST =
         {
@@ -486,7 +487,7 @@ _onAddObjectKey = function(ctx, val)
     local addItemFuncStack = ctx.addItemFuncStack
     addItemFuncStack[#addItemFuncStack] = _onAddObjectValue
 
-    if _JUMP_TABLE_ADD_OBJECT_KEY == nil
+    if not _JUMP_TABLE_ADD_OBJECT_KEY
     then
         _JUMP_TABLE_ADD_OBJECT_KEY =
         {
@@ -506,7 +507,7 @@ _onAddObjectValue = function(ctx, val)
     local key = table.remove(ctx.keyStack)
     __getStackTop(ctx.collectionStack)[key] = val
 
-    if _JUMP_TABLE_ADD_OBJECT_VALUE == nil
+    if not _JUMP_TABLE_ADD_OBJECT_VALUE
     then
         _JUMP_TABLE_ADD_OBJECT_VALUE =
         {
@@ -538,7 +539,7 @@ local function parseJSON(content, ctx)
     -- 完成解释后，检测有没有多余的内容，例如 "[ 1 ] abc"
     table.insert(ctx.addItemFuncStack, _onCheckHasRemainingContent)
 
-    if _JUMP_TABLE_INITIAL == nil
+    if not _JUMP_TABLE_INITIAL
     then
         _JUMP_TABLE_INITIAL =
         {

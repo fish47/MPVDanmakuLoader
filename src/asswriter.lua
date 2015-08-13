@@ -191,7 +191,7 @@ local DialogueBuilder =
     end,
 
     addText = function(self, text)
-        table.insert(self._mContent, utils.escapeASSText(text))
+        table.insert(self._mContent, utils.escapeASSString(text))
     end,
 
     addMove = function(self, startX, startY, endX, endY)

@@ -245,7 +245,6 @@ local __BasePosCalculator =
 
 
     calculate = function(self, w, h, start, lifeTime)
-
         -- 区域位置全部用整数表示
         h = math.ceil(h)
 

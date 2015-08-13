@@ -38,9 +38,8 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
         -- 判断是 UTF8 字节类型
         -- 不是所有字节都是有效的 UTF8 字节，例如 0b11111111
         local b = byteString:byte(byteIdx)
-        local rangeIdx = __binarySearchNumList(_UTF8_DECODE_BYTE_RANG_END_LIST, b)
-        if rangeIdx > _UTF8_DECODE_BYTE_RANGE_LIST_LEN
-           or b < _UTF8_DECODE_BYTE_RANGE_START_LIST[rangeIdx]
+        local found, rangeIdx = __binarySearchNumList(_UTF8_DECODE_BYTE_RANG_END_LIST, b)
+        if not found and rangeIdx > _UTF8_DECODE_BYTE_RANGE_LIST_LEN
         then
             break
         end
@@ -113,7 +112,7 @@ local function getUTF8Bytes(codePoint, outList, convertFunc)
         return 0
     end
 
-    local rangeIdx = __binarySearchNumList(_UTF8_ENCODE_CODEPOINT_RANGE_END_LIST, codePoint)
+    local _, rangeIdx = __binarySearchNumList(_UTF8_ENCODE_CODEPOINT_RANGE_END_LIST, codePoint)
     local bitMasks = _UTF8_ENCODE_BYTE_MASK_LIST[rangeIdx]
     local writeByteCount = #bitMasks
     local remainingBits = codePoint
