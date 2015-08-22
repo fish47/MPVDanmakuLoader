@@ -3,11 +3,11 @@ local utils = require('src/utils')          --= utils utils
 local asswriter = require('src/asswriter')  --= asswriter asswriter
 
 
-local _SRT_SUBTITLE_IDX_START   = 1
-local _SRT_SEP_SUBTITLE         = ""
-local _SRT_PATTERN_SUBTITLE_IDX = "^(%d+)$"
-local _SRT_PATTERN_TIME         = "(%d+):(%d+):(%d+),(%d+)"
-local _SRT_PATTERN_TIME_SPAN    = _SRT_PATTERN_TIME .. " %-%-%> " .. _SRT_PATTERN_TIME
+local _SRT_SUBTITLE_IDX_START       = 1
+local _SRT_SEP_SUBTITLE             = ""
+local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
+local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
+local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME .. " %-%-%> " .. _SRT_PATTERN_TIME
 
 local __readSubtitleIdxOrEmptyLines = nil
 local __readSubtitleTimeSpan        = nil

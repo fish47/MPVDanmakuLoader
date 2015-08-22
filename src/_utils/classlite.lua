@@ -50,6 +50,7 @@ local function declareClass(clzDefObj, baseClzDefObj)
     if clzDefObj.new == nil
     then
         clzDefObj.new = function(obj)
+            -- 一般父类会有明确的构造方法
             return allocateInstance(obj)
         end
     end
