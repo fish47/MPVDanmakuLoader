@@ -1,4 +1,4 @@
-local utils = require('src/utils')
+local utils = require("src/utils")          --= utils utils
 
 
 local _BILI_FMT_URL_SEARCH              = "http://www.bilibili.com/search?keyword=%s"
@@ -95,15 +95,18 @@ end
 
 
 
-local function searchBiliBili(conn, keyword, maxPageCount)
+local function searchBiliBiliByKeyword(conn, keyword, maxPageCount)
     local escapedKeyword = utils.escapeURLString(keyword)
     local results = {}
     local pageURLs = { string.format(_BILI_FMT_URL_SEARCH, escapedKeyword) }
     maxPageCount = math.max(maxPageCount or _BILI_DEFAULT_SEARCH_PAGE_COUNT, 1)
 
+    conn:resetParams()
+    conn:setCompressed(true)
+
     local i = 1
     repeat
-        local rawData = conn:doGET(pageURLs[i], true)
+        local rawData = conn:doGET(pageURLs[i])
         if not rawData
         then
             break
@@ -124,8 +127,7 @@ local function searchBiliBili(conn, keyword, maxPageCount)
         local lastReadPageIdx = math.min(#pageURLs - 1, maxPageCount)
         while i <= lastReadPageIdx
         do
-            local succeed = conn:doQueuedGET(pageURLs[i], true,
-                                             __parseSearchPage, results)
+            local succeed = conn:doQueuedGET(pageURLs[i], __parseSearchPage, results)
 
             -- 间接跳出最外层循环
             if not succeed
@@ -184,7 +186,10 @@ end
 
 
 local function getBiliBiliVideoInfos(conn, videoID)
-    local rawData = conn:doGET(string.format(_BILI_FMT_URL_VIDEO, videoID), true)
+    conn:resetParams()
+    conn:setCompressed(true)
+
+    local rawData = conn:doGET(string.format(_BILI_FMT_URL_VIDEO, videoID))
     if not rawData
     then
         return nil
@@ -202,7 +207,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
         for relativeURL, subtitle in rawData:gmatch(_BILI_PATTERN_PIECES_OPTION)
         do
             local pieceURL = string.format(_BILI_FMT_URL_VIDEO_PIECE, relativeURL)
-            conn:doQueuedGET(pieceURL, true, __parseVideoChatID, chatIDs)
+            conn:doQueuedGET(pieceURL, __parseVideoChatID, chatIDs)
             table.insert(subtitles, __filterBadChars(subtitle))
         end
 
@@ -217,7 +222,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
             if chatID
             then
                 local videoInfoURL = string.format(_BILI_FMT_URL_VIDEO_INFO, chatID, videoID)
-                conn:doQueuedGET(videoInfoURL, true, __parseVideoDuration, durations)
+                conn:doQueuedGET(videoInfoURL, __parseVideoDuration, durations)
             else
                 -- 保证平行数组长度一致
                 table.insert(durations, nil)
@@ -258,7 +263,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
         if chatID
         then
             local videoInfoURL = string.format(_BILI_FMT_URL_VIDEO_INFO, chatID, videoID)
-            local rawData2 = conn:doGET(videoInfoURL, true)
+            local rawData2 = conn:doGET(videoInfoURL)
             local duration = rawData2 and __doParseVideoDuration(rawData2)
             if duration
             then
@@ -275,7 +280,9 @@ end
 
 
 local function getBiliBiliDanmakuRawData(conn, danmakuURL)
-    local rawData = conn:doGET(danmakuURL, true)
+    conn:resetParams()
+    conn:setCompressed(true)
+    local rawData = conn:doGET(danmakuURL)
     return rawData and __filterBadChars(rawData) or nil
 end
 
@@ -284,7 +291,7 @@ return
 {
     BiliBiliVideoInfo           = BiliBiliVideoInfo,
     BiliBiliSearchResult        = BiliBiliSearchResult,
-    searchBiliBili              = searchBiliBili,
+    searchBiliBiliByKeyword     = searchBiliBiliByKeyword,
     getBiliBiliVideoInfos       = getBiliBiliVideoInfos,
     getBiliBiliDanmakuRawData   = getBiliBiliDanmakuRawData,
 }

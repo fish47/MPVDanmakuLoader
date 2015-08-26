@@ -1,9 +1,11 @@
 local utils = require('src/utils')      --= utils utils
 
 
-local _CURL_ARG_SLIENT          = "--silent"
-local _CURL_ARG_COMPRESSED      = "--compressed"
-local _CURL_SEP_ARGS            = " "
+local _CURL_ARG_SLIENT                  = "--silent"
+local _CURL_ARG_COMPRESSED              = "--compressed"
+local _CURL_ARG_MAX_TIME                = "--max-time"
+local _CURL_SEP_ARGS                    = " "
+local _CURL_DEFAULT_TIMEOUT_SECONDS     = 3
 
 local CURLNetworkConnection =
 {
@@ -13,35 +15,60 @@ local CURLNetworkConnection =
     _mCallbackArgQueue  = nil,
     _mStdoutFileQueue   = nil,
 
-    new = function(obj, curlBin)
+    _mCompressed        = nil,
+    _mTimeOutSeconds    = nil,
+
+
+    new = function(obj, curlBin, timeOutSec)
         obj = utils.allocateInstance(obj)
         obj._mCURLBin = curlBin
         obj._mCmdArgs = {}
         obj._mCallbackQueue = {}
         obj._mCallbackArgQueue = {}
         obj._mStdoutFileQueue = {}
+        obj._mTimeOutSeconds = tostring(timeOutSec or _CURL_DEFAULT_TIMEOUT_SECONDS)
+        obj:resetParams()
         return obj
     end,
 
 
-    _doGetResponseFile = function(self, url, compressed)
-        local cmdArgs = self._mCmdArgs
-        table.insert(cmdArgs, utils.escapeBashString(self._mCURLBin))
-        table.insert(cmdArgs, utils.escapeBashString(_CURL_ARG_SLIENT))
-        if compressed
-        then
-            table.insert(cmdArgs, utils.escapeBashString(_CURL_ARG_COMPRESSED))
-        end
-        table.insert(cmdArgs, utils.escapeBashString(url))
+    resetParams = function(self)
+        self._mCompressed = false
+    end,
 
+
+    setCompressed = function(self, val)
+        self._mCompressed = val
+    end,
+
+
+    __doAddCmdArg = function(self, arg)
+        local escaped = utils.escapeBashString(arg)
+        table.insert(self._mCmdArgs, escaped)
+    end,
+
+
+    _doGetResponseFile = function(self, url)
+        self:__doAddCmdArg(self._mCURLBin)
+        self:__doAddCmdArg(_CURL_ARG_SLIENT)
+        self:__doAddCmdArg(_CURL_ARG_MAX_TIME)
+        self:__doAddCmdArg(self._mTimeOutSeconds)
+        if self._mCompressed
+        then
+            self:__doAddCmdArg(_CURL_ARG_COMPRESSED)
+        end
+        self:__doAddCmdArg(url)
+
+
+        local cmdArgs = self._mCmdArgs
         local f = io.popen(table.concat(cmdArgs, _CURL_SEP_ARGS))
         utils.clearTable(cmdArgs)
         return f
     end,
 
 
-    doGET = function(self, url, compressed)
-        local f = self:_doGetResponseFile(url, compressed)
+    doGET = function(self, url)
+        local f = self:_doGetResponseFile(url)
         if f
         then
             local content = f:read("*a")
@@ -53,8 +80,8 @@ local CURLNetworkConnection =
     end,
 
 
-    doQueuedGET = function(self, url, compressed, callback, arg)
-        local f = self:_doGetResponseFile(url, compressed)
+    doQueuedGET = function(self, url, callback, arg)
+        local f = self:_doGetResponseFile(url)
         table.insert(self._mStdoutFileQueue, f)
         table.insert(self._mCallbackQueue, callback)
         table.insert(self._mCallbackArgQueue, arg)

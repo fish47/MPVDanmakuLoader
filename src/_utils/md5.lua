@@ -521,7 +521,7 @@ local function __doDigestLastChunkAndPaddings(a, b, c, d,
 end
 
 
-local function calcMD5HashSum(iterFunc, iterArg)
+local function calcMD5Hash(iterFunc, iterArg)
     local a = _MD5_HASH_INIT_A
     local b = _MD5_HASH_INIT_B
     local c = _MD5_HASH_INIT_C
@@ -585,5 +585,5 @@ return
     __lrotate   = __lrotate,
 
     MD5_CHUNK_BYTE_COUNT    = MD5_CHUNK_BYTE_COUNT,
-    calcMD5HashSum          = calcMD5HashSum,
+    calcMD5Hash             = calcMD5Hash,
 }

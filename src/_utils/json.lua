@@ -533,6 +533,11 @@ end
 
 
 local function parseJSON(content, ctx)
+    if not content
+    then
+        return false
+    end
+
     ctx = ctx or JSONParseContext:new()
     ctx:_reset(content)
 

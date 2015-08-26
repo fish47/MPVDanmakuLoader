@@ -47,7 +47,7 @@ TestMD5 =
 
 
         local function __doTest(content, expected)
-            local val = md5.calcMD5HashSum(__readChunkFunc, content)
+            local val = md5.calcMD5Hash(__readChunkFunc, content)
             lu.assertEquals(val, expected)
         end
 

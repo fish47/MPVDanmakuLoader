@@ -9,6 +9,7 @@ local _Danmaku =
     lifeTime = nil,     -- 弹幕存活时间，单位 ms
     fontSize = nil,     -- 字体大小，单位 pt
     fontColor = nil,    -- 字体颜色字符串，格式 BBGGRR
+    danmakuID = nil,    -- 排除重复用
 }
 
 utils.declareClass(_Danmaku)
@@ -41,6 +42,7 @@ local DanmakuParseContext =
             [asswriter.LAYER_ADVANCED]      = {},
             [asswriter.LAYER_SUBTITLE]      = {},
         }
+
         return obj
     end,
 
@@ -93,9 +95,15 @@ local function _measureDanmakuText(text, fontSize)
 end
 
 
+local _LIFETIME_STATIC          = 5000
+local _LIFETIME_MOVING          = 8000
+
+
 return
 {
     _NEWLINE_STR            = _NEWLINE_STR,
+    _LIFETIME_STATIC        = _LIFETIME_STATIC,
+    _LIFETIME_MOVING        = _LIFETIME_MOVING,
     _measureDanmakuText     = _measureDanmakuText,
     _Danmaku                = _Danmaku,
     DanmakuParseContext     = DanmakuParseContext,
