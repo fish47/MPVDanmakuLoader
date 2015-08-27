@@ -1,5 +1,5 @@
-local lu = require('3rdparties/luaunit')    --= luaunit lu
-local utils = require('src/utils')          --= utils utils
+local lu = require("3rdparties/luaunit")    --= luaunit lu
+local utils = require("src/utils")          --= utils utils
 
 local __UTF8_TEST_CASES =
 {

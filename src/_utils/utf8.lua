@@ -1,4 +1,4 @@
-local _base = require('src/_utils/_base')
+local _base = require("src/_utils/_base")
 
 
 local _UTF8_DECODE_BYTE_RANGE_START_LIST        = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }

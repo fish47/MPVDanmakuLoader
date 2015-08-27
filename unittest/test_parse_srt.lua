@@ -1,7 +1,7 @@
-local lu = require('3rdparties/luaunit')    --= luaunit lu
-local utils = require('src/utils')          --= utils utils
-local parse = require('src/parse')          --= parse parse
-local asswriter = require('src/asswriter')  --= asswriter asswriter
+local lu = require("3rdparties/luaunit")    --= luaunit lu
+local utils = require("src/utils")          --= utils utils
+local parse = require("src/parse")          --= parse parse
+local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
 TestParseSRTFile =

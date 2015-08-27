@@ -1,6 +1,6 @@
-local _base = require('src/_utils/_base')
-local utf8 = require('src/_utils/utf8')
-local classlite = require('src/_utils/classlite')
+local _base = require("src/_utils/_base")
+local utf8 = require("src/_utils/utf8")
+local classlite = require("src/_utils/classlite")
 
 
 local _TOKEN_LBRACE     = "{"

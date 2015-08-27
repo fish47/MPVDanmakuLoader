@@ -1,5 +1,5 @@
-local _base = require('src/_utils/_base')
-local utf8 = require('src/_utils/utf8')
+local _base = require("src/_utils/_base")
+local utf8 = require("src/_utils/utf8")
 
 
 local _XML_ESCAPE_STR_UNICODE_RADIX     = 16

@@ -1,6 +1,6 @@
-local _base = require('src/_parse/_base')
-local poscalc = require('src/poscalc')      --= poscalc poscalc
-local asswriter = require('src/asswriter')  --= asswriter asswriter
+local _base = require("src/_parse/_base")
+local poscalc = require("src/poscalc")      --= poscalc poscalc
+local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
 local function __writeMovingL2RPos(ctx, builder, w, y)

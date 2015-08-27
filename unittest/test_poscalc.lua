@@ -1,6 +1,6 @@
-local lu = require('3rdparties/luaunit')    --= luaunit lu
-local utils = require('src/utils')          --= utils utils
-local poscalc = require('src/poscalc')      --= poscalc poscalc
+local lu = require("3rdparties/luaunit")    --= luaunit lu
+local utils = require("src/utils")          --= utils utils
+local poscalc = require("src/poscalc")      --= poscalc poscalc
 
 TestMovingArea =
 {

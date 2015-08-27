@@ -1,4 +1,4 @@
-local _base = require('src/_utils/_base')
+local _base = require("src/_utils/_base")
 
 local __band        = nil
 local __bor         = nil

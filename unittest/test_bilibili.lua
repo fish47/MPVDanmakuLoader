@@ -1,6 +1,6 @@
-local lu = require('3rdparties/luaunit')    --= luaunit lu
-local utils = require('src/utils')          --= utils utils
-local network = require('src/network')
+local lu = require("3rdparties/luaunit")    --= luaunit lu
+local utils = require("src/utils")          --= utils utils
+local network = require("src/network")
 
 
 local MockCURLNetworkConnection =
