@@ -9,11 +9,6 @@ local function isEmptyTable(o)
 end
 
 
-local function isEmptyArray(o)
-    return isTable(o) and #o == 0
-end
-
-
 local function isString(o)
     return type(o) == "string"
 end
@@ -122,7 +117,6 @@ return
 {
     isTable             = isTable,
     isEmptyTable        = isEmptyTable,
-    isEmptyArray        = isEmptyArray,
     isString            = isString,
     isNumber            = isNumber,
     unpackArray         = unpack or table.unpack,

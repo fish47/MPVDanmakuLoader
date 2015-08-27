@@ -1,7 +1,7 @@
-local utils = require('src/utils')          --= utils utils
+local utils = require("src/utils")          --= utils utils
 
 
-local __MPVBuiltinMixin =
+local __MPVBuiltinFunctionMixin =
 {
     setSubtitle = function(self, path)
         --
@@ -47,4 +47,11 @@ local __MPVBuiltinMixin =
     end,
 }
 
-utils.declareClass(__MPVBuiltinMixin)
+utils.declareClass(__MPVBuiltinFunctionMixin)
+
+
+
+local MPVDanmakuLoaderApp =
+{}
+
+utils.declareClass(MPVDanmakuLoaderApp)

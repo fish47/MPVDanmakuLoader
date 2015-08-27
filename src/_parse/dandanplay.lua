@@ -1,16 +1,16 @@
-local _base = require('src/_parse/_base')
+local _base = require("src/_parse/_base")
 local utils = require("src/utils")          --= utils utils
-local asswriter = require('src/asswriter')  --= asswriter asswriter
+local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local _DDP_KEY_COMMENT_COMMENTS     = "Comments"
-local _DDP_KEY_COMMENT_ID           = "CId"
-local _DDP_KEY_COMMENT_TIMESTAMP    = "Time"
-local _DDP_KEY_COMMENT_MESSAGE      = "Message"
-local _DDP_KEY_COMMENT_MODE         = "Mode"
-local _DDP_KEY_COMMENT_COLOR        = "Color"
+local _DDP_PATTERN_DANMAKU_ID       = "_ddp_%d_%d"
+local _DDP_PATTERN_COMMENT          = "<Comment"
+                                      .. '%s+Time="([%d.]+)"%s+Mode="(%d+)"%s+Color="(%d+)"'
+                                      .. '%s+Timestamp="%d+"%s+Pool="(%d+)"%s+UId="%-?[%d]+"%s+CId="(%d+)"'
+                                      .. "%s*>"
+                                      .. "([^<]+)"
+                                      .. "</Comment>"
 
-local _DDP_PATTERN_DANMAKU_ID       = "_ddp_%d"
 
 local _DDP_FACTOR_TIME_STAMP        = 1000
 
@@ -37,48 +37,28 @@ local _DDP_LIFETIME_MAP         =
 
 
 
-local function parseDanDanPlayRawData(rawData, ctx)
-    local succed, jsonObj = utils.parseJSON(rawData)
-    local comments = succed and jsonObj[_DDP_KEY_COMMENT_COMMENTS]
-    if not comments
+local function parseDanDanPlayRawData(ctx, rawData)
+    if not rawData
     then
-        return nil
+        return
     end
 
-    for _, commentObj in ipairs(comments)
+    for start, typeStr, color, id1, id2, text in rawData:gmatch(_DDP_PATTERN_COMMENT)
     do
-        local commentID = commentObj[_DDP_KEY_COMMENT_ID]
-        local startTime = commentObj[_DDP_KEY_COMMENT_TIMESTAMP]
-        local message = commentObj[_DDP_KEY_COMMENT_MESSAGE]
-        local color = commentObj[_DDP_KEY_COMMENT_COLOR]
-        local mode = commentObj[_DDP_KEY_COMMENT_MODE]
-
-        color = color and tonumber(color)
-        mode = mode and tonumber(mode)
-        startTime = startTime and startTime * _DDP_FACTOR_TIME_STAMP
-
-        local layer = mode and _DDP_POS_TO_LAYER_MAP[mode]
-        local lifeTime = mode and _DDP_LIFETIME_MAP[mode]
-
-        if commentID and startTime and message and layer and lifeTime
+        local pos = tonumber(typeStr) or _DDP_POS_MOVING_R2L
+        local layer = _DDP_POS_TO_LAYER_MAP[pos]
+        local pool = layer and ctx.pools[layer]
+        if pool
         then
-            -- 重用解释 JSON 时创建的 table ，反正后面也不会用到
-            local d = commentObj
-            utils.clearTable(d)
-            _base._Danmaku.new(d)
-
-            d.text = message
-            d.startTime = startTime
-            d.lifeTime = lifeTime
-            d.fontSize = ctx.defaultFontSize
-            d.fontColor = color or ctx.defaultFontColor
-            d.danmakuID = string.format(_DDP_PATTERN_DANMAKU_ID, commentID)
-
-            table.insert(ctx.pool[layer], d)
+            local startTime = tonumber(start) * _DDP_FACTOR_TIME_STAMP
+            local lifeTime = _DDP_LIFETIME_MAP[pos]
+            local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
+            local fontSize = ctx.defaultFontSize
+            local danmakuID = string.format(_DDP_PATTERN_DANMAKU_ID, id1, id2)
+            local text = utils.unescapeXMLString(text)
+            pool:addDanmaku(startTime, lifeTime, fontColor, fontSize, danmakuID, text)
         end
     end
-
-    utils.clearTable(jsonObj)
 end
 
 
@@ -88,15 +68,15 @@ ctx.screenHeight = 720
 ctx.bottomReserved = 0
 ctx.defaultFontName = "文泉驿微米黑"
 ctx.defaultFontSize = 34
-ctx.defaultFontColor = 0
+ctx.defaultFontColor = "FFFFFF"
 
-local f = io.open("/home/fish47/Desktop/danmaku.txt")
+local f = io.open("/tmp/123.txt")
 local rawData = f:read("*a")
 f:close()
-parseDanDanPlayRawData(rawData, ctx)
+parseDanDanPlayRawData(ctx, rawData)
 
 f = io.open("/tmp/1.ass", "w+")
-require("src/_parse/writer").writeDanmakus(f, ctx)
+require("src/_parse/writer").writeDanmakus(ctx, f)
 
 
 return

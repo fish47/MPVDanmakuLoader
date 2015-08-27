@@ -195,7 +195,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
         return nil
     end
 
-    local results = {}
+    local results = nil
     local videoListDiv = rawData:match(_BILI_PATTERN_PIECES_DIV)
     if videoListDiv
     then
@@ -244,6 +244,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
                 info.subtitle = subtitles[i]
                 info.duration = duration
                 info.danmakuURL = string.format(_BILI_FMT_URL_DAMAKU, chatID)
+                results = results or {}
                 table.insert(results, info)
             end
 
@@ -270,12 +271,13 @@ local function getBiliBiliVideoInfos(conn, videoID)
                 local info = BiliBiliVideoInfo:new()
                 info.duration = duration
                 info.danmakuURL = string.format(_BILI_FMT_URL_DAMAKU, chatID)
+                results = results or {}
                 table.insert(results, info)
             end
         end
     end
 
-    return not utils.isEmptyArray(results) and results or nil
+    return results
 end
 
 

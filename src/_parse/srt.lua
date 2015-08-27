@@ -1,13 +1,14 @@
-local _base = require('src/_parse/_base')
-local utils = require('src/utils')          --= utils utils
-local asswriter = require('src/asswriter')  --= asswriter asswriter
+local _base = require("src/_parse/_base")
+local utils = require("src/utils")          --= utils utils
+local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local _SRT_SUBTITLE_IDX_START       = 1
+local _SRT_SUBTITLE_IDX_START       = 0
 local _SRT_SEP_SUBTITLE             = ""
 local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
 local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
 local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME .. " %-%-%> " .. _SRT_PATTERN_TIME
+local _STR_PATTERN_DANMAKU_ID       = "_srt_%s_%d"
 
 local __readSubtitleIdxOrEmptyLines = nil
 local __readSubtitleTimeSpan        = nil
@@ -19,17 +20,18 @@ local function __readLine(f)
 end
 
 
-__readSubtitleIdxOrEmptyLines = function(f, line, subIdx, d, pool, ctx)
+__readSubtitleIdxOrEmptyLines = function(ctx, pool, f, line, subID, subIdx)
     if not line
     then
-        return #pool > 0
+        -- 允许以空行结尾，但不允许只有空行的文件
+        return subIdx > _SRT_SUBTITLE_IDX_START
     end
 
     if line == _SRT_SEP_SUBTITLE
     then
         -- 继续读空行
         line = __readLine(f)
-        return __readSubtitleIdxOrEmptyLines(f, line, subIdx, d, pool, ctx)
+        return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subID, subIdx)
     else
         local nextIdx = line:match(_SRT_PATTERN_SUBTITLE_IDX)
         if not nextIdx
@@ -37,20 +39,20 @@ __readSubtitleIdxOrEmptyLines = function(f, line, subIdx, d, pool, ctx)
             -- 没有起始的字幕编号
             return false
         else
+            nextIdx = tonumber(nextIdx)
             if subIdx + 1 ~= nextIdx
             then
                 --TODO 字幕编号不连续，需要直接返回？
             end
 
-            d = _base._Danmaku:new()
             line = __readLine(f)
-            return __readSubtitleTimeSpan(f, line, nextIdx, d, pool, ctx)
+            return __readSubtitleTimeSpan(ctx, pool, f, line, subID, nextIdx)
         end
     end
 end
 
 
-__readSubtitleTimeSpan = function(f, line, subIdx, d, pool, ctx)
+__readSubtitleTimeSpan = function(ctx, pool, f, line, subID, subIdx)
     if not line
     then
         -- 只有字幕编号没有时间段
@@ -65,15 +67,14 @@ __readSubtitleTimeSpan = function(f, line, subIdx, d, pool, ctx)
         local startTime = utils.convertHHMMSSToTime(h1, m1, s1, ms1)
         local endTime = utils.convertHHMMSSToTime(h2, m2, s2, ms2)
         local lifeTime = math.max(endTime - startTime, 0)
-        d.startTime = startTime
-        d.lifeTime = lifeTime
 
-        return __readSubtitleContent(f, __readLine(f), subIdx, d, pool, ctx)
+        line = __readLine(f)
+        return __readSubtitleContent(ctx, pool, f, line, subID, subIdx, startTime, lifeTime)
     end
 end
 
 
-__readSubtitleContent = function(f, line, subIdx, d, pool, ctx)
+__readSubtitleContent = function(ctx, pool, f, line, subID, subIdx, startTime, lifeTime)
     if not line
     then
         return false
@@ -93,23 +94,23 @@ __readSubtitleContent = function(f, line, subIdx, d, pool, ctx)
             text = text .. _base._NEWLINE_STR .. line
         end
 
-        d.fontColor = ctx.defaultSRTFontColor
-        d.fontSize = ctx.defaultSRTFontSize
-        d.text = text
-        table.insert(pool, d)
+
+        local color = ctx.defaultSRTFontColor
+        local size = ctx.defaultSRTFontSize
+        local danmakuID = string.format(_STR_PATTERN_DANMAKU_ID, subID, subIdx)
+        pool:addDanmaku(startTime, lifeTime, color, size, danmakuID, text)
 
         line = hasMoreLine and __readLine(f) or nil
-        return __readSubtitleIdxOrEmptyLines(f, line, subIdx, nil, pool, ctx)
+        return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subID, subIdx)
     end
 end
 
 
-local function parseSRTFile(f, ctx)
+local function parseSRTFile(ctx, f, subtitleID)
     local line = __readLine(f)
     local startIdx = _SRT_SUBTITLE_IDX_START
-    local pool = ctx.pool[asswriter.LAYER_SUBTITLE]
-    local succeed = __readSubtitleIdxOrEmptyLines(f, line, startIdx, nil, pool, ctx)
-    return succeed
+    local pool = ctx.pools[asswriter.LAYER_SUBTITLE]
+    return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subtitleID, startIdx)
 end
 
 

@@ -1,10 +1,11 @@
-local _base = require('src/_parse/_base')
-local utils = require('src/utils')          --= utils utils
-local asswriter = require('src/asswriter')  --= asswriter asswriter
+local _base = require("src/_parse/_base")
+local utils = require("src/utils")          --= utils utils
+local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local _PATTERN_BILI_POS         = "([%d%.]+),(%d+),(%d+),(%d+),[^>]+,[^>]+,[^>]+,[^>]+"
-local _PATTERN_BILI_DANMAKU     = "<d%s+p=\"" .. _PATTERN_BILI_POS .. "\">([^<]+)</d>"
+local _BILI_PATTERN_POS         = "([%d%.]+),(%d+),(%d+),(%d+),[^>]+,(%d+),[^>]+,(%d+)"
+local _BILI_PATTERN_DANMAKU     = "<d%s+p=\"" .. _BILI_PATTERN_POS .. "\">([^<]+)</d>"
+local _BILI_PATTERN_DANMAKU_ID  = "_bili_%s_%s"
 
 local _BILI_FACTOR_TIME_STAMP   = 1000
 local _BILI_FACTOR_FONT_SIZE    = 25
@@ -15,6 +16,7 @@ local _BILI_POS_STATIC_TOP      = 5
 local _BILI_POS_STATIC_BOTTOM   = 4
 local _BILI_POS_ADVANCED        = 7
 
+-- 暂时不处理神弹幕
 local _BILI_POS_TO_LAYER_MAP    =
 {
     [_BILI_POS_MOVING_L2R]      = asswriter.LAYER_MOVING_L2R,
@@ -32,34 +34,29 @@ local _BILI_LIFETIME_MAP        =
 }
 
 
-local function parseBiliBiliRawData(rawData, ctx, offset)
-    local builder = nil
+local function parseBiliBiliRawData(ctx, rawData, offset)
+    if not rawData
+    then
+        return
+    end
 
-    for start, typeStr, size, color, text in rawData:gmatch(_PATTERN_BILI_DANMAKU)
+    -- 分P视频需要加时间偏移
+    offset = offset or 0
+
+    for start, typeStr, size, color, id1, id2, text in rawData:gmatch(_BILI_PATTERN_DANMAKU)
     do
-        local biliPos = tonumber(typeStr) or _BILI_POS_MOVING_L2R
+        local biliPos = tonumber(typeStr) or _BILI_POS_MOVING_R2L
         local layer = _BILI_POS_TO_LAYER_MAP[biliPos]
-
-        if biliPos == _BILI_POS_ADVANCED
+        local pool = layer and ctx.pools[layer]
+        if pool
         then
-            --TODO 神弹幕
-        else
-            local d = _base._Danmaku:new()
-            d.text = utils.unescapeXMLString(text)
-            d.startTime = tonumber(start) * _BILI_FACTOR_TIME_STAMP
-            d.lifeTime = _BILI_LIFETIME_MAP[biliPos]
-
+            local startTime = offset + tonumber(start) * _BILI_FACTOR_TIME_STAMP
+            local lifeTime = _BILI_LIFETIME_MAP[biliPos]
+            local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
             local fontSize = tonumber(size) * ctx.defaultFontSize / _BILI_FACTOR_FONT_SIZE
-            local isNotSameAsDefault = (fontSize ~= ctx.defaultFontSize)
-            d.fontSize = isNotSameAsDefault and fontSize or nil
-
-            local fontColor = tonumber(color)
-            isNotSameAsDefault = (fontColor ~= ctx.defaultFontColor)
-            d.fontColor = isNotSameAsDefault
-                          and utils.convertRGBHexToBGRString(fontColor)
-                          or nil
-
-            table.insert(ctx.pool[layer], d)
+            local danmakuID = string.format(_BILI_PATTERN_DANMAKU_ID, id1, id2)
+            local text = utils.unescapeXMLString(text)
+            pool:addDanmaku(startTime, lifeTime, fontColor, fontSize, danmakuID, text)
         end
     end
 end

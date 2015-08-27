@@ -4,6 +4,7 @@ local utils = require('src/utils')      --= utils utils
 local _CURL_ARG_SLIENT                  = "--silent"
 local _CURL_ARG_COMPRESSED              = "--compressed"
 local _CURL_ARG_MAX_TIME                = "--max-time"
+local _CURL_ARG_ADD_HEADER              = "-H"
 local _CURL_SEP_ARGS                    = " "
 local _CURL_DEFAULT_TIMEOUT_SECONDS     = 3
 
@@ -17,6 +18,7 @@ local CURLNetworkConnection =
 
     _mCompressed        = nil,
     _mTimeOutSeconds    = nil,
+    _mHeaders           = nil,
 
 
     new = function(obj, curlBin, timeOutSec)
@@ -27,6 +29,7 @@ local CURLNetworkConnection =
         obj._mCallbackArgQueue = {}
         obj._mStdoutFileQueue = {}
         obj._mTimeOutSeconds = tostring(timeOutSec or _CURL_DEFAULT_TIMEOUT_SECONDS)
+        obj._mHeaders = {}
         obj:resetParams()
         return obj
     end,
@@ -34,6 +37,7 @@ local CURLNetworkConnection =
 
     resetParams = function(self)
         self._mCompressed = false
+        utils.clearTable(self._mHeaders)
     end,
 
 
@@ -41,6 +45,9 @@ local CURLNetworkConnection =
         self._mCompressed = val
     end,
 
+    addHeader = function(self, val)
+        table.insert(self._mHeaders, val)
+    end,
 
     __doAddCmdArg = function(self, arg)
         local escaped = utils.escapeBashString(arg)
@@ -57,8 +64,14 @@ local CURLNetworkConnection =
         then
             self:__doAddCmdArg(_CURL_ARG_COMPRESSED)
         end
-        self:__doAddCmdArg(url)
 
+        for _, header in ipairs(self._mHeaders)
+        do
+            self:__doAddCmdArg(_CURL_ARG_ADD_HEADER)
+            self:__doAddCmdArg(header)
+        end
+
+        self:__doAddCmdArg(url)
 
         local cmdArgs = self._mCmdArgs
         local f = io.popen(table.concat(cmdArgs, _CURL_SEP_ARGS))

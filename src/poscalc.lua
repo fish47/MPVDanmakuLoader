@@ -154,7 +154,7 @@ local __BasePosCalculator =
     __getCollisionScoreSum = function(self, iterAreaTop, iterArea, newAreaTop, area2)
         local scoreSum = 0
         local iterAreaBottom = iterAreaTop + iterArea.height
-        local newAreaBottom = newAreaTop + area2.height
+        local newAreaBottom = math.min(newAreaTop + area2.height, self._mScreenHeight)
         while iterArea ~= nil
         do
             local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,

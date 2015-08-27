@@ -150,13 +150,25 @@ local LAYER_SUBTITLE        = 1
 
 local DialogueBuilder =
 {
-    _mContent = nil,
+    _mContent               = nil,
+    _mDefaultFontColor      = nil,
+    _mDefaultFontSize       = nil,
 
     new = function(obj)
         obj = utils.allocateInstance(obj)
         obj._mContent = {}
         return obj
     end,
+
+
+    setDefaultFontColor = function(self, fontColor)
+        self._mDefaultFontColor = fontColor
+    end,
+
+    setDefaultFontSize = function(self, defaultFontSize)
+        self._mDefaultFontSize = defaultFontSize
+    end,
+
 
     startDialogue = function(self, layer, startTime, endTime)
         local content = self._mContent
@@ -214,7 +226,7 @@ local DialogueBuilder =
     end,
 
     addFontColor = function(self, bgrHexStr)
-        if bgrHexStr
+        if bgrHexStr and self._mDefaultFontColor ~= bgrHexStr
         then
             table.insert(self._mContent, "\\c&H")
             table.insert(self._mContent, bgrHexStr)
@@ -223,7 +235,7 @@ local DialogueBuilder =
     end,
 
     addFontSize = function(self, fontSize)
-        if fontSize
+        if fontSize and self._mDefaultFontSize ~= fontSize
         then
             table.insert(self._mContent, "\\fs")
             table.insert(self._mContent, tostring(fontSize))
@@ -238,6 +250,12 @@ local DialogueBuilder =
             f:write(content[i])
             content[i] = nil
         end
+    end,
+
+
+    dispose = function(self)
+        utils.clearTable(self._mContent)
+        utils.clearTable(self)
     end,
 }
 
