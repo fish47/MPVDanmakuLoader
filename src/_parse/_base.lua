@@ -2,7 +2,7 @@ local utils = require("src/utils")          --= utils utils
 local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local _DanmakuPool =
+local DanmakuPool =
 {
     _mStartTimes        = nil,      -- 弹幕起始时间，单位 ms
     _mLifeTimes         = nil,      -- 弹幕存活时间，单位 ms
@@ -11,6 +11,7 @@ local _DanmakuPool =
     _mDanmakuIDs        = nil,      -- 弹幕标识字符串，用于排重，不可为空
     _mTexts             = nil,      -- 评论内容，以 utf8 编码
     __mSortedIndexes    = nil,
+
 
     new = function(obj)
         obj = utils.allocateInstance(obj)
@@ -22,11 +23,6 @@ local _DanmakuPool =
         obj._mTexts = {}
         obj.__mSortedIndexes = {}
         return obj
-    end,
-
-
-    getDanmakuCount = function(self)
-        return #self._mTexts
     end,
 
 
@@ -70,23 +66,23 @@ local _DanmakuPool =
     end,
 
 
-    __doGetDanmakuByIndirectIndex = function(self, i)
-        local rawIdx = self.__mSortedIndexes[i]
-        return self._mStartTimes[rawIdx],
-               self._mLifeTimes[rawIdx],
-               self._mFontColors[rawIdx],
-               self._mFontSizes[rawIdx],
-               self._mDanmakuIDs[rawIdx],
-               self._mTexts[rawIdx]
+    getDanmakuCount = function(self)
+        return #self._mTexts
     end,
 
 
     getSortedDanmakuAt = function(self, i)
-        if i > self:getDanmakuCount()
+        local rawIdx = self.__mSortedIndexes[i]
+        if rawIdx
         then
-            return nil
+            return self._mStartTimes[rawIdx],
+                   self._mLifeTimes[rawIdx],
+                   self._mFontColors[rawIdx],
+                   self._mFontSizes[rawIdx],
+                   self._mDanmakuIDs[rawIdx],
+                   self._mTexts[rawIdx]
         else
-            return self:__doGetDanmakuByIndirectIndex(i)
+            return nil
         end
     end,
 
@@ -101,7 +97,7 @@ local _DanmakuPool =
     end,
 
 
-    dispose = function(self)
+    clear = function(self)
         utils.clearTable(self._mStartTimes)
         utils.clearTable(self._mLifeTimes)
         utils.clearTable(self._mFontColors)
@@ -109,11 +105,16 @@ local _DanmakuPool =
         utils.clearTable(self._mDanmakuIDs)
         utils.clearTable(self._mTexts)
         utils.clearTable(self.__mSortedIndexes)
+    end,
+
+
+    dispose = function(self)
+        self:clear()
         utils.clearTable(self)
     end,
 }
 
-utils.declareClass(_DanmakuPool)
+utils.declareClass(DanmakuPool)
 
 
 local DanmakuParseContext =
@@ -136,26 +137,36 @@ local DanmakuParseContext =
         obj = utils.allocateInstance(obj)
         obj.pools =
         {
-            [asswriter.LAYER_MOVING_L2R]    = _DanmakuPool:new(),
-            [asswriter.LAYER_MOVING_R2L]    = _DanmakuPool:new(),
-            [asswriter.LAYER_STATIC_TOP]    = _DanmakuPool:new(),
-            [asswriter.LAYER_STATIC_BOTTOM] = _DanmakuPool:new(),
-            [asswriter.LAYER_ADVANCED]      = _DanmakuPool:new(),
-            [asswriter.LAYER_SUBTITLE]      = _DanmakuPool:new(),
+            [asswriter.LAYER_MOVING_L2R]    = DanmakuPool:new(),
+            [asswriter.LAYER_MOVING_R2L]    = DanmakuPool:new(),
+            [asswriter.LAYER_STATIC_TOP]    = DanmakuPool:new(),
+            [asswriter.LAYER_STATIC_BOTTOM] = DanmakuPool:new(),
+            [asswriter.LAYER_ADVANCED]      = DanmakuPool:new(),
+            [asswriter.LAYER_SUBTITLE]      = DanmakuPool:new(),
         }
 
         return obj
     end,
 
 
-    dispose = function(self)
+    __doIterateDanmakuPools = function(self, func)
         if self.pools
         then
             for _, pool in pairs(self.pools)
             do
-                pool:dispose()
+                func(pool)
             end
         end
+    end,
+
+
+    clear = function(self)
+        self:__doIterateDanmakuPools(DanmakuPool.clear)
+    end,
+
+
+    dispose = function(self)
+        self:__doIterateDanmakuPools(DanmakuPool.dispose)
         utils.clearTable(self)
     end,
 }
@@ -205,6 +216,6 @@ return
     _LIFETIME_STATIC        = _LIFETIME_STATIC,
     _LIFETIME_MOVING        = _LIFETIME_MOVING,
     _measureDanmakuText     = _measureDanmakuText,
-    _DanmakuPool            = _DanmakuPool,
+    DanmakuPool             = DanmakuPool,
     DanmakuParseContext     = DanmakuParseContext,
 }

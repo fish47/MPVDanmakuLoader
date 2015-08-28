@@ -1,4 +1,6 @@
 local utils = require("src/utils")          --= utils utils
+local network = require("src/network")
+local parse = require("src/parse")
 
 
 local __MPVBuiltinFunctionMixin =
@@ -50,8 +52,76 @@ local __MPVBuiltinFunctionMixin =
 utils.declareClass(__MPVBuiltinFunctionMixin)
 
 
-
 local MPVDanmakuLoaderApp =
-{}
+{
+    _mParseContext          = nil,
+    _mNetworkConnection     = nil,
+
+
+    dispose = function(self)
+        local ctx = self._mParseContext
+        if ctx
+        then
+            ctx:dispose()
+        end
+
+        local conn = self._mNetworkConnection
+        if conn
+        then
+            conn:dispose()
+        end
+
+        utils.clearTable(self)
+    end,
+
+
+    searchDanDanPlayByVideoInfos = function(self)
+        --TODO
+    end,
+
+    searchBiliBiliByKeyword = function(self, keyword, maxPageCount)
+        local conn = self._mNetworkConnection
+        return network.searchBiliBiliByKeyword(conn, keyword, maxPageCount)
+    end,
+
+    getBiliBiliVideoInfos = function(self, videoID)
+        local conn = self._mNetworkConnection
+        return network.getBiliBiliVideoInfos(conn, videoID)
+    end,
+
+
+    getDanDanPlayDanmakuRawData = function(self, url)
+        local conn = self._mNetworkConnection
+        return network.getDanDanPlayDanmakuRawData(conn, url)
+    end,
+
+    getBiliBiliDanmakuRawData = function(self, url)
+        local conn = self._mNetworkConnection
+        return network.getBiliBiliDanmakuRawData(conn, url)
+    end,
+
+
+    parseBiliBiliRawData = function(self, rawData)
+        --
+    end,
+
+    parseDanDanPlayRawData = function(self, rawData)
+        --
+    end,
+
+    parseSRTFile = function(self, f)
+        --
+    end,
+
+    writeDanmakus = function(self, f)
+        --
+    end,
+}
 
 utils.declareClass(MPVDanmakuLoaderApp)
+
+
+return
+{
+    MPVDanmakuLoaderApp     = MPVDanmakuLoaderApp,
+}

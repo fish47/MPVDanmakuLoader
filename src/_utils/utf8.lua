@@ -20,7 +20,6 @@ local function __binarySearchNumList(list, val)
 end
 
 
---=@tparam string byteString
 local function __iterateUTF8CodePoints(byteString, byteStartIdx)
     local byteLen = byteString:len()
     if byteStartIdx > byteLen then

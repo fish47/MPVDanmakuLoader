@@ -4,7 +4,7 @@ local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
 local _BILI_PATTERN_POS         = "([%d%.]+),(%d+),(%d+),(%d+),[^>]+,(%d+),[^>]+,(%d+)"
-local _BILI_PATTERN_DANMAKU     = "<d%s+p=\"" .. _BILI_PATTERN_POS .. "\">([^<]+)</d>"
+local _BILI_PATTERN_DANMAKU     = '<d%s+p="' .. _BILI_PATTERN_POS .. '">([^<]+)</d>'
 local _BILI_PATTERN_DANMAKU_ID  = "_bili_%s_%s"
 
 local _BILI_FACTOR_TIME_STAMP   = 1000

@@ -5,8 +5,13 @@ local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 local _DDP_PATTERN_DANMAKU_ID       = "_ddp_%d_%d"
 local _DDP_PATTERN_COMMENT          = "<Comment"
-                                      .. '%s+Time="([%d.]+)"%s+Mode="(%d+)"%s+Color="(%d+)"'
-                                      .. '%s+Timestamp="%d+"%s+Pool="(%d+)"%s+UId="%-?[%d]+"%s+CId="(%d+)"'
+                                      .. '%s+Time="([%d.]+)"'
+                                      .. '%s+Mode="(%d+)"'
+                                      .. '%s+Color="(%d+)"'
+                                      .. '%s+Timestamp="%d+"'
+                                      .. '%s+Pool="(%d+)"'
+                                      .. '%s+UId="%-?[%d]+"'
+                                      .. '%s+CId="(%d+)"'
                                       .. "%s*>"
                                       .. "([^<]+)"
                                       .. "</Comment>"
@@ -60,23 +65,6 @@ local function parseDanDanPlayRawData(ctx, rawData)
         end
     end
 end
-
-
-local ctx = _base.DanmakuParseContext:new()
-ctx.screenWidth = 1280
-ctx.screenHeight = 720
-ctx.bottomReserved = 0
-ctx.defaultFontName = "文泉驿微米黑"
-ctx.defaultFontSize = 34
-ctx.defaultFontColor = "FFFFFF"
-
-local f = io.open("/tmp/123.txt")
-local rawData = f:read("*a")
-f:close()
-parseDanDanPlayRawData(ctx, rawData)
-
-f = io.open("/tmp/1.ass", "w+")
-require("src/_parse/writer").writeDanmakus(ctx, f)
 
 
 return

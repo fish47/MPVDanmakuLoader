@@ -222,7 +222,8 @@ local DialogueBuilder =
     end,
 
     addPos = function(self, x, y)
-        table.insert(self._mContent, string.format("\\pos(%d, %d)", math.floor(x), math.floor(y)))
+        local str = string.format("\\pos(%d, %d)", math.floor(x), math.floor(y))
+        table.insert(self._mContent, str)
     end,
 
     addFontColor = function(self, bgrHexStr)

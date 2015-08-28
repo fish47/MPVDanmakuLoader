@@ -12,9 +12,9 @@ local CURLNetworkConnection =
 {
     _mCURLBin           = nil,
     _mCmdArgs           = nil,
-    _mCallbackQueue     = nil,
-    _mCallbackArgQueue  = nil,
-    _mStdoutFileQueue   = nil,
+    _mCallbacks         = nil,
+    _mCallbackArgs      = nil,
+    _mStdoutFiles       = nil,
 
     _mCompressed        = nil,
     _mTimeOutSeconds    = nil,
@@ -25,9 +25,9 @@ local CURLNetworkConnection =
         obj = utils.allocateInstance(obj)
         obj._mCURLBin = curlBin
         obj._mCmdArgs = {}
-        obj._mCallbackQueue = {}
-        obj._mCallbackArgQueue = {}
-        obj._mStdoutFileQueue = {}
+        obj._mCallbacks = {}
+        obj._mCallbackArgs = {}
+        obj._mStdoutFiles = {}
         obj._mTimeOutSeconds = tostring(timeOutSec or _CURL_DEFAULT_TIMEOUT_SECONDS)
         obj._mHeaders = {}
         obj:resetParams()
@@ -95,17 +95,17 @@ local CURLNetworkConnection =
 
     doQueuedGET = function(self, url, callback, arg)
         local f = self:_doGetResponseFile(url)
-        table.insert(self._mStdoutFileQueue, f)
-        table.insert(self._mCallbackQueue, callback)
-        table.insert(self._mCallbackArgQueue, arg)
+        table.insert(self._mStdoutFiles, f)
+        table.insert(self._mCallbacks, callback)
+        table.insert(self._mCallbackArgs, arg)
         return (f ~= nil)
     end,
 
 
     flush = function(self)
-        local files = self._mStdoutFileQueue
-        local callbacks = self._mCallbackQueue
-        local callbackArgs = self._mCallbackArgQueue
+        local files = self._mStdoutFiles
+        local callbacks = self._mCallbacks
+        local callbackArgs = self._mCallbackArgs
         local callbackCount = #callbacks
         for i = 1, callbackCount
         do
@@ -132,6 +132,11 @@ local CURLNetworkConnection =
 
 
     dispose = function(self)
+        utils.clearTable(self._mCmdArgs)
+        utils.clearTable(self._mCallbacks)
+        utils.clearTable(self._mCallbackArgs)
+        utils.clearTable(self._mStdoutFiles)
+        utils.clearTable(self._mHeaders)
         utils.clearTable(self)
     end,
 }
