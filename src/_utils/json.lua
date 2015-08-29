@@ -289,7 +289,10 @@ _onParseString = function(ctx)
                 local codePoint = hexStr and tonumber(hexStr, _UNICODE_NUMBER_BASE) or nil
                 if codePoint
                 then
-                    utf8.getUTF8Bytes(codePoint, buf, string.char)
+                    for _, utf8Byte in utf8.iterateUTF8EncodedBytes(codePoint)
+                    do
+                        table.insert(buf, string.char(utf8Byte))
+                    end
                     findStartIdx = nextChIdx + #hexStr + 1
                 else
                     break

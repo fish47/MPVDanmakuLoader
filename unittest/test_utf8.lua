@@ -231,7 +231,11 @@ TestIterateUTF8CodePoints =
             local byteIdx = 1
             for _, codePoint in ipairs(codePoints)
             do
-                byteIdx = byteIdx + utils.getUTF8Bytes(codePoint, encodedBytes)
+                for _, utf8Byte in utils.iterateUTF8EncodedBytes(codePoint)
+                do
+                    byteIdx = byteIdx + 1
+                    table.insert(encodedBytes, utf8Byte)
+                end
             end
 
             lu.assertEquals(encodedBytes, stringBytes)

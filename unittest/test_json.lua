@@ -33,10 +33,17 @@ TestJSON =
         __doAssertParseValue([[ "123\\456\/789\b01\n23\r456\t7890" ]],
                              "123\\456/789\f01\n23\r456\t7890")
 
+        local function __appendUTF8EncodedChars(codePoint, outList)
+            for _, utf8Byte in utils.iterateUTF8EncodedBytes(codePoint)
+            do
+                table.insert(outList, string.char(utf8Byte))
+            end
+        end
+
         local buf = { "asdf" }
-        utils.getUTF8Bytes(0x9ae3, buf, string.char)
+        __appendUTF8EncodedChars(0x9ae3, buf)
         table.insert(buf, "fff")
-        utils.getUTF8Bytes(0x1343, buf, string.char)
+        __appendUTF8EncodedChars(0x1343, buf)
         table.insert(buf, "aab")
         __doAssertParseValue([[ "asdf\u9ae3fff\u1343aab" ]], table.concat(buf))
     end,

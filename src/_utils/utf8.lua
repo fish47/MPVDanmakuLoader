@@ -1,26 +1,26 @@
 local _base = require("src/_utils/_base")
 
 
-local _UTF8_DECODE_BYTE_RANGE_START_LIST        = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
-local _UTF8_DECODE_BYTE_RANG_END_LIST           = { 0x7f, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd }
-local _UTF8_DECODE_BYTE_MASK_LIST               = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
-local _UTF8_DECODE_TRAILING_BYTE_COUNT_LIST     = {  0,    nil,  1,    2,    3,    4,    5   }
-local _UTF8_DECODE_SHIFT_POW_LIST               = {  1,    64,   32,   16,   8,    4,    2   }
-local _UTF8_DECODE_TRAILING_BYTE_RANGE_INDEX    = 2
-local _UTF8_DECODE_BYTE_RANGE_LIST_LEN          = #_UTF8_DECODE_BYTE_RANGE_START_LIST
+local _DECODE_BYTE_RANGE_STARTS         = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
+local _DECODE_BYTE_RANG_ENDS            = { 0x7f, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd }
+local _DECODE_BYTE_MASKS                = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
+local _DECODE_TRAILING_BYTE_COUNTS      = {  0,    nil,  1,    2,    3,    4,    5   }
+local _DECODE_LSHIFT_MULS               = {  1,    64,   32,   16,   8,    4,    2   }
+local _DECODE_TRAILING_BYTE_RANGE_INDEX = 2
+local _DECODE_BYTE_RANGES_LEN           = #_DECODE_BYTE_RANGE_STARTS
 
-local UTF8_INVALID_CODEPOINT                    = -1
+local UTF8_INVALID_CODEPOINT            = -1
 
 local function __compareNumber(rangEnd, val)
     return rangEnd - val
 end
 
-local function __binarySearchNumList(list, val)
+local function __binarySearchNums(list, val)
     return _base.binarySearchArray(list, __compareNumber, val)
 end
 
 
-local function __iterateUTF8CodePoints(byteString, byteStartIdx)
+local function __doIterateUTF8CodePoints(byteString, byteStartIdx)
     local byteLen = byteString:len()
     if byteStartIdx > byteLen then
         return nil
@@ -37,15 +37,15 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
         -- 判断是 UTF8 字节类型
         -- 不是所有字节都是有效的 UTF8 字节，例如 0b11111111
         local b = byteString:byte(byteIdx)
-        local found, rangeIdx = __binarySearchNumList(_UTF8_DECODE_BYTE_RANG_END_LIST, b)
-        if not found and rangeIdx > _UTF8_DECODE_BYTE_RANGE_LIST_LEN
+        local found, idx = __binarySearchNums(_DECODE_BYTE_RANG_ENDS, b)
+        if not found and idx > _DECODE_BYTE_RANGES_LEN
         then
             break
         end
 
         -- 出现连续的首字节，或首字节不合法
         local hasFirstByte = (codePoint ~= UTF8_INVALID_CODEPOINT)
-        local isFirstByte = (rangeIdx ~= _UTF8_DECODE_TRAILING_BYTE_RANGE_INDEX)
+        local isFirstByte = (idx ~= _DECODE_TRAILING_BYTE_RANGE_INDEX)
         if hasFirstByte == isFirstByte
         then
             codePoint = UTF8_INVALID_CODEPOINT
@@ -54,12 +54,12 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
 
         if not hasFirstByte
         then
-            remainingByteCount = _UTF8_DECODE_TRAILING_BYTE_COUNT_LIST[rangeIdx] + 1
+            remainingByteCount = _DECODE_TRAILING_BYTE_COUNTS[idx] + 1
             codePointByteCount = remainingByteCount
         end
 
-        codePoint = (isFirstByte and 0 or codePoint) * _UTF8_DECODE_SHIFT_POW_LIST[rangeIdx]
-        codePoint = codePoint + (b - _UTF8_DECODE_BYTE_MASK_LIST[rangeIdx])
+        codePoint = (isFirstByte and 0 or codePoint) * _DECODE_LSHIFT_MULS[idx]
+        codePoint = codePoint + (b - _DECODE_BYTE_MASKS[idx])
         remainingByteCount = remainingByteCount - 1
 
         if remainingByteCount <= 0
@@ -74,17 +74,13 @@ local function __iterateUTF8CodePoints(byteString, byteStartIdx)
 end
 
 local function iterateUTF8CodePoints(byteString)
-    return __iterateUTF8CodePoints, byteString, 1
+    return __doIterateUTF8CodePoints, byteString, 1
 end
 
 
 
-local _UTF8_CODEPOINT_MIN = 0
-local _UTF8_CODEPOINT_MAX = 0x80000000
 
-local _UTF8_ENCODE_TRAILING_BYTE_DIV_POW = 2^6
-
-local _UTF8_ENCODE_CODEPOINT_RANGE_END_LIST =
+local _ENCODE_CODEPOINT_RANGE_ENDS  =
 {
     0x7f,
     0x7ff,
@@ -94,54 +90,79 @@ local _UTF8_ENCODE_CODEPOINT_RANGE_END_LIST =
     0x7fffffff,
 }
 
-local _UTF8_ENCODE_BYTE_MASK_LIST =
+local _ENCODE_DIVS                  =
 {
-    { 0 },
-    { 0xc0, 0x80 },
-    { 0xe0, 0x80, 0x80 },
-    { 0xf0, 0x80, 0x80, 0x80 },
-    { 0xf8, 0x80, 0x80, 0x80, 0x80 },
-    { 0xfc, 0x80, 0x80, 0x80, 0x80, 0x80 },
+    2^0,  nil,
+    2^6,  2^0,  nil,
+    2^12, 2^6,  2^0,  nil,
+    2^18, 2^12, 2^6,  2^0,  nil,
+    2^24, 2^18, 2^12, 2^6,  2^0,  nil,
+    2^30, 2^24, 2^18, 2^12, 2^6,  2^0,  nil,
+    2^36, 2^30, 2^24, 2^18, 2^12, 2^6,  2^0,  nil,
 }
 
 
-local function getUTF8Bytes(codePoint, outList, convertFunc)
-    if codePoint < _UTF8_CODEPOINT_MIN or codePoint >= _UTF8_CODEPOINT_MAX
-    then
-        return 0
-    end
+local _ENCODE_MODS                  =
+{
+    2^7, nil,
+    2^5, 2^6, nil,
+    2^4, 2^6, 2^6, nil,
+    2^3, 2^6, 2^6, 2^6, nil,
+    2^2, 2^6, 2^6, 2^6, 2^6, nil,
+    2^1, 2^6, 2^6, 2^6, 2^6, 2^6, nil,
+    2^0, 2^6, 2^6, 2^6, 2^6, 2^6, 2^6, nil,
+}
 
-    local _, rangeIdx = __binarySearchNumList(_UTF8_ENCODE_CODEPOINT_RANGE_END_LIST, codePoint)
-    local bitMasks = _UTF8_ENCODE_BYTE_MASK_LIST[rangeIdx]
-    local writeByteCount = #bitMasks
-    local remainingBits = codePoint
-    local writeStartIdx = #outList
+local _ENCODE_MASKS                 =
+{
+    0x00, nil,
+    0xc0, 0x80, nil,
+    0xe0, 0x80, 0x80, nil,
+    0xf0, 0x80, 0x80, 0x80, nil,
+    0xf8, 0x80, 0x80, 0x80, 0x80, nil,
+    0xfc, 0x80, 0x80, 0x80, 0x80, 0x80, nil,
+    0xfe, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, nil,
+}
 
-    for i = writeByteCount, 1, -1
-    do
-        -- 提取低有效位，并加上掩码
-        local outBits = remainingBits
-        local shifted = 0
-        if i ~= 1
-        then
-            shifted = math.floor(remainingBits / _UTF8_ENCODE_TRAILING_BYTE_DIV_POW)
-            outBits = math.floor(remainingBits - shifted * _UTF8_ENCODE_TRAILING_BYTE_DIV_POW)
-        end
+local _ENCODE_ITERATE_INDEXES       = { 1, 3, 6, 10, 15, 21, 28 }
 
-        local byteVal = bitMasks[i] + outBits
-        local writeVal = convertFunc and convertFunc(byteVal) or byteVal
-        outList[writeStartIdx + i] = writeVal
-        remainingBits = shifted
-    end
+local _CODEPOINT_MIN                = 0
+local _CODEPOINT_MAX                = 0x7fffffff
 
-    return writeByteCount
+
+local function __dummyIterateFunction()
+    return nil
 end
 
+local function __doIterateUTF8EncodedBytes(codePoint, iterIdx)
+    local div = _ENCODE_DIVS[iterIdx]
+    local mask = _ENCODE_MASKS[iterIdx]
+    local mod = _ENCODE_MODS[iterIdx]
+    if div and mask and mod
+    then
+        local ret = math.floor(codePoint / div % mod) + mask
+        return iterIdx + 1, ret
+    else
+        return nil
+    end
+end
+
+
+local function iterateUTF8EncodedBytes(codePoint)
+    if codePoint > _CODEPOINT_MAX or codePoint < _CODEPOINT_MIN
+    then
+        return __dummyIterateFunction
+    end
+
+    local _, idx = __binarySearchNums(_ENCODE_CODEPOINT_RANGE_ENDS, codePoint)
+    local iterIdx = _ENCODE_ITERATE_INDEXES[idx]
+    return __doIterateUTF8EncodedBytes, codePoint, iterIdx
+end
 
 
 return
 {
     UTF8_INVALID_CODEPOINT  = UTF8_INVALID_CODEPOINT,
     iterateUTF8CodePoints   = iterateUTF8CodePoints,
-    getUTF8Bytes            = getUTF8Bytes,
+    iterateUTF8EncodedBytes = iterateUTF8EncodedBytes,
 }

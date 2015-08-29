@@ -26,12 +26,12 @@ local function __replaceEscapedXMLText(text)
     local matched = text:match(_XML_ESCAPE_STR_UNICODE_PATTERN)
     if matched
     then
+        local ret = ""
         local codePoint = tonumber(matched, _XML_ESCAPE_STR_UNICODE_RADIX)
-        local outList = {}
-        utf8.getUTF8Bytes(codePoint, outList, string.char)
-
-        local ret = table.concat(outList)
-        outList = nil
+        for _, utf8Byte in utf8.iterateUTF8EncodedBytes(codePoint)
+        do
+            ret = ret .. string.char(utf8Byte)
+        end
         return ret
     end
 
