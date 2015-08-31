@@ -6,7 +6,7 @@ local parse = require("src/parse")
 local __MPVBuiltinFunctionMixin =
 {
     setSubtitle = function(self, path)
-        --
+        mp.commandv("sub_add ", path)
     end,
 
     splitPath = function(self, path)
@@ -33,9 +33,8 @@ local __MPVBuiltinFunctionMixin =
         return mp.get_property_number("file-size", nil)
     end,
 
-    getVideoDuration = function(self)
-        local seconds = mp.get_property_number("duration", nil)
-        return seconds and utils.convertHHMMSSToTime(0, 0, seconds, 0)
+    getVideoDurationSeconds = function(self)
+        return mp.get_property_number("duration", nil)
     end,
 
     getVideoWidth = function(self)
@@ -54,29 +53,33 @@ utils.declareClass(__MPVBuiltinFunctionMixin)
 
 local MPVDanmakuLoaderApp =
 {
-    _mParseContext          = nil,
+    _mDanmakuPools          = nil,
+    _mAPPConfiguration      = nil,
     _mNetworkConnection     = nil,
 
 
+    new = function(obj, appCfg, conn)
+        obj = utils.allocateInstance(obj)
+        obj._mDanmakuPools = parse.DanmakuPools:new()
+        obj._mAPPConfiguration = appCfg
+        obj._mNetworkConnection = conn
+        return obj
+    end,
+
+
     dispose = function(self)
-        local ctx = self._mParseContext
-        if ctx
-        then
-            ctx:dispose()
-        end
-
-        local conn = self._mNetworkConnection
-        if conn
-        then
-            conn:dispose()
-        end
-
+        utils.disposeSafely(self._mDanmakuPools)
         utils.clearTable(self)
     end,
 
 
     searchDanDanPlayByVideoInfos = function(self)
-        --TODO
+        local conn = self._mNetworkConnection
+        local name = self:getVideoFileName()
+        local hash = nil
+        local byteCount = self:getVideoByteCount()
+        local seconds = self:getVideoDurationSeconds()
+        return network.searchDanDanPlayByVideoInfos(conn, name, hash, byteCount, seconds)
     end,
 
     searchBiliBiliByKeyword = function(self, keyword, maxPageCount)
@@ -101,20 +104,34 @@ local MPVDanmakuLoaderApp =
     end,
 
 
-    parseBiliBiliRawData = function(self, rawData)
-        --
+    parseBiliBiliRawData = function(self, rawData, offset)
+        local cfg = self._mAPPConfiguration
+        local pools = self._mDanmakuPools
+        parse.parseBiliBiliRawData(cfg, pools, rawData, offset)
     end,
 
     parseDanDanPlayRawData = function(self, rawData)
-        --
+        local cfg = self._mAPPConfiguration
+        local pools = self._mDanmakuPools
+        parse.parseDanDanPlayRawData(cfg, pools, rawData)
     end,
 
     parseSRTFile = function(self, f)
-        --
+        parse.parseSRTFile(self._mParseContext, f)
     end,
 
-    writeDanmakus = function(self, f)
-        --
+    flushToASSFile = function(self, fullPath)
+        local w = self:getVideoWidth()
+        local h = self:getVideoHeight()
+        local cfg = self._mAPPConfiguration
+        local pools = self._mDanmakuPools
+        local f = io.open(fullPath, "w+")
+        if f
+        then
+            parse.writeDanmakus(cfg, pools, w, h , f)
+            f:close()
+        end
+        pools:clear()
     end,
 }
 

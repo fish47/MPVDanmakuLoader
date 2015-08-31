@@ -20,7 +20,7 @@ local function __readLine(f)
 end
 
 
-__readSubtitleIdxOrEmptyLines = function(ctx, pool, f, line, subID, subIdx)
+__readSubtitleIdxOrEmptyLines = function(cfg, pool, f, line, subID, subIdx)
     if not line
     then
         -- 允许以空行结尾，但不允许只有空行的文件
@@ -31,7 +31,7 @@ __readSubtitleIdxOrEmptyLines = function(ctx, pool, f, line, subID, subIdx)
     then
         -- 继续读空行
         line = __readLine(f)
-        return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subID, subIdx)
+        return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subID, subIdx)
     else
         local nextIdx = line:match(_SRT_PATTERN_SUBTITLE_IDX)
         if not nextIdx
@@ -46,13 +46,13 @@ __readSubtitleIdxOrEmptyLines = function(ctx, pool, f, line, subID, subIdx)
             end
 
             line = __readLine(f)
-            return __readSubtitleTimeSpan(ctx, pool, f, line, subID, nextIdx)
+            return __readSubtitleTimeSpan(cfg, pool, f, line, subID, nextIdx)
         end
     end
 end
 
 
-__readSubtitleTimeSpan = function(ctx, pool, f, line, subID, subIdx)
+__readSubtitleTimeSpan = function(cfg, pool, f, line, subID, subIdx)
     if not line
     then
         -- 只有字幕编号没有时间段
@@ -69,12 +69,12 @@ __readSubtitleTimeSpan = function(ctx, pool, f, line, subID, subIdx)
         local lifeTime = math.max(endTime - startTime, 0)
 
         line = __readLine(f)
-        return __readSubtitleContent(ctx, pool, f, line, subID, subIdx, startTime, lifeTime)
+        return __readSubtitleContent(cfg, pool, f, line, subID, subIdx, startTime, lifeTime)
     end
 end
 
 
-__readSubtitleContent = function(ctx, pool, f, line, subID, subIdx, startTime, lifeTime)
+__readSubtitleContent = function(cfg, pool, f, line, subID, subIdx, startTime, lifeTime)
     if not line
     then
         return false
@@ -95,22 +95,22 @@ __readSubtitleContent = function(ctx, pool, f, line, subID, subIdx, startTime, l
         end
 
 
-        local color = ctx.defaultSRTFontColor
-        local size = ctx.defaultSRTFontSize
+        local color = cfg.defaultSRTFontColor
+        local size = cfg.defaultSRTFontSize
         local danmakuID = string.format(_STR_PATTERN_DANMAKU_ID, subID, subIdx)
         pool:addDanmaku(startTime, lifeTime, color, size, danmakuID, text)
 
         line = hasMoreLine and __readLine(f) or nil
-        return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subID, subIdx)
+        return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subID, subIdx)
     end
 end
 
 
-local function parseSRTFile(ctx, f, subtitleID)
+local function parseSRTFile(cfg, pools, f, subtitleID)
     local line = __readLine(f)
     local startIdx = _SRT_SUBTITLE_IDX_START
-    local pool = ctx.pools[asswriter.LAYER_SUBTITLE]
-    return __readSubtitleIdxOrEmptyLines(ctx, pool, f, line, subtitleID, startIdx)
+    local pool = pools:getDanmakuPoolByLayer(asswriter.LAYER_SUBTITLE)
+    return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subtitleID, startIdx)
 end
 
 

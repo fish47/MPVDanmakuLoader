@@ -113,6 +113,14 @@ local function iteratePairsArray(array, startIdx)
 end
 
 
+local function disposeSafely(obj)
+    if obj
+    then
+        obj:dispose()
+    end
+end
+
+
 return
 {
     isTable             = isTable,
@@ -126,4 +134,5 @@ return
     exportModules       = exportModules,
     iteratePairsArray   = iteratePairsArray,
     binarySearchArray   = binarySearchArray,
+    disposeSafely       = disposeSafely,
 }

@@ -2,7 +2,7 @@ local utils = require("src/utils")          --= utils utils
 local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local DanmakuPool =
+local DanmakuPool       =
 {
     _mStartTimes        = nil,      -- 弹幕起始时间，单位 ms
     _mLifeTimes         = nil,      -- 弹幕存活时间，单位 ms
@@ -117,25 +117,15 @@ local DanmakuPool =
 utils.declareClass(DanmakuPool)
 
 
-local DanmakuParseContext =
+
+local DanmakuPools  =
 {
-    pools = nil,
-    screenWidth = nil,
-    screenHeight = nil,
-    bottomReserved = nil,
-
-    defaultFontSize = nil,
-    defaultFontName = nil,
-    defaultFontColor = nil,
-
-    defaultSRTFontSize = nil,
-    defaultSRTFontName = nil,
-    defaultSRTFontColor = nil,
+    _mPools         = nil,
 
 
     new = function(obj)
         obj = utils.allocateInstance(obj)
-        obj.pools =
+        obj._mPools =
         {
             [asswriter.LAYER_MOVING_L2R]    = DanmakuPool:new(),
             [asswriter.LAYER_MOVING_R2L]    = DanmakuPool:new(),
@@ -144,19 +134,22 @@ local DanmakuParseContext =
             [asswriter.LAYER_ADVANCED]      = DanmakuPool:new(),
             [asswriter.LAYER_SUBTITLE]      = DanmakuPool:new(),
         }
-
-        return obj
     end,
 
 
     __doIterateDanmakuPools = function(self, func)
-        if self.pools
+        if self._mPools
         then
-            for _, pool in pairs(self.pools)
+            for _, pool in pairs(self._mPools)
             do
                 func(pool)
             end
         end
+    end,
+
+
+    getDanmakuPoolByLayer = function(self, layer)
+        return self._mPools[layer]
     end,
 
 
@@ -170,8 +163,6 @@ local DanmakuParseContext =
         utils.clearTable(self)
     end,
 }
-
-utils.declareClass(DanmakuParseContext)
 
 
 
@@ -217,5 +208,5 @@ return
     _LIFETIME_MOVING        = _LIFETIME_MOVING,
     _measureDanmakuText     = _measureDanmakuText,
     DanmakuPool             = DanmakuPool,
-    DanmakuParseContext     = DanmakuParseContext,
+    DanmakuPools            = DanmakuPool,
 }

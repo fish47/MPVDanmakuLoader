@@ -42,7 +42,7 @@ local _DDP_LIFETIME_MAP         =
 
 
 
-local function parseDanDanPlayRawData(ctx, rawData)
+local function parseDanDanPlayRawData(cfg, pools, rawData)
     if not rawData
     then
         return
@@ -52,13 +52,13 @@ local function parseDanDanPlayRawData(ctx, rawData)
     do
         local pos = tonumber(typeStr) or _DDP_POS_MOVING_R2L
         local layer = _DDP_POS_TO_LAYER_MAP[pos]
-        local pool = layer and ctx.pools[layer]
+        local pool = layer and pools:getDanmakuPoolByLayer(layer)
         if pool
         then
             local startTime = tonumber(start) * _DDP_FACTOR_TIME_STAMP
             local lifeTime = _DDP_LIFETIME_MAP[pos]
             local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
-            local fontSize = ctx.defaultFontSize
+            local fontSize = cfg.defaultFontSize
             local danmakuID = string.format(_DDP_PATTERN_DANMAKU_ID, id1, id2)
             local text = utils.unescapeXMLString(text)
             pool:addDanmaku(startTime, lifeTime, fontColor, fontSize, danmakuID, text)

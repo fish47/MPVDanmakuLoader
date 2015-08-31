@@ -26,6 +26,14 @@ local DanDanPlayVideoInfo =
     videoTitle      = nil,
     videoSubtitle   = nil,
     danmakuURL      = nil,
+
+    new = function(obj, title, subTitle, url)
+        obj = utils.allocateInstance(obj)
+        obj.videoTitle = title
+        obj.videoSubtitle = subTitle
+        obj.danmakuURL = url
+        return obj
+    end,
 }
 
 utils.declareClass(DanDanPlayVideoInfo)

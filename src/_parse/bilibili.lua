@@ -34,7 +34,7 @@ local _BILI_LIFETIME_MAP        =
 }
 
 
-local function parseBiliBiliRawData(ctx, rawData, offset)
+local function parseBiliBiliRawData(cfg, pools, rawData, offset)
     if not rawData
     then
         return
@@ -47,13 +47,13 @@ local function parseBiliBiliRawData(ctx, rawData, offset)
     do
         local biliPos = tonumber(typeStr) or _BILI_POS_MOVING_R2L
         local layer = _BILI_POS_TO_LAYER_MAP[biliPos]
-        local pool = layer and ctx.pools[layer]
+        local pool = layer and pools:getDanmakuPoolByLayer(layer)
         if pool
         then
             local startTime = offset + tonumber(start) * _BILI_FACTOR_TIME_STAMP
             local lifeTime = _BILI_LIFETIME_MAP[biliPos]
             local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
-            local fontSize = tonumber(size) * ctx.defaultFontSize / _BILI_FACTOR_FONT_SIZE
+            local fontSize = tonumber(size) * cfg.defaultFontSize / _BILI_FACTOR_FONT_SIZE
             local danmakuID = string.format(_BILI_PATTERN_DANMAKU_ID, id1, id2)
             local text = utils.unescapeXMLString(text)
             pool:addDanmaku(startTime, lifeTime, fontColor, fontSize, danmakuID, text)

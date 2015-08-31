@@ -1,3 +1,6 @@
+local _base = require("src/_utils/_base")
+
+
 local __gClassMetaTables = {}
 
 local function __createClassMetaTable(clzDefObj)
@@ -47,11 +50,19 @@ local function declareClass(clzDefObj, baseClzDefObj)
     end
 
     -- 生成默认构造方法，如果没有的话
-    if clzDefObj.new == nil
+    if not clzDefObj.new
     then
         clzDefObj.new = function(obj)
             -- 一般父类会有明确的构造方法
             return allocateInstance(obj)
+        end
+    end
+
+    -- 默认析构方法
+    if not clzDefObj.dispose
+    then
+        clzDefObj.dispose = function(obj)
+            _base.clearTable(obj)
         end
     end
 

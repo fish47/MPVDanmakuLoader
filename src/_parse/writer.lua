@@ -3,38 +3,37 @@ local poscalc = require("src/poscalc")      --= poscalc poscalc
 local asswriter = require("src/asswriter")  --= asswriter asswriter
 
 
-local function __writeMovingL2RPos(ctx, builder, w, y)
-    builder:addMove(0, y, ctx.screenWidth + w, y)
+local function __writeMovingL2RPos(cfg, screenW, screenH, b, w, y)
+    b:addMove(0, y, screenW + w, y)
 end
 
-local function __writeMovingR2LPos(ctx, builder, w, y)
-    builder:addMove(ctx.screenWidth, y, -w, y)
+local function __writeMovingR2LPos(cfg, screenW, screenH, b, w, y)
+    b:addMove(screenW, y, -w, y)
 end
 
-local function __writeStaticTopPos(ctx, builder, w, y)
-    builder:addTopCenterAlign()
-    builder:addPos(ctx.screenWidth / 2, y)
+local function __writeStaticTopPos(cfg, screenW, screenH, b, w, y)
+    b:addTopCenterAlign()
+    b:addPos(screenW / 2, y)
 end
 
-local function __writeStaticBottomPos(ctx, builder, w, y)
-    local stageH = ctx.screenHeight - ctx.bottomReserved
+local function __writeStaticBottomPos(cfg, screenW, screenH, b, w, y)
+    local stageH = screenH - cfg.bottomReserved
     y = stageH - y
-    y = y - ctx.bottomReserved
-    builder:addBottomCenterAlign()
-    builder:addPos(ctx.screenWidth / 2, y)
+    y = y - cfg.bottomReserved
+    b:addBottomCenterAlign()
+    b:addPos(screenW / 2, y)
 end
 
-local function __writeBottomSubtitlePos(ctx, builder, w, y)
-    y = ctx.screenHeight - y
-    builder:addBottomCenterAlign()
-    builder:addPos(ctx.screenWidth / 2, y)
+local function __writeBottomSubtitlePos(cfg, screenW, screenH, b, w, y)
+    y = screenH - y
+    b:addBottomCenterAlign()
+    b:addPos(screenW / 2, y)
 end
 
 
-local function writeDanmakus(ctx, f)
-    local stageW = ctx.screenWidth
-    local screenH = math.max(ctx.screenHeight, 1)
-    local stageH = math.max(screenH - ctx.bottomReserved, 1)
+local function writeDanmakus(cfg, pools, screenW, screenH, f)
+    local stageW = screenW
+    local stageH = math.max(screenH - cfg.bottomReserved, 1)
 
     local calculators =
     {
@@ -57,18 +56,18 @@ local function writeDanmakus(ctx, f)
     }
 
 
-    asswriter.writeScriptInfo(f, ctx.screenWidth, ctx.screenHeight)
-    asswriter.writeStyle(f, ctx.defaultFontName, ctx.defaultFontSize)
+    asswriter.writeScriptInfo(f, screenW, screenH)
+    asswriter.writeStyle(f, cfg.defaultFontName, cfg.defaultFontSize)
     asswriter.writeEvents(f)
 
     local builder = asswriter.DialogueBuilder:new()
-    builder:setDefaultFontColor(ctx.defaultFontColor)
-    builder:setDefaultFontSize(ctx.defaultFontSize)
+    builder:setDefaultFontColor(cfg.defaultFontColor)
+    builder:setDefaultFontSize(cfg.defaultFontSize)
 
     for layer, calc in pairs(calculators)
     do
         local writePosFunc = writePosFuncs[layer]
-        local pool = ctx.pools[layer]
+        local pool = cfg.pools[layer]
         pool:sortDanmakusByStartTime()
 
         local prevDanmakuID = nil
@@ -87,7 +86,7 @@ local function writeDanmakus(ctx, f)
                 builder:startStyle()
                 builder:addFontColor(color)
                 builder:addFontSize(size)
-                writePosFunc(ctx, builder, w, y)
+                writePosFunc(cfg, builder, screenW, screenH, w, y)
                 builder:endStyle()
                 builder:addText(text)
                 builder:endDialogue()
@@ -103,7 +102,6 @@ local function writeDanmakus(ctx, f)
     calculators = nil
     writePosFuncs = nil
     builder = nil
-    collectgarbage()
 
     f:close()
 end

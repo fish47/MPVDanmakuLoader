@@ -125,6 +125,7 @@ local _BASH_ESCAPED_STRONG_QUOTE    = "'\"'\"'"
 
 local function escapeBashString(text)
     -- 这是从 pipes.py 抄过来的
+    text = tostring(text)
     local replaced = text:gsub(_BASH_STRONG_QUOTE, _BASH_ESCAPED_STRONG_QUOTE)
     return _BASH_STRONG_QUOTE .. replaced .. _BASH_STRONG_QUOTE
 end

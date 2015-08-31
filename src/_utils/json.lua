@@ -119,7 +119,16 @@ local JSONParseContext =
         _base.clearTable(self.collectionStack)
         _base.clearTable(self.addItemFuncStack)
         _base.clearTable(self.parseItemListFuncStack)
-    end
+    end,
+
+    dispose = function(self)
+        _base.disposeSafely(self.stringBuf)
+        _base.disposeSafely(self.keyStack)
+        _base.disposeSafely(self.collectionStack)
+        _base.disposeSafely(self.addItemFuncStack)
+        _base.disposeSafely(self.parseItemListFuncStack)
+        _base.clearTable(self)
+    end,
 }
 
 classlite.declareClass(JSONParseContext)
