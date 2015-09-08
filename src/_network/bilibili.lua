@@ -29,6 +29,14 @@ local BiliBiliVideoInfo =
     subtitle    = nil,      -- 分P视频标题，无分P时此字段为空
     duration    = nil,      -- 视频长宽，单位 ms
     danmakuURL  = nil,      -- 视频之间会不会共享弹幕池？
+
+    new = function(obj, subtitle, duration, url)
+        obj = utils.allocateInstance(obj)
+        obj.subtitle = subtitle
+        obj.duration = duration
+        obj.danmakuURL = url
+        return obj
+    end,
 }
 
 utils.declareClass(BiliBiliVideoInfo)
@@ -39,6 +47,14 @@ local BiliBiliSearchResult =
     videoType   = nil,
     videoTitle  = nil,
     videoID     = nil,
+
+    new = function(obj, videoType, title, videoID)
+        obj = utils.allocateInstance(obj)
+        obj.videoType = videoType
+        obj.videoTitle = title
+        obj.videoID = videoID
+        return obj
+    end,
 }
 
 utils.declareClass(BiliBiliSearchResult)
@@ -68,7 +84,6 @@ local function __parseSearchPage(rawData, outList)
             result.videoID = __filterBadChars(videoID)
             result.videoType = __filterBadChars(videoType)
             result.videoTitle = plainTitle
-
             table.insert(outList, result)
         end
     end

@@ -1,5 +1,6 @@
 local _base = require("src/_utils/_base")
 local utf8 = require("src/_utils/utf8")
+local classlite = require("src/_utils/classlite")
 
 
 local _XML_ESCAPE_STR_UNICODE_RADIX     = 16
@@ -131,8 +132,57 @@ local function escapeBashString(text)
 end
 
 
+
+local _CMD_BUILDER_SEP      = " "
+
+local CommandlineBuilder    =
+{
+    _mArguments             = nil,
+    _mArgumentSep           = nil,
+    _mEscapeFunction        = nil,
+
+
+    new = function(obj, escapeFunc, sep)
+        obj = classlite.allocateInstance(obj)
+        obj._mArguments = {}
+        obj._mArgumentSep = sep or _CMD_BUILDER_SEP
+        obj._mEscapeFunction = escapeFunc or escapeBashString
+        return obj
+    end,
+
+    dispose = function(self)
+        _base.clearTable(self._mArguments)
+        _base.clearTable(self)
+    end,
+
+    startCommand = function(self, binPath)
+        _base.clearTable(self._mArguments)
+        self:addArgument(binPath)
+        return self
+    end,
+
+    addArgument = function(self, arg)
+        arg = tostring(arg)
+        arg = self._mEscapeFunction(arg)
+        table.insert(self._mArguments, arg)
+        return self
+    end,
+
+    execute = function(self, mode)
+        local cmdStr = table.concat(self._mArguments, self._mArgumentSep)
+        return io.popen(cmdStr, mode or "r")
+    end,
+
+    executeAndWait = function(self)
+        local f = self:execute()
+        return _base.readAndCloseFile(f)
+    end,
+}
+
+
 return
 {
+    CommandlineBuilder          = CommandlineBuilder,
     escapeASSString             = escapeASSString,
     unescapeXMLString           = unescapeXMLString,
     escapeURLString             = escapeURLString,
