@@ -1,6 +1,6 @@
-local md5 = require("src/_utils/md5")
-local bitlib = require("src/_utils/_bitlib")
 local lu = require("3rdparties/luaunit")    --= luaunit lu
+local md5 = require("src/_utils/md5")
+local bitlib = require("src/_utils/bitlib")
 
 
 TestMD5 =
@@ -19,7 +19,7 @@ TestMD5 =
 
 
         local function __doTest(content, expected)
-            local val = md5.calcMD5Hash(__readChunkFunc, content, bitlib)
+            local val = md5.calcMD5Hash(__readChunkFunc, content, bitlib._getSoftImpl())
             lu.assertEquals(val, expected)
         end
 

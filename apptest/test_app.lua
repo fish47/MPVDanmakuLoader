@@ -62,7 +62,7 @@ utils.declareClass(MockApp, mdlapp.MPVDanmakuLoaderApp)
 
 local MockShell =
 {
-    _createApp = function(self)
+    _createApplication = function(self)
         local cfg = self._mConfiguration
         local conn = self._mNetworkConnection
         return MockApp:new(cfg, conn)
@@ -72,14 +72,12 @@ local MockShell =
 utils.declareClass(MockShell, shell.MPVDanmakuLoaderShell)
 
 
-
-
 local function test_main()
     local cfg = mdlcfg.MPVDanmakuLoaderCfg:new()
     local conn = network.CURLNetworkConnection:new("curl")
     local guiBuilder = shell.ZenityGUIBuilder:new("zenity")
-    local gui = MockShell:new("zenity", cfg, conn, guiBuilder)
-    gui:__onFileLoad()
+    local gui = MockShell:new(cfg, conn, guiBuilder)
+    gui:_onLoadFile()
     gui:_showMain()
 end
 

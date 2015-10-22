@@ -234,14 +234,14 @@ local __BasePosCalculator =
     end,
 
 
-    _doGetCollisionScore = function(self, area1, area2)
-    end,
+    -- self, area1, area2
+    _doGetCollisionScore = utils.METHOD_NOT_IMPLEMENTED,
 
-    _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
-    end,
+    -- self, w, h, start, lifeTime, outArea
+    _doInitDanmakuArea = utils.METHOD_NOT_IMPLEMENTED,
 
-    _doUpdateDanmakuArea = function(self, area1, area2)
-    end,
+    -- self, area1, area2
+    _doUpdateDanmakuArea = utils.METHOD_NOT_IMPLEMENTED,
 
 
     calculate = function(self, w, h, start, lifeTime)

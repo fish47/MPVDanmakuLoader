@@ -120,15 +120,24 @@ local function disposeSafely(obj)
     end
 end
 
+local function closeSafely(obj)
+    if obj
+    then
+        obj:close()
+    end
+end
+
 
 local function readAndCloseFile(f)
-    local ret = nil
     if f
     then
-        ret = f:read("*a")
-        f:close()
+        local readRet = f:read("*a")
+        local succeed, state, retCode = f:close()
+        succeed = (state == "exit")
+        retCode = succeed and retCode or nil
+        return readRet, succeed, retCode
     end
-    return ret
+    return nil
 end
 
 
@@ -146,5 +155,6 @@ return
     iteratePairsArray   = iteratePairsArray,
     binarySearchArray   = binarySearchArray,
     disposeSafely       = disposeSafely,
+    closeSafely         = closeSafely,
     readAndCloseFile    = readAndCloseFile,
 }

@@ -147,6 +147,13 @@ local LAYER_ADVANCED        = 2
 local LAYER_SUBTITLE        = 1
 
 
+local _ASS_DIALOGUE_TIME_FORMAT     = "%d:%02d:%05.02f"
+
+local function __convertTimeToTimeString(time)
+    local h, m, s = utils.convertTimeToHMS(time)
+    return string.format(_ASS_DIALOGUE_TIME_FORMAT, h, m, s)
+end
+
 
 local DialogueBuilder =
 {
@@ -179,10 +186,10 @@ local DialogueBuilder =
         table.insert(content, layer)
         table.insert(content, _ASS_SEP_FIELD)
 
-        table.insert(content, utils.convertTimeToHHMMSS(startTime))
+        table.insert(content, __convertTimeToTimeString(startTime))
         table.insert(content, _ASS_SEP_FIELD)
 
-        table.insert(content, utils.convertTimeToHHMMSS(endTime))
+        table.insert(content, __convertTimeToTimeString(endTime))
         table.insert(content, _ASS_SEP_FIELD)
 
         table.insert(content, _STYLE_NAME_MDL)

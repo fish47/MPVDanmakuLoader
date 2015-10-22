@@ -66,12 +66,10 @@ local MPVDanmakuLoaderApp =
         return obj
     end,
 
-
     dispose = function(self)
         utils.disposeSafely(self._mDanmakuPools)
         utils.clearTable(self)
     end,
-
 
     searchDanDanPlayByVideoInfos = function(self)
         local conn = self._mNetworkConnection

@@ -14,6 +14,7 @@ local UI_STRINGS_CN =
             search_bilibili     = "搜索弹幕(BiliBili)",
             search_dandanplay   = "搜索弹幕(DanDanPlay)",
             generate_ass_file   = "生成弹幕文件",
+            delete_danmaku_cache  = "删除本地弹幕缓存",
         },
     },
 
@@ -23,8 +24,6 @@ local UI_STRINGS_CN =
 
         columns =
         {
-            dummy       = "",
-            id          = "ID",
             title       = "标题",
             subtitle    = "子标题",
         },
@@ -34,7 +33,7 @@ local UI_STRINGS_CN =
     {
         prompt =
         {
-            title   = "输入搜索关键词",
+            title   = "搜索(BiliBili)",
         },
 
         select_pieces =
@@ -45,17 +44,35 @@ local UI_STRINGS_CN =
             title   = "搜索结果(BiliBili)",
             columns =
             {
-                dummy       = "",
-                id          = "ID",
                 type        = "类型",
                 title       = "标题",
             },
         },
+    },
+
+
+    delete_danmaku_cache =
+    {
+        title   = "删除本地弹幕缓存",
+        columns =
+        {
+        },
+    },
+}
+
+
+local UI_SIZES_ZENITY =
+{
+    main =
+    {
+        width   = 240,
+        height  = 220,
     },
 }
 
 
 return
 {
-    UI_STRINGS_CN   = UI_STRINGS_CN,
+    UI_STRINGS_CN       = UI_STRINGS_CN,
+    UI_SIZES_ZENITY     = UI_SIZES_ZENITY,
 }

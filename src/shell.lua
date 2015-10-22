@@ -3,5 +3,5 @@ return utils.exportModules(
     require("src/_shell/_base"),
     require("src/_shell/logic"),
     require("src/_shell/model"),
-    require("src/_shell/uistrings")
+    require("src/_shell/uiconstants")
 )

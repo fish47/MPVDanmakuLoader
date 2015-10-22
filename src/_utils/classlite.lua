@@ -71,8 +71,14 @@ local function declareClass(clzDefObj, baseClzDefObj)
 end
 
 
+local function METHOD_NOT_IMPLEMENTED()
+    assert(0)
+end
+
+
 return
 {
-    allocateInstance    = allocateInstance,
-    declareClass        = declareClass,
+    METHOD_NOT_IMPLEMENTED  = METHOD_NOT_IMPLEMENTED,
+    allocateInstance        = allocateInstance,
+    declareClass            = declareClass,
 }
