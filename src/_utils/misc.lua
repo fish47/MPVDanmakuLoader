@@ -131,11 +131,8 @@ local function quoteBashString(text)
 end
 
 
-
-local _LUA_VERSION                      = tonumber(string.match(_VERSION, "(%d+%.%d)") or 5)
-
 local _CMD_BUILDER_SEP                  = " "
-local _CMD_BUILDER_GUESS_RET_CODE       = _LUA_VERSION <= 5.1
+local _CMD_BUILDER_GUESS_RET_CODE       = _base.getLuaVersion() <= 5.1
 local _CMD_BUILDER_RET_STR_SUCCEED      = "succeed"
 local _CMD_BUILDER_RET_STR_FAILED       = "failed"
 local _CMD_BUILDER_RET_CODE_SUCCEED     = 0

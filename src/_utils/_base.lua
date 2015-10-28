@@ -18,6 +18,13 @@ local function isNumber(o)
     return type(o) == "number"
 end
 
+local function isConstant(o)
+    local typeString = type(o)
+    return typeString == "number"
+           or typeString == "boolean"
+           or typeString == "nil"
+end
+
 
 local function clearTable(t)
     if isTable(t)
@@ -141,12 +148,20 @@ local function readAndCloseFile(f)
 end
 
 
+local _LUA_VERSION  = tonumber(string.match(_VERSION, "(%d+%.%d)") or 5)
+
+local function getLuaVersion()
+    return _LUA_VERSION
+end
+
+
 return
 {
     isTable             = isTable,
     isEmptyTable        = isEmptyTable,
     isString            = isString,
     isNumber            = isNumber,
+    isConstant          = isConstant,
     unpackArray         = unpack or table.unpack,
     appendArray         = appendArray,
     clearTable          = clearTable,
@@ -157,4 +172,5 @@ return
     disposeSafely       = disposeSafely,
     closeSafely         = closeSafely,
     readAndCloseFile    = readAndCloseFile,
+    getLuaVersion       = getLuaVersion,
 }
