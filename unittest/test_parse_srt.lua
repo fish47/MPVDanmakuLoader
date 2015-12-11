@@ -1,26 +1,32 @@
-local lu = require("3rdparties/luaunit")    --= luaunit lu
-local utils = require("src/utils")          --= utils utils
-local parse = require("src/parse")          --= parse parse
-local asswriter = require("src/asswriter")  --= asswriter asswriter
+local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local _ass      = require("src/core/_ass")
+local srt       = require("src/core/srt")
+local danmaku   = require("src/core/danmaku")
+local utils     = require("src/base/utils")
+local app       = require("src/shell/app")
 
 
 TestParseSRTFile =
 {
-    __mParseContexts    = nil,
-
+    __mPools    = nil,
+    __mCfg      = nil,
 
     setUp = function(self)
-        self.__mParseContexts = {}
+        self.__mCfg = app.MPVDanmakuLoaderCfg:new()
+        self.__mPools = {}
     end,
 
 
     tearDown = function(self)
-        for _, ctx in ipairs(self.__mParseContexts)
+        for i, pools in ipairs(self.__mPools)
         do
-            ctx:dispose()
+            pools:dispose()
+            self.__mPools[i] = nil
         end
-        utils.clearTable(self.__mParseContexts)
-        self.__mParseContexts = nil
+        self.__mPools = nil
+
+        self.__mCfg:dispose()
+        self.__mCfg = nil
     end,
 
 
@@ -30,13 +36,12 @@ TestParseSRTFile =
         f:flush()
         f:seek("set", 0)
 
-        local ctx = parse.DanmakuParseContext:new()
-        local ret = parse.parseSRTFile(ctx, f, "foo")
-        local pool = ctx.pools[asswriter.LAYER_SUBTITLE]
+        local pool = danmaku.DanmakuPool:new()
+        local ret = srt.parseSRTFile(self.__mCfg, pool, f, "foo")
 
         f:close()
         pool:sortDanmakusByStartTime()
-        table.insert(self.__mParseContexts, ctx)
+        table.insert(self.__mPools, pool)
         return ret, pool
     end,
 

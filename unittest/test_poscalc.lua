@@ -1,6 +1,6 @@
-local lu = require("3rdparties/luaunit")    --= luaunit lu
-local utils = require("src/utils")          --= utils utils
-local poscalc = require("src/poscalc")      --= poscalc poscalc
+local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local utils     = require("src/base/utils")
+local _poscalc  = require("src/core/_poscalc")
 
 TestMovingArea =
 {
@@ -18,8 +18,8 @@ TestMovingArea =
             lu.assertEquals(ret, duration)
         end
 
-        local a1 = poscalc.__DanmakuArea:new()
-        local a2 = poscalc.__DanmakuArea:new()
+        local a1 = _poscalc.__DanmakuArea:new()
+        local a2 = _poscalc.__DanmakuArea:new()
 
         -- 不相交而且追不上
         self:__doInitDanmakuArea(a1, 0, 10, 100)
@@ -82,7 +82,7 @@ TestIntersectedHeight =
 {
     test_main = function()
         local function __doAssert(top1, bottom1, top2, bottom2, heights)
-            local h1, h2, h3 = poscalc.__getIntersectedHeight(top1, bottom1, top2, bottom2)
+            local h1, h2, h3 = _poscalc.__getIntersectedHeight(top1, bottom1, top2, bottom2)
             lu.assertEquals(h1, heights[1])
             lu.assertEquals(h2, heights[2])
             lu.assertEquals(h3, heights[3])
@@ -108,7 +108,7 @@ TestPosCalculator =
         local heightSum = 0
         for i, h in ipairs(heights)
         do
-            local newArea = (i == 1) and area or poscalc.__DanmakuArea:new()
+            local newArea = (i == 1) and area or _poscalc.__DanmakuArea:new()
             newArea.height = h
             area._next = newArea
             newArea._next = nil
@@ -134,7 +134,7 @@ TestPosCalculator =
     test_add_area = function(self)
         local function __doAddArea(calc, top, bottom)
             -- 只为防止被相容才做些奇怪数据而已
-            local newArea = poscalc.__DanmakuArea:new()
+            local newArea = _poscalc.__DanmakuArea:new()
             newArea.speed = 1234
             newArea.width = 4321
             newArea.start = 5555
@@ -156,7 +156,7 @@ TestPosCalculator =
 
         local function __doTest(heights, areaBounds, assertHeights)
             local addTop, addBottom = table.unpack(areaBounds)
-            local calc = poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
+            local calc = _poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
             __doAddArea(calc, addTop, addBottom)
             __doAssertAreaHeights(calc, assertHeights)
@@ -173,7 +173,7 @@ TestPosCalculator =
 
     test_score_sum = function(self)
         local function __doTest(heights, areaBounds, assertAreaIndexes)
-            local calc = poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
+            local calc = _poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
 
             -- 编号
@@ -193,7 +193,7 @@ TestPosCalculator =
                 return 0
             end
 
-            local newArea = poscalc.__DanmakuArea:new()
+            local newArea = _poscalc.__DanmakuArea:new()
             local newAreaTop, newAreaBottom = table.unpack(areaBounds)
             newArea.height = newAreaBottom - newAreaTop
             calc:__getCollisionScoreSum(0, calc._mDanmakuAreas, newAreaTop, newArea)
@@ -222,7 +222,7 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = poscalc.StaticPosCalculator:new(100, 50)
+        local calc = _poscalc.StaticPosCalculator:new(100, 50)
         __doTest(calc, 10, 0, 5, 0)
         __doTest(calc, 10, 1, 5, 10)
         __doTest(calc, 10, 2, 5, 20)
@@ -246,7 +246,7 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = poscalc.MovingPosCalculator:new(100, 50)
+        local calc = _poscalc.MovingPosCalculator:new(100, 50)
         __doTest(calc, 100, 10, 0, 5, 0)
         __doTest(calc, 100, 10, 3, 5, 0)
         __doTest(calc, 100, 10, 8, 5, 0)

@@ -1,16 +1,18 @@
-local lu = require("3rdparties/luaunit")    --= luaunit lu
-local utils = require("src/utils")          --= utils utils
+local lu    = require("3rdparties/luaunit")    --= luaunit lu
+local json  = require("src/base/json")
+local utils = require("src/base/utils")
+local utf8  = require("src/base/utf8")
 
 
 local function __doAssertParseValue(content, expected)
-    local ret, val = utils.parseJSON(content)
+    local ret, val = json.parseJSON(content)
     lu.assertTrue(ret)
     lu.assertEquals(val, expected)
 end
 
 
 local function __doAssertParseFailed(content)
-    lu.assertFalse(utils.parseJSON(content))
+    lu.assertFalse(json.parseJSON(content))
 end
 
 
@@ -34,7 +36,7 @@ TestJSON =
                              "123\\456/789\f01\n23\r456\t7890")
 
         local function __appendUTF8EncodedChars(codePoint, outList)
-            for _, utf8Byte in utils.iterateUTF8EncodedBytes(codePoint)
+            for _, utf8Byte in utf8.iterateUTF8EncodedBytes(codePoint)
             do
                 table.insert(outList, string.char(utf8Byte))
             end

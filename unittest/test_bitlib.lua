@@ -1,11 +1,11 @@
-local lu = require("3rdparties/luaunit")    --= luaunit lu
-local bitlib = require("src/_utils/bitlib")
+local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local bitlib    = require("src/base/bitlib")
 
 
 TestSoftBitwiseOp =
 {
     test_all = function()
-        local bitlibArg = bitlib._getSoftImpl()
+        local bitlibArg = bitlib.__getSoftImpl()
         for i = 1, 100000
         do
             local op1 = math.random(0, 2 ^ 32 - 1)
