@@ -1,6 +1,6 @@
 local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local _bitlib   = require("src/base/_bitlib")
 local md5       = require("src/base/md5")
-local bitlib    = require("src/base/bitlib")
 
 
 TestMD5 =
@@ -8,7 +8,7 @@ TestMD5 =
     test_hash = function()
 
         local function __readChunkFunc(content, chunkIdx)
-            local byteStartIdx = (chunkIdx - 1) * md5.MD5_CHUNK_BYTE_COUNT + 1
+            local byteStartIdx = (chunkIdx - 1) * md5._MD5_CHUNK_BYTE_COUNT + 1
             if byteStartIdx > #content
             then
                 return nil
@@ -19,7 +19,7 @@ TestMD5 =
 
 
         local function __doTest(content, expected)
-            local val = md5.calcMD5Hash(__readChunkFunc, content, bitlib.__getSoftImpl())
+            local val = md5.calcMD5Hash(__readChunkFunc, content, _bitlib.__getSoftImpl())
             lu.assertEquals(val, expected)
         end
 

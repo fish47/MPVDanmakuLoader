@@ -1,5 +1,5 @@
 local utils     = require("src/base/utils")
-local bitlib    = require("src/base/bitlib")
+local _bitlib   = require("src/base/_bitlib")
 local constants = require("src/base/constants")
 
 
@@ -327,7 +327,7 @@ local function calcMD5Hash(iterFunc, iterArg, bitlibArg)
     local buf = {}
     local chunkIdx = 1
 
-    bitlibArg = bitlibArg or bitlib
+    bitlibArg = bitlibArg or _bitlib
 
     while true
     do
@@ -375,8 +375,27 @@ local function calcMD5Hash(iterFunc, iterArg, bitlibArg)
 end
 
 
+local function calcFileMD5Hash(filepath, byteCount)
+    local function __readChunkFunc(fileArg, idx)
+        if idx * MD5_CHUNK_BYTE_COUNT <= byteCount
+        then
+            return fileArg:read(MD5_CHUNK_BYTE_COUNT)
+        end
+    end
+
+    local f = io.open(filepath, constants.FILE_MODE_READ)
+    if f
+    then
+        local ret = calcMD5Hash(__readChunkFunc, f)
+        f:close()
+        return ret
+    end
+end
+
+
 return
 {
     MD5_CHUNK_BYTE_COUNT    = MD5_CHUNK_BYTE_COUNT,
     calcMD5Hash             = calcMD5Hash,
+    calcFileMD5Hash         = calcFileMD5Hash,
 }

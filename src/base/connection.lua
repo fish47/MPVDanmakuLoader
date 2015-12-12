@@ -21,6 +21,12 @@ local CURLNetworkConnection =
     _mCallbackArgs      = classlite.declareTableField(),
     _mStdoutFiles       = classlite.declareTableField(),
 
+    new = function(self, binPath, timeout)
+        timeout = timeout and tonumber(timeout)
+        self._mCURLBinPath = binPath
+        self._mTimeOutSeconds = timeout or self._mTimeOutSeconds
+    end,
+
     resetParams = function(self)
         self._mIsCompressed = false
         utils.clearTable(self._mHeaders)
@@ -49,6 +55,7 @@ local CURLNetworkConnection =
             cmdBuilder:addArgument(header)
         end
 
+        cmdBuilder:addArgument(url)
         return cmdBuilder
     end,
 

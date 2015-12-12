@@ -20,6 +20,8 @@ local _DDP_PATTERN_MATCH_RESULTS    = '<Match'
 
 local _DDP_ACCEPT_CONTENT_TYPE_XML  = "Accept: application/xml"
 
+local DDP_MD5_HASH_BYTE_COUNT       = 16 * 1024 * 1024
+
 
 local DanDanPlayVideoInfo =
 {
@@ -40,7 +42,7 @@ local function searchDanDanPlayByVideoInfos(conn, fileName, md5Hash, byteCount, 
                               tostring(byteCount),
                               tostring(seconds))
 
-    local result = nil
+    local results = nil
     local rawData = conn:doGET(url)
     if rawData
     then
@@ -51,12 +53,12 @@ local function searchDanDanPlayByVideoInfos(conn, fileName, md5Hash, byteCount, 
             info.videoSubtitle = subTitle
             info.danmakuURL = string.format(_DDP_PATTERN_URL_GET_DANMAKU, episodeID)
 
-            result = result or {}
-            table.insert(result, info)
+            results = results or {}
+            table.insert(results, info)
         end
     end
 
-    return result
+    return results
 end
 
 
@@ -74,6 +76,7 @@ end
 
 return
 {
+    DDP_MD5_HASH_BYTE_COUNT         = DDP_MD5_HASH_BYTE_COUNT,
     DanDanPlayVideoInfo             = DanDanPlayVideoInfo,
     searchDanDanPlayByVideoInfos    = searchDanDanPlayByVideoInfos,
     getDanDanPlayDanmakuRawData     = getDanDanPlayDanmakuRawData,

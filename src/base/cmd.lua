@@ -193,6 +193,8 @@ local CommandlineBuilder =
     end,
 }
 
+classlite.declareClass(CommandlineBuilder)
+
 
 return
 {

@@ -1,3 +1,6 @@
+local constants     = require("src/base/constants")
+
+
 local _LUA_TYPE_FUNCTION    = "function"
 local _LUA_TYPE_TABLE       = "table"
 local _LUA_TYPE_STRING      = "string"
@@ -34,7 +37,7 @@ local function isEmptyTable(o)
 end
 
 local function isNilOrEmpty(o)
-    return (o == nil or isEmptyTable(o))
+    return (o == nil or isEmptyTable(o) or o == constants.STR_EMPTY)
 end
 
 local function getVarArgCount(...)

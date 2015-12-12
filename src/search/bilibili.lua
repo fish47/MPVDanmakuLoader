@@ -1,3 +1,4 @@
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
@@ -9,14 +10,16 @@ local _BILI_FMT_URL_VIDEO_PART          = "http://www.bilibili.com/video/av%s"
 local _BILI_FMT_URL_VIDEO_INFO          = "http://interface.bilibili.com/player?id=cid:%s&aid=%s"
 local _BILI_FMT_URL_DAMAKU              = "http://comment.bilibili.com/%d.xml"
 
+local _BILI_PATTERN_TITLE               = '<h1.-title=.->(.-)</h1>'
 local _BILI_PATTERN_NEXT_PAGE_DIV       = '<div class="pagelistbox">(.-)</div>'
-local _BILI_PATTERN_NEXT_PAGE_A         = '<a href="/search%?keyword=(.-)">(%d+)</a>'
-local _BILI_PATTERN_RESULT_A            = '<a href="http://www%.bilibili%.com/video/av(%d+)/?".->(.-)</a>'
-local _BILI_PATTERN_RESULT_DIV          = '<div class="t">.*<span>(.*)</span>%s*(.-)%s*</div>'
+local _BILI_PATTERN_NEXT_PAGE_A         = '<a.-href="/search%?keyword=(.-)">(%d+)</a>'
+local _BILI_PATTERN_RESULT_A            = '<a.-href="http://www%.bilibili%.com/video/av(%d+)/?".->(.-)</a>'
+local _BILI_PATTERN_RESULT_DIV          = '<div.-class="t">.*<span>(.*)</span>%s*(.-)%s*</div>'
 local _BILI_PATTERN_REMOVE_EM           = '<.->'
-local _BILI_PATTERN_PARTS_DIV           = "<select id='dedepagetitles'.->(.*)</select>"
-local _BILI_PATTERN_PARTS_OPTION        = "<option value='/video/av(.-)'>(.-)</option>"
-local _BILI_PATTERN_CID                 = "<script type='text/javascript'>EmbedPlayer%(.*, \"cid=(%d+).*\"%);</script>"
+local _BILI_PATTERN_PARTS_DIV           = "<select.-id='dedepagetitles'.->(.*)</select>"
+local _BILI_PATTERN_PARTS_OPTION        = "<option.-value='/video/av(.-)'>(.-)</option>"
+local _BILI_PATTERN_CID_1               = "EmbedPlayer%(.-cid=(%d+).-%)"
+local _BILI_PATTERN_CID_2               = '<iframe.-src=".-cid=(%d+).-"'
 local _BILI_PATTERN_SANITIZE            = '[\x00-\x08\x0b\x0c\x0e-\x1f]'
 local _BILI_PATTERN_DURATION            = "<duration>(%d+):?(%d+)</duration>"
 
@@ -70,7 +73,7 @@ local function __parseSearchPage(rawData, outList)
             local result = BiliBiliSearchResult:new()
             result.videoID = __filterBadChars(videoID)
             result.videoType = __filterBadChars(videoType)
-            result.videoTitle = plainTitle
+            result.videoTitle = __filterBadChars(plainTitle)
             table.insert(outList, result)
         end
     end
@@ -79,7 +82,7 @@ end
 
 local function __parseNextPageURLs(rawData, curPageIdx, outList)
     local pageListContent = rawData and rawData:match(_BILI_PATTERN_NEXT_PAGE_DIV)
-    if not pageListContent
+    if types.isNilOrEmpty(pageListContent)
     then
         return
     end
@@ -109,7 +112,7 @@ local function searchBiliBiliByKeyword(conn, keyword, maxPageCount)
     local i = 1
     repeat
         local rawData = conn:doGET(pageURLs[i])
-        if not rawData
+        if types.isNilOrEmpty(rawData)
         then
             break
         end
@@ -144,10 +147,9 @@ local function searchBiliBiliByKeyword(conn, keyword, maxPageCount)
 
         conn:flush()
 
-    until i > maxPageCount
+    until i > maxPageCount or i > #pageURLs
 
-
-    pageURLs = nil
+    utils.clearTable(pageURLs)
     return results
 end
 
@@ -179,8 +181,13 @@ end
 
 
 local function __doParseVideoChatID(rawData)
-    local chatID = rawData and rawData:match(_BILI_PATTERN_CID)
-    return chatID
+    if types.isString(rawData)
+    then
+        local chatID = nil
+        chatID = chatID or rawData:match(_BILI_PATTERN_CID_1)
+        chatID = chatID or rawData:match(_BILI_PATTERN_CID_2)
+        return chatID
+    end
 end
 
 
@@ -195,12 +202,13 @@ local function getBiliBiliVideoInfos(conn, videoID)
     conn:setCompressed(true)
 
     local rawData = conn:doGET(string.format(_BILI_FMT_URL_VIDEO, videoID))
-    if not rawData
+    if types.isNilOrEmpty(rawData)
     then
         return nil
     end
 
     local results = nil
+    local title = rawData:match(_BILI_PATTERN_TITLE)
     local videoListDiv = rawData:match(_BILI_PATTERN_PARTS_DIV)
     if videoListDiv
     then
@@ -246,7 +254,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
             if chatID and duration
             then
                 local info = BiliBiliVideoInfo:new()
-                info.title = nil --TODO
+                info.title = title
                 info.partIndex = _BILI_PART_INDEX_START_OFFSET + i
                 info.partName = partNames[i]
                 info.duration = duration
@@ -276,6 +284,7 @@ local function getBiliBiliVideoInfos(conn, videoID)
             if duration
             then
                 local info = BiliBiliVideoInfo:new()
+                info.title = title
                 info.duration = duration
                 info.danmakuURL = string.format(_BILI_FMT_URL_DAMAKU, chatID)
                 results = results or {}
