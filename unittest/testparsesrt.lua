@@ -53,7 +53,7 @@ TestParseSRTFile =
 
 
     -- 随手截一段来测
-    test_parse_simple1 = function(self)
+    testParseSimple1 = function(self)
         local ret, pool = self:__doParse([[
 
 
@@ -100,7 +100,7 @@ TestParseSRTFile =
 
 
     -- 直到出现空行前，都算是字幕内容
-    test_parse_simple2 = function(self)
+    testParseSimple2 = function(self)
 
         local ret, pool = self:__doParse([[
 1
@@ -124,7 +124,7 @@ sdf
 
 
     -- 简单测一下不对的格式吧
-    test_malformed = function(self)
+    testMalformed = function(self)
         local ret, pool = self:__doParse([[
 1
 00:00:00,100 --> 00:00:03,750
@@ -138,7 +138,7 @@ sdf
     end,
 
 
-    test_blank_file = function(self)
+    testBlankFile = function(self)
         local ret = self:__doParse([[
 
 
@@ -148,7 +148,7 @@ sdf
     end,
 
 
-    test_trailing_blank_lines = function(self)
+    testTrailingBlankLines = function(self)
         local ret, pool = self:__doParse([[
 
 

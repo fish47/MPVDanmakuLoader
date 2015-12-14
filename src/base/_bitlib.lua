@@ -27,7 +27,7 @@ local function __doCreateSoftImpl()
         [1 * _META_VALUES_STEP_MUL + 1] = 0,    -- 1 xor 1 = 0
     }
 
-    -- 虽然取反符是单操作符，但直值表的第二个操作数定义为掩码
+    -- 虽然取反符是单操作符，但真值表的第二个操作数定义为掩码
     -- 例如缓存 5bit 必须做 7 轮运算，在最后一轮运算，必须防止填充多余的高位 1
     -- 对于其他操作数来说，总体有 0 op 0 = 0 ，所以保证输入数值合法，就不会出现多余的位结果
     local _META_CACHED_VALUES_NOT       =

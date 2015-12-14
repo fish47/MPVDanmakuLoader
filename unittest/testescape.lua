@@ -14,7 +14,7 @@ TestEscape =
     end,
 
 
-    test_escape_ass_text = function(self)
+    testEscapASSText = function(self)
         local func = utils.escapeASSString
         self:__doTest(func, "\n", "\\N")
         self:__doTest(func, "\\", "\\\\")
@@ -24,7 +24,7 @@ TestEscape =
     end,
 
 
-    test_unescape_xml_text = function(self)
+    testUnescapeXMLString = function(self)
         local func = utils.unescapeXMLString
         self:__doTest(func, "&lt;", "<")
         self:__doTest(func, "&gt;", ">")
@@ -35,7 +35,7 @@ TestEscape =
     end,
 
 
-    test_escape_url_text = function(self)
+    testEscapeURLString = function(self)
         local func = utils.escapeURLString
         self:__doTest(func, "要要", "%E8%A6%81%E8%A6%81")
         self:__doTest(func, "%", "%25")

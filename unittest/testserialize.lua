@@ -46,7 +46,7 @@ TestSerialize =
     end,
 
 
-    test_serialize = function(self)
+    testSerialize = function(self)
         local origin = { { 1, 'A', "b" }, { "C", 1, false, nil }, { false }, {} }
         local tmpFile = io.tmpfile()
         self:__serializeTuplesToStream(origin, tmpFile)
@@ -56,7 +56,7 @@ TestSerialize =
     end,
 
 
-    test_inject = function()
+    testInject = function()
         local outsideTable = {}
         local referred = {}
         local function __onReadTuple(...)
@@ -75,7 +75,7 @@ TestSerialize =
     end,
 
 
-    test_trim = function(self)
+    testTrim = function(self)
         local hugeData = {}
         for i = 1, 100
         do

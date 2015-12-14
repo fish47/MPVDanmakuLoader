@@ -12,7 +12,7 @@ TestClassLite =
     end,
 
 
-    test_custom_constructor = function(self)
+    testCustomConstructor = function(self)
         local FooClass =
         {
             str = classlite.declareConstantField("abc"),
@@ -33,7 +33,7 @@ TestClassLite =
     end,
 
 
-    test_plain_class_constructor = function(self)
+    testPlainClassConstructor = function(self)
         local Base =
         {
             a   = classlite.declareConstantField(1),
@@ -54,7 +54,7 @@ TestClassLite =
     end,
 
 
-    test_auto_class_field = function(self)
+    testAutoFields = function(self)
         local Triple =
         {
             a   = classlite.declareConstantField(true),
@@ -80,7 +80,7 @@ TestClassLite =
     end,
 
 
-    test_dipose_auto_fields = function(self)
+    testDisposeAutoFields = function(self)
         local fooDisposeCount = 0
         local barDisposeCount = 0
 
@@ -124,7 +124,7 @@ TestClassLite =
     end,
 
 
-    test_clone = function(self)
+    testClone = function(self)
         local Triple =
         {
             a   = classlite.declareConstantField("a"),

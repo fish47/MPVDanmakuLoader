@@ -14,7 +14,7 @@ end
 
 local function _getVideoDurationSeconds(filepath)
     local quotedPath = cmd.quoteShellString(filepath)
-    local f = io.popen("ffmpeg -i " .. quotedPath .. " 2>&1")
+    local f = io.popen(string.format("ffmpeg -i %s 2>&1", quotedPath))
     local output = utils.readAndCloseFile(f)
     local h, m, s = output:match("Duration: (%d+):(%d+):(%d+)")
     h = tonumber(h)
@@ -32,9 +32,17 @@ local function _getFileByteCount(filepath)
 end
 
 
+local function _getFileMD5Hash(filepath, byteCount)
+    local quotedPath = cmd.quoteShellString(filepath)
+    local f = io.popen(string.format("cut -b %d %s | md5sum", byteCount, quotedPath))
+    local output = utils.readAndCloseFile(f)
+    local ret = output:match("([^%s]*)")
+    return ret
+end
+
+
 local function testSearch(filepath)
---    local hash = md5.calcFileMD5Hash(filepath, dandanplay.DDP_MD5_HASH_BYTE_COUNT)
-    local hash = "d41d8cd98f00b204e9800998ecf8427e"
+    local hash = _getFileMD5Hash(filepath, dandanplay.DDP_MD5_HASH_BYTE_COUNT)
     local filename = _getFileName(filepath)
     local seconds = _getVideoDurationSeconds(filepath)
     local byteCount = _getFileByteCount(filepath)
@@ -56,16 +64,4 @@ local function testSearch(filepath)
 end
 
 
---testSearch("/home/fish47/111/SAO/[ZERO动漫下载][SOSG&DMG][刀剑神域][19][1280x720][BIG5].mp4")
-
-local byteCount = 16 * 1024 * 1024
-local filepath = "/home/fish47/111/SAO/[ZERO动漫下载][SOSG&DMG][刀剑神域][19][1280x720][BIG5].mp4"
-local start = os.clock()
-md5.calcFileMD5Hash(filepath, byteCount)
-print(os.clock() - start)
-
-
-start = os.clock()
-local data = io.open(filepath):read(byteCount)
-require("3rdparties/md5").sum(data)
-print(os.clock() - start)
+testSearch("/home/fish47/111/Biligrab/_【合集】我的妹妹不可能那么可爱 第二季【Bilibili正版】/1 - 我的妹妹哪有可能再回来.mp4")

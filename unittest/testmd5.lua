@@ -5,21 +5,9 @@ local md5       = require("src/base/md5")
 
 TestMD5 =
 {
-    test_hash = function()
-
-        local function __readChunkFunc(content, chunkIdx)
-            local byteStartIdx = (chunkIdx - 1) * md5._MD5_CHUNK_BYTE_COUNT + 1
-            if byteStartIdx > #content
-            then
-                return nil
-            end
-
-            return content:sub(byteStartIdx, byteStartIdx + md5.MD5_CHUNK_BYTE_COUNT - 1)
-        end
-
-
+    testAll = function()
         local function __doTest(content, expected)
-            local val = md5.calcMD5Hash(__readChunkFunc, content, _bitlib.__getSoftImpl())
+            local val = md5.calcMD5Hash(content)
             lu.assertEquals(val, expected)
         end
 
@@ -34,6 +22,8 @@ TestMD5 =
         __doTest(string.rep("a", 62), "24612f0ce2c9d2cf2b022ef1e027a54f")
         __doTest(string.rep("a", 63), "b06521f39153d618550606be297466d5")
         __doTest(string.rep("a", 64), "014842d480b571495a4a0363793f7367")
+        __doTest(string.rep("a", 65), "c743a45e0d2e6a95cb859adae0248435")
+        __doTest(string.rep("a", 128), "e510683b3f5ffe4093d021808bc6ff70")
     end,
 }
 

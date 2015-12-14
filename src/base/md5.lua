@@ -1,6 +1,4 @@
-local utils     = require("src/base/utils")
 local _bitlib   = require("src/base/_bitlib")
-local constants = require("src/base/constants")
 
 
 local _BYTE_BIT_COUNT   = 8
@@ -10,41 +8,52 @@ local _HEX_BIT_COUNT    = 4
 local _HEX_MOD          = math.floor(2 ^ _HEX_BIT_COUNT)
 
 local _INT32_BIT_COUNT  = 32
+local _INT32_MASK       = math.floor(2 ^ 32 - 1)
 local _INT32_MOD        = math.floor(2 ^ _INT32_BIT_COUNT)
 
 local _INT32_HEX_COUNT  = math.floor(_INT32_BIT_COUNT / _HEX_BIT_COUNT)
 local _INT32_BYTE_COUNT = math.floor(_INT32_BIT_COUNT / _BYTE_BIT_COUNT)
-
-local _MD5_CHUNK_PADDING_BYTE_WITH_MSB          = string.char(128)
-local _MD5_CHUNK_PADDING_ZERO                   = string.char(0)
-
-local MD5_CHUNK_BYTE_COUNT                      = 64
-local _MD5_CHUNK_PADDING_RESERVED_BYTE_COUNT    = 8
-
 
 local _MD5_HASH_INIT_A  = 0x67452301
 local _MD5_HASH_INIT_B  = 0xefcdab89
 local _MD5_HASH_INIT_C  = 0x98badcfe
 local _MD5_HASH_INIT_D  = 0x10325476
 
+local STRING_EMPTY      = ""
+local STRING_TABLE      = "table"
+
+local _MD5_CHUNK_PADDING_BYTE_WITH_MSB          = string.char(128)
+local _MD5_CHUNK_PADDING_ZERO                   = string.char(0)
+
+local _MD5_CHUNK_BYTE_COUNT                     = 64
+local _MD5_CHUNK_PADDING_RESERVED_BYTE_COUNT    = 8
+
+
+
+local function __clearTable(tbl)
+    if type(tbl) == STRING_TABLE
+    then
+        for k, _ in pairs(tbl)
+        do
+            tbl[k] = nil
+        end
+    end
+    return tbl
+end
 
 local function __convertByteToLowerHex(num)
     return string.format("%02x", num)
 end
 
 
-local function __getChunkInt32At(chunk, int32Idx)
-    -- 注意索引是 0-based
-    local baseIdx = int32Idx * _INT32_BYTE_COUNT
-
+local function __getChunkInt32At(chunk, leastByteIdx)
     -- 小端模式，高位高地址，低位低地址
     local ret = 0
     for i = _INT32_BYTE_COUNT, 1, -1
     do
         ret = ret * _BYTE_MOD
-        ret = ret + chunk:byte(baseIdx + i)
+        ret = ret + chunk:byte(leastByteIdx + i)
     end
-
     return ret
 end
 
@@ -57,34 +66,6 @@ local function __getInt32Bytes(num, outBuf, hookFunc)
         table.insert(outBuf, val)
         num = math.floor(num / _BYTE_MOD)
     end
-end
-
-
-
-
-local _BIT_MOD              = 2
-local _INT31_MOD            = math.floor(2 ^ 31)
-local _INT32_MSB_OFFSET     = 31
-
-local function __getInt32RoundSum(bitlibArg, a, b)
-    a = a % _INT32_MOD
-    b = b % _INT32_MOD
-
-    -- 先将低 31bit 相加，结果肯定不会超出 32bit 的
-    local lowerBits1 = a % _INT31_MOD
-    local lowerBits2 = b % _INT31_MOD
-    local sum1 = lowerBits1 + lowerBits2
-
-    -- 注意第 32 位可能包含进位
-    local msb1 = bitlibArg.rshift(a, _INT32_MSB_OFFSET)
-    local msb2 = bitlibArg.rshift(b, _INT32_MSB_OFFSET)
-    local msb3 = bitlibArg.rshift(sum1, _INT32_MSB_OFFSET)
-    local msb = (msb1 + msb2 + msb3) % _BIT_MOD
-
-    sum1 = sum1 % _INT31_MOD
-    local ret = sum1 + bitlibArg.lshift(msb, _INT32_MSB_OFFSET)
-
-    return ret
 end
 
 
@@ -118,12 +99,11 @@ end
 
 local function __doTransform(bitlibArg, a, b, c, d, x, s, ac, f)
     local ret = f(bitlibArg, b, c, d)
-    ret = __getInt32RoundSum(bitlibArg, a, ret)
-    ret = __getInt32RoundSum(bitlibArg, ret, x)
-    ret = __getInt32RoundSum(bitlibArg, ret, ac)
+    ret = bitlibArg.band(_INT32_MASK, a + ret)
+    ret = bitlibArg.band(_INT32_MASK, ret + x)
+    ret = bitlibArg.band(_INT32_MASK, ret + ac)
     ret = bitlibArg.lrotate(ret, s)
-    ret = __getInt32RoundSum(bitlibArg, ret, b)
-
+    ret = bitlibArg.band(_INT32_MASK, ret + b)
     return ret
 end
 
@@ -145,28 +125,28 @@ end
 
 
 -- http://www.opensource.apple.com/source/xnu/xnu-1456.1.26/libkern/crypto/md5.c
-local function __doDigestChunk(bitlibArg, a, b, c, d, chunk)
+local function __doDigestChunk(bitlibArg, a, b, c, d, byteOffset, chunk)
     local bakA = a
     local bakB = b
     local bakC = c
     local bakD = d
 
-    local x0  = __getChunkInt32At(chunk, 0)
-    local x1  = __getChunkInt32At(chunk, 1)
-    local x2  = __getChunkInt32At(chunk, 2)
-    local x3  = __getChunkInt32At(chunk, 3)
-    local x4  = __getChunkInt32At(chunk, 4)
-    local x5  = __getChunkInt32At(chunk, 5)
-    local x6  = __getChunkInt32At(chunk, 6)
-    local x7  = __getChunkInt32At(chunk, 7)
-    local x8  = __getChunkInt32At(chunk, 8)
-    local x9  = __getChunkInt32At(chunk, 9)
-    local x10 = __getChunkInt32At(chunk, 10)
-    local x11 = __getChunkInt32At(chunk, 11)
-    local x12 = __getChunkInt32At(chunk, 12)
-    local x13 = __getChunkInt32At(chunk, 13)
-    local x14 = __getChunkInt32At(chunk, 14)
-    local x15 = __getChunkInt32At(chunk, 15)
+    local x0  = __getChunkInt32At(chunk, byteOffset + 0)
+    local x1  = __getChunkInt32At(chunk, byteOffset + 4)
+    local x2  = __getChunkInt32At(chunk, byteOffset + 8)
+    local x3  = __getChunkInt32At(chunk, byteOffset + 12)
+    local x4  = __getChunkInt32At(chunk, byteOffset + 16)
+    local x5  = __getChunkInt32At(chunk, byteOffset + 20)
+    local x6  = __getChunkInt32At(chunk, byteOffset + 24)
+    local x7  = __getChunkInt32At(chunk, byteOffset + 28)
+    local x8  = __getChunkInt32At(chunk, byteOffset + 32)
+    local x9  = __getChunkInt32At(chunk, byteOffset + 36)
+    local x10 = __getChunkInt32At(chunk, byteOffset + 40)
+    local x11 = __getChunkInt32At(chunk, byteOffset + 44)
+    local x12 = __getChunkInt32At(chunk, byteOffset + 48)
+    local x13 = __getChunkInt32At(chunk, byteOffset + 52)
+    local x14 = __getChunkInt32At(chunk, byteOffset + 56)
+    local x15 = __getChunkInt32At(chunk, byteOffset + 60)
 
     local S11 = 7
     local S12 = 12
@@ -254,10 +234,10 @@ local function __doDigestChunk(bitlibArg, a, b, c, d, chunk)
     b = __II(bitlibArg, b, c, d, a, x9,  S44, 0xeb86d391)
 
 
-    a = __getInt32RoundSum(bitlibArg, a, bakA)
-    b = __getInt32RoundSum(bitlibArg, b, bakB)
-    c = __getInt32RoundSum(bitlibArg, c, bakC)
-    d = __getInt32RoundSum(bitlibArg, d, bakD)
+    a = bitlibArg.band(_INT32_MASK, a + bakA)
+    b = bitlibArg.band(_INT32_MASK, b + bakB)
+    c = bitlibArg.band(_INT32_MASK, c + bakC)
+    d = bitlibArg.band(_INT32_MASK, d + bakD)
 
     return a, b, c, d
 end
@@ -270,40 +250,41 @@ local function __doDigestLastChunkAndPaddings(bitlibArg,
                                               readByteCount,
                                               buf)
     -- 先填充 0x80 ，注意有可能刚好令最后一个分块成为 512 bit
-    if #lastChunk == MD5_CHUNK_BYTE_COUNT - 1
+    if #lastChunk == _MD5_CHUNK_BYTE_COUNT - 1
     then
         local chunk = lastChunk .. _MD5_CHUNK_PADDING_BYTE_WITH_MSB
-        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, chunk)
+        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, 0, chunk)
 
         chunk = nil
-        lastChunk = constants.STR_EMPTY
+        lastChunk = STRING_EMPTY
     else
         lastChunk = lastChunk .. _MD5_CHUNK_PADDING_BYTE_WITH_MSB
     end
 
 
     -- 剩余不足 64 bit 的，先补零字结束当前分块，再开一个分块
-    local remainingByteCount = MD5_CHUNK_BYTE_COUNT - #lastChunk
+    local remainingByteCount = _MD5_CHUNK_BYTE_COUNT - #lastChunk
     if remainingByteCount < _MD5_CHUNK_PADDING_RESERVED_BYTE_COUNT
     then
-        local chunk = lastChunk .. string.rep(_MD5_CHUNK_PADDING_ZERO, remainingByteCount)
-        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, chunk)
+        local trailing = string.rep(_MD5_CHUNK_PADDING_ZERO, remainingByteCount)
+        local chunk = lastChunk .. trailing
+        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, 0, chunk)
 
         chunk = nil
-        lastChunk = constants.STR_EMPTY
-        remainingByteCount = MD5_CHUNK_BYTE_COUNT
+        lastChunk = STRING_EMPTY
+        remainingByteCount = _MD5_CHUNK_BYTE_COUNT
     end
 
 
     -- 补充足够多的零字节，使得刚好剩下 64 bit
-    local zeroByteFillCount = remainingByteCount - _MD5_CHUNK_PADDING_RESERVED_BYTE_COUNT
-    if zeroByteFillCount > 0
+    local zeroByteCount = remainingByteCount - _MD5_CHUNK_PADDING_RESERVED_BYTE_COUNT
+    if zeroByteCount > 0
     then
-        lastChunk = lastChunk .. string.rep(_MD5_CHUNK_PADDING_ZERO, zeroByteFillCount)
+        lastChunk = lastChunk .. string.rep(_MD5_CHUNK_PADDING_ZERO, zeroByteCount)
     end
 
     -- 再填位长度余数
-    buf = utils.clearTable(buf or {})
+    buf = __clearTable(buf or {})
     table.insert(buf, lastChunk)
 
     local totalBitCount = readByteCount * _BYTE_BIT_COUNT
@@ -311,59 +292,57 @@ local function __doDigestLastChunkAndPaddings(bitlibArg,
     __getInt32Bytes(math.floor(totalBitCount / _INT32_MOD), buf, string.char)
 
 
-    a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, table.concat(buf))
+    a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, 0, table.concat(buf))
     buf = nil
 
     return a, b, c, d
 end
 
 
-local function calcMD5Hash(iterFunc, iterArg, bitlibArg)
+local function calcMD5Hash(chunks, bitlibArg)
     local a = _MD5_HASH_INIT_A
     local b = _MD5_HASH_INIT_B
     local c = _MD5_HASH_INIT_C
     local d = _MD5_HASH_INIT_D
     local readByteCount = 0
     local buf = {}
-    local chunkIdx = 1
-
+    local byteOffset = 0
+    local byteCount = #chunks
     bitlibArg = bitlibArg or _bitlib
 
     while true
     do
-        local chunk = iterFunc(iterArg, chunkIdx)
-
-        -- 所有数据长度总和刚好是 512 bit 的整数倍
-        if not chunk
-        then
-            a, b, c, d = __doDigestLastChunkAndPaddings(bitlibArg,
-                                                        a, b, c, d,
-                                                        constants.STR_EMPTY,
-                                                        readByteCount,
-                                                        buf)
-            break
-        end
-
-
-        local chunkSize = #chunk
+        local remainingByteCount = byteCount - byteOffset
+        local chunkSize = math.min(remainingByteCount, _MD5_CHUNK_BYTE_COUNT)
         readByteCount = readByteCount + chunkSize
-        chunkIdx = chunkIdx + 1
 
         -- 最后一个分块少于 512 bit
-        if chunkSize < MD5_CHUNK_BYTE_COUNT
+        if chunkSize < _MD5_CHUNK_BYTE_COUNT
         then
+            -- 有可能数据长度总和刚好是 512 bit 的整数倍
+            local lastChunk = nil
+            if remainingByteCount == 0
+            then
+                lastChunk = STRING_EMPTY
+            else
+                lastChunk = chunks:sub(byteOffset + 1)
+            end
+
             a, b, c, d= __doDigestLastChunkAndPaddings(bitlibArg,
                                                        a, b, c, d,
-                                                       chunk, readByteCount, buf)
+                                                       lastChunk,
+                                                       readByteCount,
+                                                       buf)
             break
         end
 
         -- 不是最后的数据块
-        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, chunk)
+        a, b, c, d = __doDigestChunk(bitlibArg, a, b, c, d, byteOffset, chunks)
+        byteOffset = byteOffset + _MD5_CHUNK_BYTE_COUNT
     end
 
 
-    utils.clearTable(buf)
+    __clearTable(buf)
     __getInt32Bytes(a, buf, __convertByteToLowerHex)
     __getInt32Bytes(b, buf, __convertByteToLowerHex)
     __getInt32Bytes(c, buf, __convertByteToLowerHex)
@@ -375,27 +354,8 @@ local function calcMD5Hash(iterFunc, iterArg, bitlibArg)
 end
 
 
-local function calcFileMD5Hash(filepath, byteCount)
-    local function __readChunkFunc(fileArg, idx)
-        if idx * MD5_CHUNK_BYTE_COUNT <= byteCount
-        then
-            return fileArg:read(MD5_CHUNK_BYTE_COUNT)
-        end
-    end
-
-    local f = io.open(filepath, constants.FILE_MODE_READ)
-    if f
-    then
-        local ret = calcMD5Hash(__readChunkFunc, f)
-        f:close()
-        return ret
-    end
-end
-
 
 return
 {
-    MD5_CHUNK_BYTE_COUNT    = MD5_CHUNK_BYTE_COUNT,
     calcMD5Hash             = calcMD5Hash,
-    calcFileMD5Hash         = calcFileMD5Hash,
 }

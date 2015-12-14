@@ -17,7 +17,7 @@ TestUniqueFilePath =
         self:__doTest(input, { input }, expected)
     end,
 
-    test_main = function(self)
+    testAll = function(self)
         self:__doTest("foo.txt", { "f1.txt", "f2.txt", "f3.txt" }, "foo.txt")
         self:__doTest("foo", { "foo", "foo_1", "f3" }, "foo_2")
         self:__doTestNewName("foo.txt", "foo_1.txt")

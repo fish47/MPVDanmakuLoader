@@ -11,7 +11,7 @@ TestMovingArea =
     end,
 
 
-    test_duration = function(self)
+    testDuration = function(self)
         local function __doAssertDuration(a1, a2, screenWidth, duration)
             local ret = a1:getCollidingDuration(a2, screenWidth)
             lu.assertEquals(ret, a2:getCollidingDuration(a1, screenWidth))
@@ -80,7 +80,7 @@ TestMovingArea =
 
 TestIntersectedHeight =
 {
-    test_main = function()
+    testMain = function()
         local function __doAssert(top1, bottom1, top2, bottom2, heights)
             local h1, h2, h3 = _poscalc.__getIntersectedHeight(top1, bottom1, top2, bottom2)
             lu.assertEquals(h1, heights[1])
@@ -131,7 +131,7 @@ TestPosCalculator =
     end,
 
 
-    test_add_area = function(self)
+    testAddArea = function(self)
         local function __doAddArea(calc, top, bottom)
             -- 只为防止被相容才做些奇怪数据而已
             local newArea = _poscalc.__DanmakuArea:new()
@@ -171,7 +171,7 @@ TestPosCalculator =
     end,
 
 
-    test_score_sum = function(self)
+    testScoreSum = function(self)
         local function __doTest(heights, areaBounds, assertAreaIndexes)
             local calc = _poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
@@ -215,7 +215,7 @@ TestPosCalculator =
 
 
 
-    test_t2b_pos = function()
+    testTopToBottomPos = function()
 
         local function __doTest(calc, h, start, lifeTime, expectedYPos)
             local y = calc:calculate(10, h, start, lifeTime)
@@ -239,7 +239,7 @@ TestPosCalculator =
     end,
 
 
-    test_l2r_pos = function()
+    testLeftToRightPos = function()
 
         local function __doTest(calc, w, h, start, lifeTime, expectedYPos)
             local y = calc:calculate(w, h, start, lifeTime)

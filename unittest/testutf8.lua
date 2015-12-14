@@ -22,7 +22,7 @@ local __UTF8_TEST_CASES =
 
 TestIterateUTF8CodePoints =
 {
-    test_decode = function()
+    testDecode = function()
         for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
         do
             local iterCount = 0
@@ -38,7 +38,7 @@ TestIterateUTF8CodePoints =
     end,
 
 
-    test_encode = function()
+    testEncode = function()
         local encodedBytes = {}
         for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
         do
