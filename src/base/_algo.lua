@@ -1,4 +1,5 @@
-local types = require("src/base/types")
+local types     = require("src/base/types")
+local constants = require("src/base/constants")
 
 
 local function clearTable(tbl)
@@ -108,7 +109,7 @@ end
 local function iteratePairsArray(array, startIdx)
     if not types.isTable(array)
     then
-        return nil
+        return constants.FUNC_EMPTY
     end
 
     return __doIteratePairsArray, array, startIdx or 1
@@ -199,7 +200,7 @@ end
 local function reverseIterateArray(array)
     if not types.isTable(array)
     then
-        return nil
+        return constants.FUNC_EMPTY
     end
 
     return __doReverseIterateArrayImpl, array, #array

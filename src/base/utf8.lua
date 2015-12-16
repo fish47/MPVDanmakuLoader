@@ -1,4 +1,6 @@
-local _algo = require("src/base/_algo")
+local _algo     = require("src/base/_algo")
+local types     = require("src/base/types")
+local constants = require("src/base/constants")
 
 
 local _DECODE_BYTE_RANGE_STARTS         = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc }
@@ -22,7 +24,8 @@ end
 
 local function __doIterateUTF8CodePoints(byteString, byteStartIdx)
     local byteLen = byteString:len()
-    if byteStartIdx > byteLen then
+    if byteStartIdx > byteLen
+    then
         return nil
     end
 
@@ -74,6 +77,10 @@ local function __doIterateUTF8CodePoints(byteString, byteStartIdx)
 end
 
 local function iterateUTF8CodePoints(byteString)
+    if not types.isString(byteString)
+    then
+        return constants.FUNC_EMPTY
+    end
     return __doIterateUTF8CodePoints, byteString, 1
 end
 
@@ -130,10 +137,6 @@ local _CODEPOINT_MIN                = 0
 local _CODEPOINT_MAX                = 0x7fffffff
 
 
-local function __dummyIterateFunction()
-    return nil
-end
-
 local function __doIterateUTF8EncodedBytes(codePoint, iterIdx)
     local div = _ENCODE_DIVS[iterIdx]
     local mask = _ENCODE_MASKS[iterIdx]
@@ -151,7 +154,7 @@ end
 local function iterateUTF8EncodedBytes(codePoint)
     if codePoint > _CODEPOINT_MAX or codePoint < _CODEPOINT_MIN
     then
-        return __dummyIterateFunction
+        return constants.FUNC_EMPTY
     end
 
     local _, idx = __binarySearchNums(_ENCODE_CODEPOINT_RANGE_ENDS, codePoint)

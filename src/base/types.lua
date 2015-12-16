@@ -8,20 +8,12 @@ local _LUA_TYPE_NUMBER      = "number"
 local _LUA_TYPE_BOOLEAN     = "boolean"
 local _LUA_TYPE_NIL         = "nil"
 
-
 local function isString(obj)
     return type(obj) == _LUA_TYPE_STRING
 end
 
 local function isNumber(obj)
     return type(obj) == _LUA_TYPE_NUMBER
-end
-
-local function isConstant(obj)
-    local typeString = type(obj)
-    return typeString == _LUA_TYPE_NUMBER
-           or typeString == _LUA_TYPE_BOOLEAN
-           or typeString == _LUA_TYPE_NIL
 end
 
 local function isFunction(obj)
@@ -32,12 +24,25 @@ local function isTable(obj)
     return type(obj) == _LUA_TYPE_TABLE
 end
 
-local function isEmptyTable(o)
-    return (isTable(o) and next(o) == nil)
+
+local _IO_TYPE_OPENED_FILE  = "file"
+local _IO_TYPE_CLOSED_FILE  = "closed file"
+
+local function isOpenedFile(obj)
+    return io.type(obj) == _IO_TYPE_OPENED_FILE
 end
 
-local function isNilOrEmpty(o)
-    return (o == nil or isEmptyTable(o) or o == constants.STR_EMPTY)
+local function isClosedFile(obj)
+    return io.type(obj) == _IO_TYPE_CLOSED_FILE
+end
+
+
+local function isEmptyTable(obj)
+    return (isTable(obj) and next(obj) == nil)
+end
+
+local function isNilOrEmpty(obj)
+    return (obj == nil or obj == constants.STR_EMPTY or isEmptyTable(obj))
 end
 
 local function getVarArgCount(...)
@@ -48,27 +53,20 @@ local function isEmptyVarArgs(...)
     return (getVarArgCount(...) == 0)
 end
 
-local function isFile(obj)
-    return isTable(obj)
-           and isFunction(obj.close)
-           and isFunction(obj.flush)
-           and isFunction(obj.lines)
-           and isFunction(obj.read)
-           and isFunction(obj.seek)
-           and isFunction(obj.setvbuf)
-           and isFunction(obj.write)
-end
-
-local function toNumber(o)
-    if not o
+local function toNumber(obj)
+    if not obj
     then
         return 0
-    elseif isNumber(o)
+    elseif isNumber(obj)
     then
-        return o
+        return obj
     else
         return 1
     end
+end
+
+local function toBoolean(obj)
+    return obj and true or false
 end
 
 
@@ -76,15 +74,14 @@ return
 {
     isString            = isString,
     isNumber            = isNumber,
-    isConstant          = isConstant,
     isFunction          = isFunction,
     isTable             = isTable,
+    isOpenedFile        = isOpenedFile,
+    isClosedFile        = isClosedFile,
     isNilOrEmpty        = isNilOrEmpty,
     isEmptyTable        = isEmptyTable,
     isEmptyVarArgs      = isEmptyVarArgs,
-    isFile              = isFile,
-
     getVarArgCount      = getVarArgCount,
-
     toNumber            = toNumber,
+    toBoolean           = toBoolean,
 }
