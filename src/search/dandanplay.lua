@@ -20,7 +20,6 @@ local _DDP_PATTERN_MATCH_RESULTS    = '<Match'
 
 local _DDP_ACCEPT_CONTENT_TYPE_XML  = "Accept: application/xml"
 
-local DDP_MD5_HASH_BYTE_COUNT       = 16 * 1024 * 1024
 
 
 local DanDanPlayVideoInfo =
@@ -76,7 +75,6 @@ end
 
 return
 {
-    DDP_MD5_HASH_BYTE_COUNT         = DDP_MD5_HASH_BYTE_COUNT,
     DanDanPlayVideoInfo             = DanDanPlayVideoInfo,
     searchDanDanPlayByVideoInfos    = searchDanDanPlayByVideoInfos,
     getDanDanPlayDanmakuRawData     = getDanDanPlayDanmakuRawData,

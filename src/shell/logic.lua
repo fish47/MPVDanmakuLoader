@@ -1,37 +1,33 @@
-local _base         = require("src/_shell/_base")
-local uiconstants   = require("src/_shell/uiconstants")
-local utils         = require("src/utils")
-local app           = require("src/app")
+local utils         = require("src/base/utils")
+local types         = require("src/base/types")
+local classlite     = require("src/base/classlite")
+local unportable    = require("src/base/unportable")
+local application   = require("src/shell/application")
+local uiconstants   = require("src/shell/uiconstants")
 
-
-local _PATTERN_SEARCH_NAME  = "(.*)%..-$"
 
 local MPVDanmakuLoaderShell =
 {
-    _mConfiguration                 = nil,
-    _mNetworkConnection             = nil,
-    _mMPVDanmakuLoaderApp           = nil,
-    _mGUIBuilder                    = nil,
-    _mUIStrings                     = nil,
+    _mApplication           = classlite.declareConstantField(nil),
+    _mConfiguration         = classlite.declareConstantField(nil),
+    _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
+    _mGUIBuilder            = classlite.declareClassField(unportable.ZenityGUIBuilder),
+    _mUIStrings             = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
+    _mUISizes               = classlite.declareConstantField(uiconstants.UI_SIZES_ZENITY),
+
+    _mTextInfoProperties    = classlite.declareClassField(unportable.TextInfoProperties),
+    _mListBoxProperties     = classlite.declareClassField(unportable.ListBoxProperties),
+    _mEntryProperties       = classlite.declareClassField(unportable.EntryProperties),
+
+    _mSelectedIndexes       = classlite.declareTableField(),
 
 
-    new = function(obj, cfg, conn, builder, uiStrings, uiSizes)
-        obj = utils.allocateInstance(obj)
-        obj._mConfiguration = cfg
-        obj._mNetworkConnection = conn
-        obj._mGUIBuilder = builder
-        obj._mUIStrings = uiStrings or uiconstants.UI_STRINGS_CN
-        obj._mUISizes = uiSizes or uiconstants.UI_SIZES_ZENITY
-        return obj
+    new = function(self, cfg)
+        self._mConfiguration = cfg
     end,
 
-
     dispose = function(self)
-        utils.disposeSafely(self._mConfiguration)
-        utils.disposeSafely(self._mNetworkConnection)
-        utils.disposeSafely(self._mMPVDanmakuLoaderApp)
-        utils.disposeSafely(self._mGUIBuilder)
-        utils.clearTable(self)
+        utils.disposeSafely(self._mApplication)
     end,
 
 
@@ -44,13 +40,13 @@ local MPVDanmakuLoaderShell =
     _createApplication = function(self)
         local cfg = self._mConfiguration
         local conn = self._mNetworkConnection
-        return app.MPVDanmakuLoaderApp:new(cfg, conn)
+        return application.MPVDanmakuLoaderApp:new(cfg, conn)
     end,
 
 
     _onLoadFile = function(self)
-        utils.disposeSafely(self._mMPVDanmakuLoaderApp)
-        self._mMPVDanmakuLoaderApp = self:_createApplication()
+        utils.disposeSafely(self._mApplication)
+        self._mApplication = self:_createApplication()
     end,
 
 
@@ -67,23 +63,23 @@ local MPVDanmakuLoaderShell =
     __showBiliBiliSearchResults = function(self, results)
         local uiStrings = self._mUIStrings
         local builder = self._mGUIBuilder
-        builder:reset()
-        builder:createListBox()
-        builder:setListBoxMultiSelectable(true)
-        builder:setWindowTitle(uiStrings.app.title)
-        builder:setListBoxTitle(uiStrings.search_bili.show_results.title)
-        builder:setListBoxHeaders(uiStrings.search_bili.show_results.columns.type,
-                                  uiStrings.search_bili.show_results.columns.title)
-
+        local props = self._mListBoxProperties
+        props:reset()
+        props.isMultiSelectable = true
+        props.windowTitle = uiStrings.app.title
+        props.listBoxTitle = uiStrings.search_bili.show_results.title
+        table.insert(props.listboxHeaders, uiStrings.search_bili.show_results.columns.type)
+        table.insert(props.listboxHeaders, uiStrings.search_bili.show_results.columns.title)
         if results
         then
             for _, info in ipairs(results)
             do
-                builder:addListBoxTuple(info.videoType, info.videoTitle)
+                table.insert(props.listBoxElements, info.videoType)
+                table.insert(props.listBoxElements, info.videoTitle)
             end
         end
 
-        local selectedIndexes = builder:show()
+        local selectedIndexes = builder:showListBox(props)
         if not selectedIndexes
         then
             -- 关键词不对，所以想再搜过？
@@ -95,25 +91,24 @@ local MPVDanmakuLoaderShell =
 
 
     __getSuggestedSearchName = function(self)
-        local fileName = self._mMPVDanmakuLoaderApp:getVideoFileName()
-        local searchName = fileName:match(_PATTERN_SEARCH_NAME)
-        return searchName or fileName
+        --TODO 保存上次搜索结果
+        return "123"
     end,
 
 
     _showSearchBiliBili = function(self)
         local uiStrings = self._mUIStrings
         local builder = self._mGUIBuilder
-        builder:reset()
-        builder:createEntry()
-        builder:setWindowTitle(uiStrings.app.title)
-        builder:setEntryTitle(uiStrings.search_bili.prompt.title)
-        builder:setEntryText(self:__getSuggestedSearchName())
+        local props = self._mEntryProperties
+        props:reset()
+        props.windowTitle = uiStrings.app.title
+        props.entryTitle = uiStrings.search_bili.prompt.title
+        props.entryText = self:__getSuggestedSearchName()
 
-        local keyword = builder:show()
+        local keyword = builder:showEntry(props)
         if keyword
         then
-            local app = self._mMPVDanmakuLoaderApp
+            local app = self._mApplication
             local results = app:searchBiliBiliByKeyword(keyword)
             return self:__showBiliBiliSearchResults(results)
         end
@@ -125,14 +120,14 @@ local MPVDanmakuLoaderShell =
     _showSearchDanDanPlay = function(self)
         local uiStrings = self._mUIStrings
         local builder = self._mGUIBuilder
-        builder:reset()
-        builder:createListBox()
-        builder:setWindowTitle(uiStrings.app.title)
-        builder:setListBoxTitle(uiStrings.search_ddp.title)
-        builder:setListBoxHeaders(uiStrings.search_ddp.columns.title,
-                                  uiStrings.search_ddp.columns.subtitle)
+        local props = self._mListBoxProperties
+        props:reset()
+        props.windowTitle = uiStrings.app.title
+        props.listBoxTitle = uiStrings.search_ddp.title
+        table.insert(props.listboxHeaders, uiStrings.search_ddp.columns.title)
+        table.insert(props.listboxHeaders, uiStrings.search_ddp.columns.subtitle)
 
-        local app = self._mMPVDanmakuLoaderApp
+        local app = self._mApplication
         local results = app:searchDanDanPlayByVideoInfos()
         if results
         then
@@ -162,47 +157,65 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    _showMain = function(self)
+    _showHelp = function(self)
         local uiSizes = self._mUISizes
         local uiStrings = self._mUIStrings
         local builder = self._mGUIBuilder
-        builder:reset()
-        builder:createListBox()
-        builder:setWindowTitle(uiStrings.app.title)
-        builder:setWindowWidth(uiSizes.main.width)
-        builder:setWindowHeight(uiSizes.main.height)
-        builder:setListBoxTitle(uiStrings.main.title)
-        builder:setListBoxHeaderVisible(false)
-        builder:addListBoxTuple(uiStrings.main.options.search_bilibili)
-        builder:addListBoxTuple(uiStrings.main.options.search_dandanplay)
-        builder:addListBoxTuple(uiStrings.main.options.generate_ass_file)
-        builder:addListBoxTuple(uiStrings.main.options.delete_danmaku_cache)
+        local props = self._mTextInfoProperties
+        props:reset()
+        props.windowTitle = uiStrings.show_help.title
+        props.windowWidth = uiSizes.show_help.width
+        props.windowHeight = uiSizes.show_help.height
+        props.textInfoContent = uiStrings.show_help.content
+        self._mGUIBuilder:showTextInfo(props)
+        return self:_showMain()
+    end,
 
-        local ret = builder:show()
-        if not ret
-        then
-            -- 什么都没有选
-            return
-        end
 
-        local selectedIdx = ret[1]
-        if selectedIdx == 1
+    _showMain = function(self)
+        local uiSizes = self._mUISizes
+        local uiStrings = self._mUIStrings
+        local props = self._mListBoxProperties
+        props:reset()
+        props.windowTitle = uiStrings.app.title
+        props.windowWidth = uiSizes.main.width
+        props.windowHeight = uiSizes.main.height
+        props.listBoxTitle = uiStrings.main.title
+        props.listBoxColumnCount = 1
+        props.isHeaderHidden = true
+        table.insert(props.listBoxElements, uiStrings.main.options.search_danmaku)
+        table.insert(props.listBoxElements, uiStrings.main.options.update_danmaku)
+        table.insert(props.listBoxElements, uiStrings.main.options.generate_ass_file)
+        table.insert(props.listBoxElements, uiStrings.main.options.delete_danmaku_cache)
+        table.insert(props.listBoxElements, uiStrings.main.options.show_help)
+
+        local selectedIndexes = self._mSelectedIndexes
+        self._mGUIBuilder:showListBox(props, selectedIndexes)
+
+        local optionIdx = selectedIndexes[1]
+        if optionIdx == 1
         then
-            return self:_showSearchBiliBili()
-        elseif selectedIdx == 2
+            --TODO
+        elseif optionIdx == 2
         then
-            return self:_showSearchDanDanPlay()
-        elseif selectedIdx == 3
+            --TODO
+        elseif optionIdx == 3
         then
             return self:_showGenerateASSFile()
-        elseif selectedIdx == 4
+        elseif optionIdx == 4
         then
-            return self:_showDeleteDanmakuCache()
+            --TODO
+        elseif optionIdx == 5
+        then
+            return self:_showHelp()
+        else
+            -- 退出
+            return
         end
     end,
 }
 
-utils.declareClass(MPVDanmakuLoaderShell)
+classlite.declareClass(MPVDanmakuLoaderShell)
 
 
 return

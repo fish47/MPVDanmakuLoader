@@ -1,4 +1,4 @@
-local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local lu        = require("unittest/luaunit")    --= luaunit lu
 local types     = require("src/base/types")
 local classlite = require("src/base/classlite")
 
@@ -162,6 +162,44 @@ TestClassLite =
         local tripleEx2 = tripleEx1:clone()
         lu.assertEquals(tripleEx1, tripleEx2)
         lu.assertNotIs(tripleEx1.b, tripleEx2.b)
+    end,
+
+
+    testIterateFields = function()
+        local Foo =
+        {
+            bar = classlite.declareTableField(),
+        }
+        classlite.declareClass(Foo)
+
+        local Base =
+        {
+            a   = classlite.declareConstantField(1),
+            b   = classlite.declareTableField(),
+        }
+        classlite.declareClass(Base)
+
+        local Derived =
+        {
+            c   = classlite.declareClassField(Foo)
+        }
+        classlite.declareClass(Derived, Base)
+
+        local names = {}
+        local fieldTypes = {}
+        for _, name, decl in classlite.iterateClassFields(Derived)
+        do
+            table.insert(names, name)
+            table.insert(fieldTypes, decl[1])
+        end
+
+        lu.assertEquals(names, { "a", "b", "c" })
+        lu.assertEquals(fieldTypes,
+                        {
+                            classlite.FIELD_DECL_TYPE_CONSTANT,
+                            classlite.FIELD_DECL_TYPE_TABLE,
+                            classlite.FIELD_DECL_TYPE_CLASS,
+                        })
     end,
 }
 

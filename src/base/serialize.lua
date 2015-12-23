@@ -29,7 +29,7 @@ local function serializeTuple(file, ...)
         if types.isString(elem)
         then
             file:write(string.format(_SERIALIZE_QUOTE_STRING_FORMAT, elem))
-        elseif types.isConstant(elem)
+        elseif types.isNumber(elem) or types.isBoolean(elem) or types.isNil(elem)
         then
             file:write(tostring(elem))
         else

@@ -1,8 +1,9 @@
-local mdlapp = require("src/app")
-local mdlcfg = require("src/cfg")
-local shell = require("src/shell")
-local network = require("src/network")
-local utils = require("src/utils")      --= utils utils
+local classlite     = require("src/base/classlite")
+local unportable    = require("src/base/unportable")
+local dandanplay    = require("src/search/dandanplay")
+local bilibili      = require("src/search/bilibili")
+local logic         = require("src/shell/logic")
+local application   = require("src/shell/application")
 
 
 local MockApp   =
@@ -18,17 +19,17 @@ local MockApp   =
     searchDanDanPlayByVideoInfos = function()
         return
         {
-            network.DanDanPlayVideoInfo:new("a", "1", "aas"),
-            network.DanDanPlayVideoInfo:new("b", "2", "aas"),
+            dandanplay.DanDanPlayVideoInfo:new("a", "1", "aas"),
+            dandanplay.DanDanPlayVideoInfo:new("b", "2", "aas"),
         }
     end,
 
     searchBiliBiliByKeyword = function()
         return
         {
-            network.BiliBiliSearchResult:new("type1", "title1", "bid1"),
-            network.BiliBiliSearchResult:new("type2", "title2", "bid2"),
-            network.BiliBiliSearchResult:new("type3", "title3", "bid3"),
+            bilibili.BiliBiliSearchResult:new("type1", "title1", "bid1"),
+            bilibili.BiliBiliSearchResult:new("type2", "title2", "bid2"),
+            bilibili.BiliBiliSearchResult:new("type3", "title3", "bid3"),
         }
     end,
 
@@ -37,27 +38,27 @@ local MockApp   =
         {
             ["bid1"]    =
             {
-                network.BiliBiliVideoInfo:new("subtitle1_1", 1000, "url1"),
+                bilibili.BiliBiliVideoInfo:new("subtitle1_1", 1000, "url1"),
             },
 
             ["bid2"]    =
             {
-                network.BiliBiliVideoInfo:new("subtitle2_1", 100, "url2"),
-                network.BiliBiliVideoInfo:new("subtitle2_2", 100, "url3"),
-                network.BiliBiliVideoInfo:new("subtitle2_3", 100, "url4"),
+                bilibili.BiliBiliVideoInfo:new("subtitle2_1", 100, "url2"),
+                bilibili.BiliBiliVideoInfo:new("subtitle2_2", 100, "url3"),
+                bilibili.BiliBiliVideoInfo:new("subtitle2_3", 100, "url4"),
             },
 
             ["bid3"]    =
             {
-                network.BiliBiliVideoInfo:new("subtitle3_1", 1000, "url5"),
-                network.BiliBiliVideoInfo:new("subtitle3_2", 1000, "url6"),
+                bilibili.BiliBiliVideoInfo:new("subtitle3_1", 1000, "url5"),
+                bilibili.BiliBiliVideoInfo:new("subtitle3_2", 1000, "url6"),
             },
         }
         return results[videoID]
     end,
 }
 
-utils.declareClass(MockApp, mdlapp.MPVDanmakuLoaderApp)
+classlite.declareClass(MockApp, application.MPVDanmakuLoaderApp)
 
 
 local MockShell =
@@ -69,17 +70,11 @@ local MockShell =
     end,
 }
 
-utils.declareClass(MockShell, shell.MPVDanmakuLoaderShell)
+classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 
 
-local function test_main()
-    local cfg = mdlcfg.MPVDanmakuLoaderCfg:new()
-    local conn = network.CURLNetworkConnection:new("curl")
-    local guiBuilder = shell.ZenityGUIBuilder:new("zenity")
-    local gui = MockShell:new(cfg, conn, guiBuilder)
-    gui:_onLoadFile()
-    gui:_showMain()
-end
 
-
-test_main()
+local cfg = application.MPVDanmakuLoaderCfg:new()
+local gui = MockShell:new(cfg)
+gui:_onLoadFile()
+gui:_showMain()

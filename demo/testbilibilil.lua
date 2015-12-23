@@ -1,4 +1,4 @@
-local connection    = require("src/base/connection")
+local unportable    = require("src/base/unportable")
 local bilibili      = require("src/search/bilibili")
 
 
@@ -18,16 +18,17 @@ local function testGetVideoInfo(conn, videoID)
     local results = bilibili.getBiliBiliVideoInfos(conn, videoID)
     for _, result in ipairs(results)
     do
-        print(string.format("%2d %s [%s]",
+        print(string.format("%2d %s [%s] %d",
                             result.partIndex or -1,
                             result.title,
-                            result.partName))
+                            result.partName,
+                            result.duration))
     end
 end
 
 
-local conn = connection.CURLNetworkConnection:new("curl")
+local conn = unportable.CURLNetworkConnection:new()
 testSearch(conn, "rising hope")
-testGetVideoInfo(conn, "1212481")
-testGetVideoInfo(conn, "41589")
+--testGetVideoInfo(conn, "1212481")
+--testGetVideoInfo(conn, "41589")
 conn:dispose()

@@ -16,6 +16,14 @@ local function isNumber(obj)
     return type(obj) == _LUA_TYPE_NUMBER
 end
 
+local function isBoolean(obj)
+    return type(obj) == _LUA_TYPE_BOOLEAN
+end
+
+local function isNil(obj)
+    return type(obj) == _LUA_TYPE_NIL
+end
+
 local function isFunction(obj)
     return type(obj) == _LUA_TYPE_FUNCTION
 end
@@ -74,6 +82,8 @@ return
 {
     isString            = isString,
     isNumber            = isNumber,
+    isBoolean           = isBoolean,
+    isNil               = isNil,
     isFunction          = isFunction,
     isTable             = isTable,
     isOpenedFile        = isOpenedFile,

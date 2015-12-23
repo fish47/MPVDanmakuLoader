@@ -4,7 +4,7 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local _BILI_FMT_URL_SEARCH              = "http://www.bilibili.com/search?keyword=%s"
+local _BILI_FMT_URL_SEARCH              = "http://search.bilibili.com/all?keyword=%s"
 local _BILI_FMT_URL_VIDEO               = "http://www.bilibili.com/video/av%s/"
 local _BILI_FMT_URL_VIDEO_PART          = "http://www.bilibili.com/video/av%s"
 local _BILI_FMT_URL_VIDEO_INFO          = "http://interface.bilibili.com/player?id=cid:%s&aid=%s"
@@ -13,7 +13,7 @@ local _BILI_FMT_URL_DAMAKU              = "http://comment.bilibili.com/%d.xml"
 local _BILI_PATTERN_TITLE               = '<h1.-title=.->(.-)</h1>'
 local _BILI_PATTERN_NEXT_PAGE_DIV       = '<div class="pagelistbox">(.-)</div>'
 local _BILI_PATTERN_NEXT_PAGE_A         = '<a.-href="/search%?keyword=(.-)">(%d+)</a>'
-local _BILI_PATTERN_RESULT_A            = '<a.-href="http://www%.bilibili%.com/video/av(%d+)/?".->(.-)</a>'
+local _BILI_PATTERN_RESULT_A            = '<a.-href="http://www%.bilibili%.com/video/av(%d+)/".-title="(.-)"'
 local _BILI_PATTERN_RESULT_DIV          = '<div.-class="t">.*<span>(.*)</span>%s*(.-)%s*</div>'
 local _BILI_PATTERN_REMOVE_EM           = '<.->'
 local _BILI_PATTERN_PARTS_DIV           = "<select.-id='dedepagetitles'.->(.*)</select>"

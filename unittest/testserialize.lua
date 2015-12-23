@@ -1,4 +1,4 @@
-local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local lu        = require("unittest/luaunit")    --= luaunit lu
 local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
@@ -47,7 +47,7 @@ TestSerialize =
 
 
     testSerialize = function(self)
-        local origin = { { 1, 'A', "b" }, { "C", 1, false, nil }, { false }, {} }
+        local origin = { { 1, 'A', "b" }, { "C", 1, false, nil, 0 }, { false }, {} }
         local tmpFile = io.tmpfile()
         self:__serializeTuplesToStream(origin, tmpFile)
 

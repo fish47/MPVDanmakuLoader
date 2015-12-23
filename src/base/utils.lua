@@ -77,13 +77,10 @@ end
 
 
 local function readAndCloseFile(f)
-    if f
+    if types.isOpenedFile(f)
     then
         local readRet = f:read(constants.READ_MODE_ALL)
-        local succeed, state, retCode = f:close()
-        succeed = (state == "exit")
-        retCode = succeed and retCode or nil
-        return readRet, succeed, retCode
+        return readRet, f:close()
     end
 end
 

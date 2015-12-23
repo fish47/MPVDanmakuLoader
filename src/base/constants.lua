@@ -26,6 +26,9 @@ return
     LOAD_MODE_CHUNKS            = "t",
     LOAD_MODE_BINARY_CHUNKS     = "bt",
 
+    EXEC_RET_EXIT               = "exit",
+    EXEC_RET_SIGNAL             = "signal",
+
     STR_EMPTY                   = "",
     STR_NEWLINE                 = "\n",
     CODEPOINT_NEWLINE           = string.byte("\n"),

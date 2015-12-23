@@ -11,53 +11,20 @@ local UI_STRINGS_CN =
 
         options =
         {
-            search_bilibili         = "搜索弹幕(BiliBili)",
-            search_dandanplay       = "搜索弹幕(DanDanPlay)",
-            generate_ass_file       = "生成弹幕文件",
-            delete_danmaku_cache    = "删除本地弹幕缓存",
+            search_danmaku          = "搜索弹幕源",
+            update_danmaku          = "更新弹幕源",
+            generate_ass_file       = "生成弹幕",
+            delete_danmaku_cache    = "删除弹幕缓存",
+            show_help               = "帮助",
         },
     },
 
-    search_ddp =
+    show_help =
     {
-        title   = "搜索结果(DanDanPlay)",
-
-        columns =
-        {
-            title       = "标题",
-            subtitle    = "子标题",
-        },
+        title = "帮助",
+        content = "Hahahahaha",
     },
 
-    search_bili =
-    {
-        prompt =
-        {
-            title = "搜索(BiliBili)",
-        },
-
-        select_parts =
-        {},
-
-        show_results =
-        {
-            title = "搜索结果(BiliBili)",
-            columns =
-            {
-                type    = "类型",
-                title   = "标题",
-            },
-        },
-    },
-
-
-    delete_danmaku_cache =
-    {
-        title   = "删除本地弹幕缓存",
-        columns =
-        {
-        },
-    },
 }
 
 
@@ -66,7 +33,13 @@ local UI_SIZES_ZENITY =
     main =
     {
         width   = 240,
-        height  = 220,
+        height  = 300,
+    },
+
+    show_help =
+    {
+        width   = 200,
+        height  = 300,
     },
 }
 

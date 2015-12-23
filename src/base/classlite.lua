@@ -12,9 +12,9 @@ local _METHOD_NAME_GET_CLASS            = "getClass"
 local _METHOD_NAME_INIT_FIELDS          = "__classlite_init_fields"
 local _METHOD_NAME_DEINIT_FIELDS        = "__classlite_deinit_fields"
 
-local _FIELD_DECL_TYPE_CONSTANT         = 1
-local _FIELD_DECL_TYPE_TABLE            = 2
-local _FIELD_DECL_TYPE_CLASS            = 3
+local FIELD_DECL_TYPE_CONSTANT          = 1
+local FIELD_DECL_TYPE_TABLE             = 2
+local FIELD_DECL_TYPE_CLASS             = 3
 
 local _FIELD_DECL_KEY_ID                = {}
 local _FIELD_DECL_KEY_TYPE              = 1
@@ -49,24 +49,24 @@ end
 
 local _AUTO_CONSTRUCTORS =
 {
-    [_FIELD_DECL_TYPE_CONSTANT]     = __constructConstantField,
-    [_FIELD_DECL_TYPE_TABLE]        = __constructTableField,
-    [_FIELD_DECL_TYPE_CLASS]        = __constructClassField,
+    [FIELD_DECL_TYPE_CONSTANT]  = __constructConstantField,
+    [FIELD_DECL_TYPE_TABLE]     = __constructTableField,
+    [FIELD_DECL_TYPE_CLASS]     = __constructClassField,
 }
 
 
 local _AUTO_DECONSTRUCTORS =
 {
-    [_FIELD_DECL_TYPE_CONSTANT]     = function(obj, name, decl)
+    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl)
         obj[name] = nil
     end,
 
-    [_FIELD_DECL_TYPE_TABLE]        = function(obj, name, decl)
+    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl)
         utils.clearTable(obj[name])
         obj[name] = nil
     end,
 
-    [_FIELD_DECL_TYPE_CLASS]        = function(obj, name, decl)
+    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl)
         utils.disposeSafely(obj[name])
         obj[name] = nil
     end,
@@ -75,7 +75,7 @@ local _AUTO_DECONSTRUCTORS =
 
 local _AUTO_ASSIGNERS =
 {
-    [_FIELD_DECL_TYPE_CONSTANT]     = function(obj, name, decl, arg)
+    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
         if arg ~= nil
         then
             obj[name] = arg
@@ -84,7 +84,7 @@ local _AUTO_ASSIGNERS =
         end
     end,
 
-    [_FIELD_DECL_TYPE_TABLE]        = function(obj, name, decl, arg)
+    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl, arg)
         if types.isTable(arg)
         then
             obj[name] = arg
@@ -93,7 +93,7 @@ local _AUTO_ASSIGNERS =
         end
     end,
 
-    [_FIELD_DECL_TYPE_CLASS]        = function(obj, name, decl, arg)
+    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
         if types.isTable(arg)
         then
             obj[name] = arg
@@ -113,15 +113,15 @@ local function __doDeclareField(fieldType, ...)
 end
 
 local function declareConstantField(val)
-    return __doDeclareField(_FIELD_DECL_TYPE_CONSTANT, val)
+    return __doDeclareField(FIELD_DECL_TYPE_CONSTANT, val)
 end
 
 local function declareTableField(val)
-    return __doDeclareField(_FIELD_DECL_TYPE_TABLE, val)
+    return __doDeclareField(FIELD_DECL_TYPE_TABLE, val)
 end
 
 local function declareClassField(classType, ...)
-    return __doDeclareField(_FIELD_DECL_TYPE_CLASS, classType, ...)
+    return __doDeclareField(FIELD_DECL_TYPE_CLASS, classType, ...)
 end
 
 
@@ -389,10 +389,36 @@ local function declareClass(clzDef, baseClz)
 end
 
 
+local function __doIterateClassFields(clzDef, idx)
+    local names = clzDef and __gFieldNames[clzDef]
+    local decls = clzDef and __gFieldDeclarations[clzDef]
+    if types.isNilOrEmpty(names) or types.isNilOrEmpty(decls)
+    then
+        return nil
+    end
+
+    if idx > #names or idx > #decls
+    then
+        return nil
+    end
+
+    return idx + 1, names[idx], decls[idx]
+end
+
+local function iterateClassFields(clzDef)
+    return __doIterateClassFields, clzDef, 1
+end
+
+
 return
 {
-    declareClass            = declareClass,
-    declareConstantField    = declareConstantField,
-    declareTableField       = declareTableField,
-    declareClassField       = declareClassField,
+    FIELD_DECL_TYPE_CONSTANT    = FIELD_DECL_TYPE_CONSTANT,
+    FIELD_DECL_TYPE_TABLE       = FIELD_DECL_TYPE_TABLE,
+    FIELD_DECL_TYPE_CLASS       = FIELD_DECL_TYPE_CLASS,
+
+    declareClass                = declareClass,
+    declareConstantField        = declareConstantField,
+    declareTableField           = declareTableField,
+    declareClassField           = declareClassField,
+    iterateClassFields          = iterateClassFields,
 }

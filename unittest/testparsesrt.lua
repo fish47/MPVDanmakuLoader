@@ -1,4 +1,4 @@
-local lu        = require("3rdparties/luaunit")    --= luaunit lu
+local lu        = require("unittest/luaunit")    --= luaunit lu
 local _ass      = require("src/core/_ass")
 local srt       = require("src/core/srt")
 local danmaku   = require("src/core/danmaku")
