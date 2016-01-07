@@ -1,3 +1,4 @@
+local utils         = require("src/base/utils")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
@@ -14,52 +15,9 @@ local MPVDanmakuLoaderCfg   =
     subtitleFontSize        = 34,               -- 字幕默认字体大小
     subtitleFontName        = "mono",           -- 字幕默认字体名
     subtitleFontColor       = 0xFFFFFFFF,       -- 字幕默认颜色 BBGGRR
-
-    saveRawData             = true,             -- 是否弹幕原始数据，可在离线时使用
-    overwriteASSFile        = true,             -- 是否覆盖当前目录同名的 ASS 文件，反之则弹保存框
-
-    rawDataDir              = "",               -- 弹幕原始数据的保存目录
-    rawDataInfoPath         = "/tmp/1",         -- 弹幕关联数据
-    searchInfoPath          = "/tmp/123",       -- 搜索关键字历史
 }
 
 classlite.declareClass(MPVDanmakuLoaderCfg)
-
-
-local __MPVBuiltinFunctionMixin =
-{
-    setSubtitle = function(self, path)
-        mp.commandv("sub_add ", path)
-    end,
-
-    splitPath = function(self, path)
-        return mp.utils.split_path(path)
-    end,
-
-    joinPath = function(self, p1, p2)
-        return mp.utils.join_path(p1, p2)
-    end,
-
-    listFiles = function(self, dir)
-        return mp.utils.readdir(dir, "files")
-    end,
-
-    getVideoFilePath = function(self)
-        return mp.get_property("path", nil)
-    end,
-
-    getVideoWidth = function(self)
-        local width = mp.get_property("width", nil)
-        return width and tonumber(width)
-    end,
-
-    getVideoHeight = function(self)
-        local height = mp.get_property("height", nil)
-        return height and tonumber(height)
-    end,
-}
-
-classlite.declareClass(__MPVBuiltinFunctionMixin)
 
 
 local MPVDanmakuLoaderApp =
@@ -73,66 +31,60 @@ local MPVDanmakuLoaderApp =
         self._mNetworkConnection = conn
     end,
 
-    searchDanDanPlayByKeyword = function(self, keyword)
-        local conn = self._mNetworkConnection
-        local name = self:getVideoFileName()
-        local hash = nil
-        local byteCount = self:getVideoByteCount()
-        local seconds = self:getVideoDurationSeconds()
-        return dandanplay.searchDanDanPlayByVideoInfos(conn, name, hash, byteCount, seconds)
+    getConfiguration = function(self)
+        return self._mConfiguration
     end,
 
-    searchBiliBiliByKeyword = function(self, keyword, maxPageCount)
-        local conn = self._mNetworkConnection
-        return bilibili.searchBiliBiliByKeyword(conn, keyword, maxPageCount)
+    getDanmakuPools = function(self)
+        return self._mDanmakuPools
     end,
 
-    getBiliBiliVideoInfos = function(self, videoID)
-        local conn = self._mNetworkConnection
-        return bilibili.getBiliBiliVideoInfos(conn, videoID)
+    setSubtitle = function(self, path)
+        mp.commandv("sub_add ", path)
     end,
 
-
-    getDanDanPlayDanmakuRawData = function(self, url)
-        local conn = self._mNetworkConnection
-        return dandanplay.getDanDanPlayDanmakuRawData(conn, url)
+    splitPath = function(self, path)
+        return mp.utils.split_path(path)
     end,
 
-    getBiliBiliDanmakuRawData = function(self, url)
-        local conn = self._mNetworkConnection
-        return bilibili.getBiliBiliDanmakuRawData(conn, url)
+    joinPath = function(self, p1, p2)
+        return mp.utils.join_path(p1, p2)
     end,
 
-
-    --TODO
-    parseBiliBiliRawData = function(self, rawData, offset)
-        local cfg = self._mConfiguration
-        local pools = self._mDanmakuPools
-        parse.parseBiliBiliRawData(cfg, pools, rawData, offset)
+    listFiles = function(self, dir, outList)
+        local files = mp.utils.readdir(dir, "files")
+        utils.clearTable(outList)
+        utils.extendArray(outList, files)
     end,
 
-    parseDanDanPlayRawData = function(self, rawData)
-        local cfg = self._mConfiguration
-        local pools = self._mDanmakuPools
-        parse.parseDanDanPlayRawData(cfg, pools, rawData)
+    getVideoFilePath = function(self)
+        return mp.get_property("path", nil)
     end,
 
-    parseSRTFile = function(self, f)
-        parse.parseSRTFile(self._mParseContext, f)
+    getVideoWidth = function(self)
+        return mp.get_property_number("width", nil)
     end,
 
-    flushToASSFile = function(self, fullPath)
-        local w = self:getVideoWidth()
-        local h = self:getVideoHeight()
-        local cfg = self._mConfiguration
-        local pools = self._mDanmakuPools
-        local f = io.open(fullPath, "w+")
-        if f
-        then
-            parse.writeDanmakus(cfg, pools, w, h , f)
-            f:close()
-        end
-        pools:clear()
+    getVideoHeight = function(self)
+        return mp.get_property_number("height", nil)
+    end,
+
+    _getPrivateDirPath = function(self)
+        local dir = self:splitPath(self:getVideoFilePath())
+        return self:joinPath(dir, ".danmakuloader")
+    end,
+
+    getSRTFileSearchDirPath = function(self)
+        local dir = self:splitPath(self:getVideoFilePath())
+        return dir
+    end,
+
+    getDanmakuSourceRawDataDirPath = function(self)
+        return self:joinPath(self:_getPrivateDirPath(), "rawdata")
+    end,
+
+    getDanmakuSourceMetaFilePath = function(self)
+        return self:joinPath(self:_getPrivateDirPath(), "meta.lua")
     end,
 }
 

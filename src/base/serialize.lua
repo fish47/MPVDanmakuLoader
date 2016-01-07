@@ -6,6 +6,8 @@ local constants = require("src/base/constants")
 local _SERIALIZE_FUNC_NAME                  = "_"
 local _SERIALIZE_FUNC_START                 = "("
 local _SERIALIZE_FUNC_END                   = ")"
+local _SERIALIZE_TABLE_START                = "{"
+local _SERIALiZE_TABLE_END                  = "}"
 local _SERIALIZE_SEP_ARG                    = ","
 local _SERIALIZE_SEP_LINE                   = "\n"
 local _SERIALIZE_QUOTE_STRING_FORMAT        = "%q"
@@ -33,7 +35,7 @@ local function serializeTuple(file, ...)
         then
             file:write(tostring(elem))
         else
-            -- 暂时不支持复杂类型的序列化
+            -- 暂时不支持复杂的数据类型
         end
 
         if i ~= elementCount
@@ -82,62 +84,9 @@ local function deserializeTupleFromString(chunks, callback)
 end
 
 
-
-local function __advanceQueueIndex(queueIdx, queueLen)
-    queueIdx = queueIdx + 1
-    queueIdx = queueIdx > queueLen and 1 or queueIdx
-    return queueIdx
-end
-
-
-
-local function trimSerializedFile(fullPath, reserveCount)
-    local queueStartIdx = 1
-    local queueLastIdx = 1
-    local queue = {}
-
-    local function __doReadTuple(...)
-        if #queue < reserveCount
-        then
-            table.insert(queue, {...})
-            queueLastIdx = #queue
-        else
-            queue[queueStartIdx] = {...}
-            queueStartIdx = __advanceQueueIndex(queueStartIdx, reserveCount)
-            queueLastIdx = __advanceQueueIndex(queueLastIdx, reserveCount)
-        end
-    end
-
-    -- 读入环型缓冲区
-    deserializeTupleFromFilePath(fullPath, __doReadTuple)
-
-    -- 写出到文件
-    local file = io.open(fullPath, constants.FILE_MODE_WRITE_ERASE)
-    if file
-    then
-        local queueIdx = queueStartIdx
-        local tuple = queue[queueIdx]
-        while tuple
-        do
-            serializeTuple(file, utils.unpackArray(tuple))
-            utils.clearTable(tuple)
-            queue[queueIdx] = nil
-
-            queueIdx = __advanceQueueIndex(queueIdx, reserveCount)
-            tuple = queue[queueIdx]
-        end
-
-        file:close()
-    end
-
-    utils.clearTable(queue)
-end
-
-
 return
 {
     serializeTuple                  = serializeTuple,
     deserializeTupleFromFilePath    = deserializeTupleFromFilePath,
     deserializeTupleFromString      = deserializeTupleFromString,
-    trimSerializedFile              = trimSerializedFile,
 }

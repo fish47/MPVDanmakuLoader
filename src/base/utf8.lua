@@ -18,7 +18,7 @@ local function __compareNumber(rangEnd, val)
 end
 
 local function __binarySearchNums(list, val)
-    return _algo.binarySearchArray(list, __compareNumber, val)
+    return _algo.binarySearchArrayIf(list, __compareNumber, val)
 end
 
 

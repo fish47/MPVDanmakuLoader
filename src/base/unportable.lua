@@ -49,7 +49,8 @@ local function _addValue(arguments, val)
     if val ~= nil
     then
         -- 标准命令行中，为了避免值与选项混淆，如果带 - 号还要加一个 -- 来转义
-        if string.match(val, _SHELL_PATTERN_STARTS_WITH_DASH)
+        val = tostring(val)
+        if val:match(_SHELL_PATTERN_STARTS_WITH_DASH)
         then
             table.insert(arguments, _SHELL_CONST_DOUBLE_DASH)
         end
@@ -137,7 +138,7 @@ classlite.declareClass(ListBoxProperties, _WidgetPropertiesBase)
 
 
 local _ZENITY_BIN_PATH              = "zenity"
-local _ZENITY_TRAILING_CHAR_COUNT   = 1
+local _ZENITY_RESULT_RSTRIP_COUNT   = 2
 local _ZENITY_DEFAULT_OUTPUT        = constants.STR_EMPTY
 local _ZENITY_OUTPUT_SEP            = "|"
 local _ZENITY_PATTERN_SPLIT_INDEXES = "(%d+)"
@@ -156,7 +157,7 @@ local ZenityGUIBuilder =
 
     _getZenityCommandResult = function(self, arguments)
         local succeed, output = _getCommandResult(arguments)
-        return succeed and output:sub(1, -_ZENITY_TRAILING_CHAR_COUNT)
+        return succeed and output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT) or nil
     end,
 
     showTextInfo = function(self, props)
@@ -172,8 +173,8 @@ local ZenityGUIBuilder =
         local arguments = self.__mArguments
         self:__prepareZenityCommand(arguments, props)
         _addOption(arguments, "--entry")
-        _addOption(arguments, "--text", props.entryTitle)
-        _addOption(arguments, "--entry-text", props.entryText)
+        _addOptionAndValue(arguments, "--text", props.entryTitle)
+        _addOptionAndValue(arguments, "--entry-text", props.entryText)
         return self:_getZenityCommandResult(arguments)
     end,
 
@@ -183,17 +184,16 @@ local ZenityGUIBuilder =
         self:__prepareZenityCommand(arguments, props)
         _addOption(arguments, "--list")
         _addOptionAndValue(arguments, "--text", props.listBoxTitle)
-        _addOption(arguments, props.isHeaderHidden and "--hide-header")
+        _addOption(arguments, props.isHeaderHidden and "--hide-header" or nil)
 
         local isFirstColumnDummy = false
         if props.isMultiSelectable
         then
             _addOption(arguments, "--checklist")
-            _addOption(arguments, "--separator")
-            _addOption(arguments, _ZENITY_OUTPUT_SEP)
+            _addOptionAndValue(arguments, "--separator", _ZENITY_OUTPUT_SEP)
 
             -- 第一列被用作 CheckList 了囧
-            _addOptionAndValue("--column", constants.STR_EMPTY)
+            _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
             isFirstColumnDummy = true
         end
 
@@ -220,11 +220,11 @@ local ZenityGUIBuilder =
             -- CheckList 列
             if isFirstColumnDummy
             then
-                _addOption(arguments, constants.STR_EMPTY)
+                _addValue(arguments, constants.STR_EMPTY)
             end
 
             -- 返回值列
-            _addOption(arguments, i)
+            _addValue(arguments, i)
 
             for j = 1, columnCount
             do
@@ -282,8 +282,8 @@ local CURLNetworkConnection =
         utils.clearTable(arguments)
         _addCommand(arguments, "curl")
         _addOption(arguments, "--silent")
-        _addOptionAndValue(arguments, "--max-time", _CURL_TIMEOUT_SECONDS)
         _addOption(arguments, self._mIsCompressed and "--compressed")
+        _addOptionAndValue(arguments, "--max-time", _CURL_TIMEOUT_SECONDS)
         for _, header in ipairs(self._mHeaders)
         do
             _addOptionAndValue(arguments, "-H", header)
@@ -338,10 +338,18 @@ classlite.declareClass(CURLNetworkConnection)
 
 
 local _MD5_RESULT_CHAR_COUNT    = 32
-local _MD5_PATTERN_RESULT       = "(%x+)"
+local _MD5_PATTERN_GRAB_OUTPUT  = "(%x+)"
+local _MD5_PATTERN_CHECK_STRING = "^(%x+)$"
+
+local function isMD5String(str)
+    if types.isString(str) and str:match(_MD5_PATTERN_CHECK_STRING)
+    then
+        return #str == _MD5_RESULT_CHAR_COUNT
+    end
+end
 
 local function calcFileMD5(fullPath, byteCount)
-    local arguments = {}
+    local arguments = utils._obtainTable()
     if types.isNumber(byteCount)
     then
         _addCommand(arguments, "head")
@@ -356,22 +364,112 @@ local function calcFileMD5(fullPath, byteCount)
     end
 
     local succeed, output = _getCommandResult(arguments)
-    local hexString = succeed and output:match(_MD5_PATTERN_RESULT)
-    local ret = hexString and #hexString == _MD5_RESULT_CHAR_COUNT and hexString
+    local hexString = succeed and output:match(_MD5_PATTERN_GRAB_OUTPUT)
+    local ret = isMD5String(hexString) and hexString or nil
 
-    utils.clearTable(arguments)
-    arguments = nil
+    utils._recycleTable(arguments)
     return ret
 end
 
 
 local function createDir(fullPath)
-    local arguments = {}
+    --TODO
+end
 
-    local succeed = _getCommandResult(arguments)
-    utils.clearTable(arguments)
-    arguments = nil
-    return succeed
+
+local _PATH_SEPERATOR                   = "/"
+local _PATH_ROOT_DIR                    = "/"
+local _PATH_CURRENT_DIR                 = "."
+local _PATH_PARENT_DIR                  = ".."
+local _PATH_PATTERN_ELEMENT             = "[^/]+"
+local _PATH_PATTERN_STARTS_WITH_ROOT    = ""
+local _PATH_PATTERN_ROOT                = "^[/]+$"
+
+local function _splitPathElements(fullPath)
+    if not types.isString(fullPath)
+    then
+        return nil
+    end
+
+    local paths = utils._obtainTable()
+    if fullPath:match(_PATH_PATTERN_ROOT)
+    then
+        table.insert(paths, _PATH_ROOT_DIR)
+        return paths
+    end
+
+    local hasRoot = fullPath:match(_PATH_PATTERN_STARTS_WITH_ROOT)
+    for path in fullPath:gmatch(_PATH_PATTERN_ELEMENT)
+    do
+        if path == _PATH_PARENT_DIR
+        then
+            paths[math.max(#paths, 1)] = nil
+        elseif path == _PATH_CURRENT_DIR
+        then
+            -- 指向当前文件夹
+        else
+            -- 将 / 作为单独的路径
+            if hasRoot and types.isEmptyTable(paths)
+            then
+                table.insert(paths, _PATH_ROOT_DIR)
+            end
+
+            table.insert(paths, path)
+        end
+    end
+    return paths
+end
+
+
+local function _joinPathElements(paths)
+    local ret = nil
+    if paths[1] == _PATH_ROOT_DIR
+    then
+        local trailing = table.concat(paths, _PATH_SEPERATOR, 2)
+        ret = _PATH_ROOT_DIR .. trailing
+    else
+        ret = table.concat(paths, _PATH_SEPERATOR)
+    end
+    utils._recycleTable(paths)
+    return ret
+end
+
+
+local function __doIteratePathElements(paths, idx)
+    idx = idx + 1
+    if idx > #paths
+    then
+        -- 如果是中途 break 出来，就让虚拟机回收吧
+        utils._recycleTable(paths)
+        return nil
+    else
+        return idx, paths[idx]
+    end
+end
+
+local function iteratePathElements(fullPath)
+    local paths = _splitPathElements(fullPath)
+    return __doIteratePathElements, paths, 0
+end
+
+
+local function normalizePath(fullPath)
+    local paths = _splitPathElements(fullPath)
+    return paths and _joinPathElements(paths) or nil
+end
+
+local function joinPath(fullPath, ...)
+    --TODO
+end
+
+local function splitPath(fullPath)
+    local paths = _splitPathElements(fullPath)
+    if paths
+    then
+        local baseName = utils.popArrayElement(paths)
+        local dirName = _joinPathElements(paths)
+        return dirName, baseName
+    end
 end
 
 
@@ -383,6 +481,12 @@ return
     ZenityGUIBuilder        = ZenityGUIBuilder,
     CURLNetworkConnection   = CURLNetworkConnection,
 
+    isMD5String             = isMD5String,
     calcFileMD5             = calcFileMD5,
     createDir               = createDir,
+
+    iteratePathElements     = iteratePathElements,
+    normalizePath           = normalizePath,
+    joinPath                = joinPath,
+    splitPath               = splitPath,
 }

@@ -6,20 +6,24 @@ local _SRT_SUBTITLE_IDX_START       = 0
 local _SRT_SEP_SUBTITLE             = constants.STR_EMPTY
 local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
 local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
-local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME .. " %-%-%> " .. _SRT_PATTERN_TIME
-local _STR_PATTERN_DANMAKU_ID       = "_srt_%s_%d"
+local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME
+                                      .. " %-%-%> "
+                                      .. _SRT_PATTERN_TIME
 
 local __readSubtitleIdxOrEmptyLines = nil
 local __readSubtitleTimeSpan        = nil
 local __readSubtitleContent         = nil
+local __readLine                    = nil
 
 
-local function __readLine(f)
+__readLine = function(f)
     return f:read(constants.READ_MODE_LINE_NO_EOL)
 end
 
 
-__readSubtitleIdxOrEmptyLines = function(cfg, pool, f, line, subID, subIdx)
+__readSubtitleIdxOrEmptyLines = function(cfg, pool,
+                                         f, line,
+                                         source, subIdx)
     if not line
     then
         -- 允许以空行结尾，但不允许只有空行的文件
@@ -30,7 +34,9 @@ __readSubtitleIdxOrEmptyLines = function(cfg, pool, f, line, subID, subIdx)
     then
         -- 继续读空行
         line = __readLine(f)
-        return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subID, subIdx)
+        return __readSubtitleIdxOrEmptyLines(cfg, pool,
+                                             f, line,
+                                             source, subIdx)
     else
         local nextIdx = line:match(_SRT_PATTERN_SUBTITLE_IDX)
         if not nextIdx
@@ -38,26 +44,27 @@ __readSubtitleIdxOrEmptyLines = function(cfg, pool, f, line, subID, subIdx)
             -- 没有起始的字幕编号
             return false
         else
+            -- 某些字幕文件时间段不是递增的
             nextIdx = tonumber(nextIdx)
-            if subIdx + 1 ~= nextIdx
-            then
-                --TODO 字幕编号不连续，需要直接返回？
-            end
 
             line = __readLine(f)
-            return __readSubtitleTimeSpan(cfg, pool, f, line, subID, nextIdx)
+            return __readSubtitleTimeSpan(cfg, pool,
+                                          f, line,
+                                          source, nextIdx)
         end
     end
 end
 
 
-__readSubtitleTimeSpan = function(cfg, pool, f, line, subID, subIdx)
+__readSubtitleTimeSpan = function(cfg, pool, f, line, source, subIdx)
     if not line
     then
         -- 只有字幕编号没有时间段
         return false
     else
-        local h1, m1, s1, ms1, h2, m2, s2, ms2 = line:match(_SRT_PATTERN_TIME_SPAN)
+        local h1, m1, s1, ms1,
+              h2, m2, s2, ms2 = line:match(_SRT_PATTERN_TIME_SPAN)
+
         if not h1
         then
             return false
@@ -68,12 +75,16 @@ __readSubtitleTimeSpan = function(cfg, pool, f, line, subID, subIdx)
         local lifeTime = math.max(endTime - startTime, 0)
 
         line = __readLine(f)
-        return __readSubtitleContent(cfg, pool, f, line, subID, subIdx, startTime, lifeTime)
+        return __readSubtitleContent(cfg, pool, f, line,
+                                     source, subIdx,
+                                     startTime, lifeTime)
     end
 end
 
 
-__readSubtitleContent = function(cfg, pool, f, line, subID, subIdx, startTime, lifeTime)
+__readSubtitleContent = function(cfg, pool, f, line,
+                                 source, subIdx,
+                                 startTime, lifeTime)
     if not line
     then
         return false
@@ -96,19 +107,25 @@ __readSubtitleContent = function(cfg, pool, f, line, subID, subIdx, startTime, l
 
         local color = cfg.subtitleFontColor
         local size = cfg.subtitleFontSize
-        local danmakuID = string.format(_STR_PATTERN_DANMAKU_ID, subID, subIdx)
-        pool:addDanmaku(startTime, lifeTime, color, size, danmakuID, text)
+        pool:addDanmaku(startTime, lifeTime,
+                        color, size,
+                        source, subIdx,
+                        text)
 
         line = hasMoreLine and __readLine(f) or nil
-        return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subID, subIdx)
+        return __readSubtitleIdxOrEmptyLines(cfg, pool,
+                                             f, line,
+                                             source, subIdx)
     end
 end
 
 
-local function parseSRTFile(cfg, pool, f, subtitleID)
+local function parseSRTFile(cfg, pool, f, source)
     local line = __readLine(f)
     local startIdx = _SRT_SUBTITLE_IDX_START
-    return __readSubtitleIdxOrEmptyLines(cfg, pool, f, line, subtitleID, startIdx)
+    return __readSubtitleIdxOrEmptyLines(cfg, pool,
+                                         f, line,
+                                         source, startIdx)
 end
 
 

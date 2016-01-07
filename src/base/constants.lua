@@ -1,6 +1,6 @@
 return
 {
-    LUA_VERSION                 = tonumber(string.match(_VERSION, "(%d+%.%d)") or 5),
+    LUA_VERSION                 = tonumber(_VERSION:match("(%d+%.%d)") or 5),
 
     FILE_MODE_READ              = "r",
     FILE_MODE_WRITE_ERASE       = "w",

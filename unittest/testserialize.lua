@@ -73,31 +73,6 @@ TestSerialize =
         lu.assertTrue(types.isEmptyTable(outsideTable))
         lu.assertEquals(#referred, 2)
     end,
-
-
-    testTrim = function(self)
-        local hugeData = {}
-        for i = 1, 100
-        do
-            table.insert(hugeData, { i })
-        end
-
-        local filepath = self:__getTempPath()
-        local file = io.open(filepath, constants.FILE_MODE_UPDATE_ERASE)
-        self:__serializeTuplesToStream(hugeData, file)
-        file:close()
-
-        local reserveCount = 15
-        serialize.trimSerializedFile(filepath, reserveCount)
-
-        local deserializedData = self:__deserializeTuples(io.open(filepath))
-        for i = 0, reserveCount - 1
-        do
-            local idx1 = #hugeData - i
-            local idx2 = #deserializedData - i
-            lu.assertEquals(hugeData[idx1], deserializedData[idx2])
-        end
-    end,
 }
 
 

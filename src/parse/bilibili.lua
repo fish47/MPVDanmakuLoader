@@ -1,5 +1,5 @@
-local _ass  = require("src/core/_ass")
-local utils = require("src/base/utils")
+local utils     = require("src/base/utils")
+local danmaku   = require("src/core/danmaku")
 
 
 local _BILI_PATTERN_POS         = "([%d%.]+),(%d+),(%d+),(%d+),[^>]+,(%d+),[^>]+,(%d+)"
@@ -18,18 +18,18 @@ local _BILI_POS_ADVANCED        = 7
 -- 暂时不处理神弹幕
 local _BILI_POS_TO_LAYER_MAP    =
 {
-    [_BILI_POS_MOVING_L2R]      = _ass.LAYER_MOVING_L2R,
-    [_BILI_POS_MOVING_R2L]      = _ass.LAYER_MOVING_R2L,
-    [_BILI_POS_STATIC_TOP]      = _ass.LAYER_STATIC_TOP,
-    [_BILI_POS_STATIC_BOTTOM]   = _ass.LAYER_STATIC_BOTTOM,
+    [_BILI_POS_MOVING_L2R]      = danmaku.LAYER_MOVING_L2R,
+    [_BILI_POS_MOVING_R2L]      = danmaku.LAYER_MOVING_R2L,
+    [_BILI_POS_STATIC_TOP]      = danmaku.LAYER_STATIC_TOP,
+    [_BILI_POS_STATIC_BOTTOM]   = danmaku.LAYER_STATIC_BOTTOM,
 }
 
 local _BILI_LIFETIME_MAP        =
 {
-    [_BILI_POS_MOVING_L2R]      = _ass._LIFETIME_MOVING,
-    [_BILI_POS_MOVING_R2L]      = _ass._LIFETIME_MOVING,
-    [_BILI_POS_STATIC_TOP]      = _ass._LIFETIME_STATIC,
-    [_BILI_POS_STATIC_BOTTOM]   = _ass._LIFETIME_STATIC,
+    [_BILI_POS_MOVING_L2R]      = danmaku._LIFETIME_MOVING,
+    [_BILI_POS_MOVING_R2L]      = danmaku._LIFETIME_MOVING,
+    [_BILI_POS_STATIC_TOP]      = danmaku._LIFETIME_STATIC,
+    [_BILI_POS_STATIC_BOTTOM]   = danmaku._LIFETIME_STATIC,
 }
 
 

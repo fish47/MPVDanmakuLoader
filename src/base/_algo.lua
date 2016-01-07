@@ -1,6 +1,10 @@
 local types     = require("src/base/types")
 local constants = require("src/base/constants")
 
+local function __equals(val1, val2)
+    return val1 == val2
+end
+
 
 local function clearTable(tbl)
     if types.isTable(tbl)
@@ -28,6 +32,28 @@ local function clearArray(array, startIdx, endIdx)
 end
 
 
+local __gFreeTables = {}
+
+local function _obtainTable()
+    local count = #__gFreeTables
+    if count > 0
+    then
+        local ret = __gFreeTables[count]
+        __gFreeTables[count] = nil
+        return ret
+    end
+    return {}
+end
+
+local function _recycleTable(tbl)
+    if types.isTable(tbl)
+    then
+        clearTable(tbl)
+        table.insert(__gFreeTables, tbl)
+    end
+end
+
+
 local function mergeTable(destTbl, srcTbl, isJustMergeMissed)
     if types.isTable(destTbl) and types.isTable(srcTbl)
     then
@@ -40,7 +66,7 @@ local function mergeTable(destTbl, srcTbl, isJustMergeMissed)
 end
 
 
-local function appendArray(destArray, srcArray)
+local function extendArray(destArray, srcArray)
     if types.isTable(destArray) and types.isTable(srcArray)
     then
         for _, v in ipairs(srcArray)
@@ -52,14 +78,27 @@ local function appendArray(destArray, srcArray)
 end
 
 
-local function linearSearchArray(array, val)
+local function packArray(array, ...)
+    if types.isTable(array)
+    then
+        clearArray(array)
+        for i = 1, types.getVarArgCount(...)
+        do
+            table.insert(array, select(i, ...))
+        end
+    end
+    return array
+end
+
+
+local function linearSearchArrayIf(array, func, arg)
     if types.isTable(array)
     then
         for idx, v in ipairs(array)
         do
-            if val == v
+            if func(v, arg)
             then
-                return true, idx
+                return true, idx, v
             end
         end
     end
@@ -67,8 +106,13 @@ local function linearSearchArray(array, val)
 end
 
 
-local function binarySearchArray(list, compareFunc, val)
-    if not types.isTable(list) or not types.isFunction(compareFunc)
+local function linearSearchArray(array, val)
+    return linearSearchArrayIf(array, __equals, val)
+end
+
+
+local function binarySearchArrayIf(list, func, arg)
+    if not types.isTable(list) or not types.isFunction(func)
     then
         return false
     end
@@ -79,7 +123,7 @@ local function binarySearchArray(list, compareFunc, val)
     do
         local mid = math.floor((low + high) / 2)
         local midVal = list[mid]
-        local cmpRet = compareFunc(list[mid], val)
+        local cmpRet = func(list[mid], arg)
 
         if cmpRet == 0
         then
@@ -121,10 +165,24 @@ local function fillArrayWithAscNumbers(array, count)
     do
         array[i] = i
     end
+    clearArray(array, count + 1)
+end
 
-    for i = count + 1, #array
-    do
-        array[i] = nil
+
+local function reverseArray(array, startIdx, lastIdx)
+    if types.isTable(array)
+    then
+        startIdx = startIdx or 1
+        lastIdx = lastIdx or #array
+        while startIdx < lastIdx
+        do
+            local lowVal = array[startIdx]
+            local highVal = array[lastIdx]
+            array[startIdx] = lowVal
+            array[lastIdx] = highVal
+            startIdx = startIdx + 1
+            lastIdx = lastIdx - 1
+        end
     end
 end
 
@@ -166,7 +224,7 @@ local function sortParallelArrays(...)
     end
 
     -- 获取排序后的新位置
-    local indexes = {}
+    local indexes = _obtainTable()
     fillArrayWithAscNumbers(indexes, #firstArray)
     table.sort(indexes, compareFuncArg)
 
@@ -175,12 +233,12 @@ local function sortParallelArrays(...)
     local arrayBak = nil
     for i = arrayStartIdx, types.getVarArgCount(...)
     do
-        arrayBak = arrayBak or {}
+        arrayBak = arrayBak or _obtainTable()
         __reorderArray(indexes, select(i, ...), arrayBak)
     end
 
-    clearTable(indexes)
-    clearTable(arrayBak)
+    _recycleTable(indexes)
+    _recycleTable(arrayBak)
 
     indexes = nil
     arrayBak = nil
@@ -206,16 +264,64 @@ local function reverseIterateArray(array)
     return __doReverseIterateArrayImpl, array, #array
 end
 
+local function iterateArray(array)
+    if not types.isTable(array)
+    then
+        return constants.FUNC_EMPTY
+    end
+
+    return ipairs(array)
+end
+
+local function popArrayElement(array)
+    if types.isTable(array)
+    then
+        local count = #array
+        local ret = array[count]
+        array[count] = nil
+        return ret
+    end
+end
+
+local function pushArrayElement(array, elem)
+    if types.isTable(array)
+    then
+        table.insert(array, elem)
+    end
+end
+
+local function removeArrayElement(array, val)
+    if types.isTable(array)
+    then
+        local writeIdx = 1
+        for i, element in ipairs(array)
+        do
+            if element ~= val
+            then
+                array[writeIdx] = element
+                writeIdx = writeIdx + 1
+            end
+        end
+        clearArray(array, writeIdx)
+    end
+end
 
 return
 {
+    _obtainTable                = _obtainTable,
+    _recycleTable               = _recycleTable,
     clearTable                  = clearTable,
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,
     unpackArray                 = unpack or table.unpack,
-    appendArray                 = appendArray,
+    extendArray                 = extendArray,
+    removeArrayElement          = removeArrayElement,
+    pushArrayElement            = pushArrayElement,
+    popArrayElement             = popArrayElement,
     linearSearchArray           = linearSearchArray,
-    binarySearchArray           = binarySearchArray,
+    linearSearchArrayIf         = linearSearchArrayIf,
+    binarySearchArrayIf         = binarySearchArrayIf,
+    iterateArray                = iterateArray,
     reverseIterateArray         = reverseIterateArray,
     iteratePairsArray           = iteratePairsArray,
     sortParallelArrays          = sortParallelArrays,

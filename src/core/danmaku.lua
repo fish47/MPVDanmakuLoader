@@ -11,7 +11,8 @@ local DanmakuPool =
     _mLifeTimes         = classlite.declareTableField(),    -- 弹幕存活时间，单位 ms
     _mFontColors        = classlite.declareTableField(),    -- 字体颜色字符串，格式 BBGGRR
     _mFontSizes         = classlite.declareTableField(),    -- 字体大小，单位 pt
-    _mDanmakuIDs        = classlite.declareTableField(),    -- 弹幕标识字符串，用于排重，不可为空
+    _mDanmakuIDs        = classlite.declareTableField(),    -- 如果来自于相同弹幕源，以此作为排重字段
+    _mDanmakuSources    = classlite.declareTableField(),    -- 弹幕源
     _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
     __mDanmakuIndexes   = classlite.declareTableField(),
 
@@ -77,13 +78,13 @@ local DanmakuPool =
 
 
     clear = function(self)
-        utils.clearTable(self._mStartTimes)
-        utils.clearTable(self._mLifeTimes)
-        utils.clearTable(self._mFontColors)
-        utils.clearTable(self._mFontSizes)
-        utils.clearTable(self._mDanmakuIDs)
-        utils.clearTable(self._mTexts)
-        utils.clearTable(self.__mDanmakuIndexes)
+        for _, name, decl in classlite.iterateClassFields(self:getClass())
+        do
+            if decl[1] == classlite.FIELD_DECL_TYPE_TABLE
+            then
+                utils.clearTable(self[name])
+            end
+        end
     end,
 }
 

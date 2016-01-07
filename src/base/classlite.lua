@@ -9,6 +9,7 @@ local _METHOD_NAME_CONSTRUCT            = "new"
 local _METHOD_NAME_DECONSTRUCT          = "dispose"
 local _METHOD_NAME_CLONE                = "clone"
 local _METHOD_NAME_GET_CLASS            = "getClass"
+local _METHOD_NAME_GET_PARENT           = "getParent"
 local _METHOD_NAME_INIT_FIELDS          = "__classlite_init_fields"
 local _METHOD_NAME_DEINIT_FIELDS        = "__classlite_deinit_fields"
 
@@ -251,12 +252,13 @@ local function _createCloneConstructor(clzDef)
         if not cloneObj
         then
             -- 深克隆要自己实现
-            cloneObj = select(2, _newInstance(clzDef))
+            local _, newObj = _newInstance(clzDef)
+            cloneObj = newObj
             if fieldNames
             then
                 for _, name in ipairs(fieldNames)
                 do
-                    cloneObj[name] =self[name]
+                    cloneObj[name] = self[name]
                 end
             end
         end
@@ -335,8 +337,8 @@ local function __collectAutoFields(clzDef)
     then
         names = names or {}
         decls = decls or {}
-        utils.appendArray(names, parentFieldNames)
-        utils.appendArray(decls, parentFieldDecls)
+        utils.extendArray(names, parentFieldNames)
+        utils.extendArray(decls, parentFieldDecls)
     end
 
     -- 保证初始化序列与定义顺序相同
@@ -383,6 +385,7 @@ local function declareClass(clzDef, baseClz)
     clzDef[_METHOD_NAME_CLONE]          = _createCloneConstructor(clzDef)
     clzDef[_METHOD_NAME_DECONSTRUCT]    = _createDeconstructor(clzDef)
     clzDef[_METHOD_NAME_GET_CLASS]      = _createGetClassMethod(clzDef)
+    clzDef[_METHOD_NAME_GET_PARENT]     = _createGetClassMethod(baseClz)
 
     utils.mergeTable(clzDef, baseClz, true)
     _createClassMetatable(clzDef)
@@ -397,16 +400,38 @@ local function __doIterateClassFields(clzDef, idx)
         return nil
     end
 
+    idx = idx + 1
     if idx > #names or idx > #decls
     then
         return nil
     end
 
-    return idx + 1, names[idx], decls[idx]
+    return idx, names[idx], decls[idx]
 end
 
 local function iterateClassFields(clzDef)
-    return __doIterateClassFields, clzDef, 1
+    return __doIterateClassFields, clzDef, 0
+end
+
+local function isInstanceOf(obj, clz)
+    local getClassFunc = types.isTable(obj) and obj[_METHOD_NAME_GET_CLASS]
+    local objClz = getClassFunc and getClassFunc(obj) or nil
+    if not objClz
+    then
+        return false
+    end
+
+    local iterClz = clz
+    while iterClz
+    do
+        if iterClz == objClz
+        then
+            return true
+        end
+
+        iterClz = __gParentClasses[iterClz]
+    end
+    return false
 end
 
 
@@ -421,4 +446,5 @@ return
     declareTableField           = declareTableField,
     declareClassField           = declareClassField,
     iterateClassFields          = iterateClassFields,
+    isInstanceOf                = isInstanceOf,
 }

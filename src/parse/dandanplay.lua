@@ -1,5 +1,5 @@
-local _ass  = require("src/core/_ass")
-local utils = require("src/base/utils")
+local utils     = require("src/base/utils")
+local danmaku   = require("src/core/danmaku")
 
 
 local _DDP_PATTERN_DANMAKU_ID       = "_ddp_%d_%d"
@@ -25,18 +25,18 @@ local _DDP_POS_STATIC_BOTTOM        = 4
 
 local _DDP_POS_TO_LAYER_MAP     =
 {
-    [_DDP_POS_MOVING_L2R]       = _ass.LAYER_MOVING_L2R,
-    [_DDP_POS_MOVING_R2L]       = _ass.LAYER_MOVING_R2L,
-    [_DDP_POS_STATIC_TOP]       = _ass.LAYER_STATIC_TOP,
-    [_DDP_POS_STATIC_BOTTOM]    = _ass.LAYER_STATIC_BOTTOM,
+    [_DDP_POS_MOVING_L2R]       = danmaku.LAYER_MOVING_L2R,
+    [_DDP_POS_MOVING_R2L]       = danmaku.LAYER_MOVING_R2L,
+    [_DDP_POS_STATIC_TOP]       = danmaku.LAYER_STATIC_TOP,
+    [_DDP_POS_STATIC_BOTTOM]    = danmaku.LAYER_STATIC_BOTTOM,
 }
 
 local _DDP_LIFETIME_MAP         =
 {
-    [_DDP_POS_MOVING_L2R]       = _ass._LIFETIME_MOVING,
-    [_DDP_POS_MOVING_R2L]       = _ass._LIFETIME_MOVING,
-    [_DDP_POS_STATIC_TOP]       = _ass._LIFETIME_STATIC,
-    [_DDP_POS_STATIC_BOTTOM]    = _ass._LIFETIME_STATIC,
+    [_DDP_POS_MOVING_L2R]       = danmaku._LIFETIME_MOVING,
+    [_DDP_POS_MOVING_R2L]       = danmaku._LIFETIME_MOVING,
+    [_DDP_POS_STATIC_TOP]       = danmaku._LIFETIME_STATIC,
+    [_DDP_POS_STATIC_BOTTOM]    = danmaku._LIFETIME_STATIC,
 }
 
 

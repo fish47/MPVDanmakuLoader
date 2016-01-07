@@ -27,7 +27,6 @@ local _BILI_PART_INDEX_START_OFFSET     = 0
 local _BILI_DEFAULT_SEARCH_PAGE_COUNT   = 3
 
 
-
 local BiliBiliVideoInfo =
 {
     title       = classlite.declareConstantField(nil),  -- 标题
@@ -54,6 +53,15 @@ classlite.declareClass(BiliBiliSearchResult)
 local function __filterBadChars(text)
     local res = text:gsub(_BILI_PATTERN_SANITIZE, constants.STR_EMPTY)
     return res or text
+end
+
+
+local function _doParseSearchPage(rawData,
+                                  readSearchFunc,
+                                  readSearchArg,
+                                  readPageCountFunc,
+                                  readPageCountArg)
+
 end
 
 

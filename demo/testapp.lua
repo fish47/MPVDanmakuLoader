@@ -1,64 +1,95 @@
+local utils         = require("src/base/utils")
+local types         = require("src/base/types")
 local classlite     = require("src/base/classlite")
+local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
 local dandanplay    = require("src/search/dandanplay")
 local bilibili      = require("src/search/bilibili")
+local _source       = require("src/shell/_source")
 local logic         = require("src/shell/logic")
 local application   = require("src/shell/application")
+local mockfs        = require("unittest/mockfs")
 
 
-local MockApp   =
+local MockApp =
 {
-    getVideoFileName = function()
-        return "哦哈哈.avi.rmvb.wmv"
+    _mMockFileSystem    = classlite.declareClassField(mockfs.MockFileSystem),
+
+    doesFileExist = function(self, fullPath)
+        return self._mMockFileSystem.doesFileExist(fullPath)
     end,
 
-    getVideoDurationSeconds = function()
-        return 1
+    writeFile = function(self, fullPath)
+        return self._mMockFileSystem:writeFile(fullPath)
     end,
 
-    searchDanDanPlayByVideoInfos = function()
-        return
-        {
-            dandanplay.DanDanPlayVideoInfo:new("a", "1", "aas"),
-            dandanplay.DanDanPlayVideoInfo:new("b", "2", "aas"),
-        }
+    readUTF8File = function(self, fullPath)
+        return self._mMockFileSystem:readFile(fullPath)
     end,
 
-    searchBiliBiliByKeyword = function()
-        return
-        {
-            bilibili.BiliBiliSearchResult:new("type1", "title1", "bid1"),
-            bilibili.BiliBiliSearchResult:new("type2", "title2", "bid2"),
-            bilibili.BiliBiliSearchResult:new("type3", "title3", "bid3"),
-        }
+    createDir = function(self, dirName)
+        return self._mMockFileSystem:createDir(dirName)
     end,
 
-    getBiliBiliVideoInfos = function(self, videoID)
-        local results =
-        {
-            ["bid1"]    =
+    deleteTree = function(self, fullPath)
+        return self._mMockFileSystem:deleteTree(fullPath)
+    end,
+
+
+    getBiliBiliVideoPartNames = function(self, videoID, outNames)
+        utils.clearTable(outNames)
+        if videoID == "001"
+        then
+            utils.extendArray(outNames,
             {
-                bilibili.BiliBiliVideoInfo:new("subtitle1_1", 1000, "url1"),
-            },
-
-            ["bid2"]    =
+                "1、分集1",
+                "2、分集2",
+            })
+        elseif videoID == "002"
+        then
+            utils.extendArray(outNames,
             {
-                bilibili.BiliBiliVideoInfo:new("subtitle2_1", 100, "url2"),
-                bilibili.BiliBiliVideoInfo:new("subtitle2_2", 100, "url3"),
-                bilibili.BiliBiliVideoInfo:new("subtitle2_3", 100, "url4"),
-            },
+                "1、没有分集"
+            })
+        end
+    end,
 
-            ["bid3"]    =
+    searchDanDanPlayByKeyword = function(self, keyword)
+        if keyword == "key1"
+        then
+            return
             {
-                bilibili.BiliBiliVideoInfo:new("subtitle3_1", 1000, "url5"),
-                bilibili.BiliBiliVideoInfo:new("subtitle3_2", 1000, "url6"),
-            },
-        }
-        return results[videoID]
+                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第一集", "11"),
+                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第二集", "11"),
+                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第三集", "11"),
+            }
+        elseif keyword == "key2"
+        then
+            return
+            {
+                dandanplay.DanDanPlayVideoInfo:new("龙樱", "第一集", "11"),
+                dandanplay.DanDanPlayVideoInfo:new("一公升的眼泪", "第一集", "11"),
+                dandanplay.DanDanPlayVideoInfo:new("一公升的眼泪", "第二集", "11"),
+            }
+        end
     end,
 }
 
 classlite.declareClass(MockApp, application.MPVDanmakuLoaderApp)
+
+
+local MockDanmakuSourceFactory =
+{
+    _obtainDanmakuSource = function(self, sourceType)
+        local ret = self:getParent():_obtainDanmakuSource(sourceType)
+        ret.parse = function(self)
+            print(string.format("parse: %s", self:getType()))
+        end
+        return ret
+    end,
+}
+
+classlite.declareClass(MockDanmakuSourceFactory, _source.DanmakuSourceFactory)
 
 
 local MockShell =
@@ -68,13 +99,15 @@ local MockShell =
         local conn = self._mNetworkConnection
         return MockApp:new(cfg, conn)
     end,
+
+    _createDanmakuSourceFactory = function(self)
+        return MockDanmakuSourceFactory:new()
+    end,
 }
 
 classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 
 
-
 local cfg = application.MPVDanmakuLoaderCfg:new()
 local gui = MockShell:new(cfg)
-gui:_onLoadFile()
 gui:_showMain()
