@@ -25,8 +25,9 @@ local __IDanmakuSource =
 {
     parse = constants.FUNC_EMPTY,
     getType = constants.FUNC_EMPTY,
-    getVideoMD5 = constants.FUNC_EMPTY,
     getDate = constants.FUNC_EMPTY,
+    getVideoMD5 = constants.FUNC_EMPTY,
+    getDescription = constants.FUNC_EMPTY,
     serialize = constants.FUNC_EMPTY,
     deserizlie = constants.FUNC_EMPTY,
 }
@@ -57,6 +58,10 @@ local _SRTDanmakuSource =
 
     getType = function(self)
         return _SOURCE_TYPE_SRT
+    end,
+
+    getDescription = function(self)
+        return self._mSRTFilePath
     end,
 }
 
@@ -96,7 +101,6 @@ local __CachedDanmakuSource =
     getVideoMD5 = function(self)
         return self._mVideoMD5
     end,
-
 
     _doParse = constants.FUNC_EMPTY,
 
@@ -253,6 +257,7 @@ local DanmakuSourceFactory =
     _mDanmakuSourcePools    = classlite.declareTableField(),
     __mDeserializeTuple     = classlite.declareTableField(),
     __mFilePaths            = classlite.declareTableField(),
+    __mDanmakuSources       = classlite.declareTableField(),
 
     new = function(self)
         local classes = self._mDanmakuSourceClasses
@@ -317,14 +322,18 @@ local DanmakuSourceFactory =
     _listSRTDanmakuSource = function(self, app, curDir, outList)
         local filePaths = utils.clearTable(self.__mFilePaths)
         app:listFiles(filePaths)
+
+        local function __filter(filePath, pattern)
+            return not filePath:match(pattern)
+        end
+        utils.removeArrayElementsIf(filePaths, _SOURCE_PATTER_SRT_FILE)
+        table.sort(filePaths)
+
         for _, filePath in ipairs(filePaths)
         do
-            if filePath:match(_SOURCE_PATTER_SRT_FILE)
-            then
-                local source = self:_obtainDanmakuSource(_SOURCE_TYPE_SRT)
-                source:_init(filePath)
-                table.insert(outList, source)
-            end
+            local source = self:_obtainDanmakuSource(_SOURCE_TYPE_SRT)
+            source:_init(filePath)
+            utils.pushArrayElement(outList, source)
         end
     end,
 
@@ -335,6 +344,8 @@ local DanmakuSourceFactory =
 
 
     listDanmakuSources = function(self, app, curDir, metaFilePath, outList)
+        -- 读取下载过的弹幕源
+        local danmakuSources = utils.clearTable(self.__mDanmakuSources)
         local function __callback(sourceType, ...)
             local source = self:_obtainDanmakuSource(sourceType)
             if source
@@ -343,30 +354,41 @@ local DanmakuSourceFactory =
                 utils.packArray(tuple, sourceType, ...)
                 if source:deserizlie(app, tuple)
                 then
-                    utils.pushArrayElement(outList, source)
+                    utils.pushArrayElement(danmakuSources, source)
                 else
                     self:_recycleDanmakuSource(source)
                 end
             end
         end
         self:_doDeserializeMetaFile(metaFilePath, __callback)
-        self:_listSRTDanmakuSource(app, app:getSRTFileSearchDirPath(), outList)
 
-
+        -- 按日期降序排序
         local function __cmp(source1, source2)
-            -- 本地的 SRT 字幕是没有时间的
-            local date1 = source1:getDate() or _SOURCE_DATE_SRT
-            local date2 = source2:getDate() or _SOURCE_DATE_SRT
-            if date1 ~= date2
-            then
-                -- 默认按日期排序降序
-                return date1 < date2
-            else
-                -- 比较指针
-                return tostring(source1) < tostring(source2)
-            end
+            local date1 = source1:getDate()
+            local date2 = source2:getDate()
+            return date1 < date2
         end
-        table.sort(outList, __cmp)
+        table.sort(danmakuSources, __cmp)
+
+        -- 优先显示 SRT 字幕
+        self:_listSRTDanmakuSource(app, app:getSRTFileSearchDirPath(), outList)
+        utils.extendArray(outList, danmakuSources)
+    end,
+
+    _doAddCachedDanmakuSource = function(self, sourceType, videoMD5, filePaths, timeOffsets)
+        --TODO
+    end,
+
+    addBiliBiliDanmakuSource = function(self, ...)
+        return self:_doAddCachedDanmakuSource(_SOURCE_TYPE_BILI, ...)
+    end,
+
+    addDanDanPlayDamakuSource = function(self, ...)
+        return self:_doAddCachedDanmakuSource(_SOURCE_TYPE_DDP, ...)
+    end,
+
+    addAcfunDanmakuSource = function(self, ...)
+        return self:_doAddCachedDanmakuSource(_SOURCE_TYPE_ACFUN, ...)
     end,
 }
 

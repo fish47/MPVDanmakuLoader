@@ -161,6 +161,8 @@ local MPVDanmakuLoaderShell =
         local srtDirPath = self:getSRTFileDirPath()
         local danmakuSources = utils.clearTable(self.__mDanmakuSources)
         self._mDanmakuSourceFactory:listSRTDanmakuSources(app, srtDirPath, danmakuSources)
+
+        --TODO
     end,
 
     _showDeleteDanmakuSources = function(self)
@@ -176,6 +178,7 @@ local MPVDanmakuLoaderShell =
         props.windowWidth = sizeSpec and sizeSpec.width
         props.windowHeight = sizeSpec and sizeSpec.height
     end,
+
 
     _showHelp = function(self)
         local uiSizes = self._mUISizes

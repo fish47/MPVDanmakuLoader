@@ -62,23 +62,28 @@ local _MockFileSystemTreeNode =
 classlite.declareClass(_MockFileSystemTreeNode)
 
 
+local __gIsOpenedFileFunc   = types.isOpenedFile
+local __gIsClosedFileFunc   = types.isClosedFile
+
+local function __isOpenedFilePatched(f)
+    f = classlite.isInstanceOf(f, _BridgedFile) and f:getFile() or f
+    return (f)
+end
+
+local function __isClosedFilePatched(f)
+    f = classlite.isInstanceOf(f, _BridgedFile) and f:getFile() or f
+    return __gIsClosedFileFunc(f)
+end
+
+
 local MockFileSystem =
 {
     _mFreeNodes     = classlite.declareTableField(),
     _mRootNode      = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
 
     setup = function(self)
-        local orgIsOpenedFileFunc = types.isOpenedFile
-        types.isOpenedFile = function(f)
-            f = classlite.isInstanceOf(f, _BridgedFile) and f:getFile() or f
-            return orgIsOpenedFileFunc(f)
-        end
-
-        local orgIsClosedFileFunc = types.isClosedFile
-        types.isClosedFile = function(f)
-            f = classlite.isInstanceOf(f, _BridgedFile) and f:getFile() or f
-            return orgIsClosedFileFunc(f)
-        end
+        types.isOpenedFile = __isOpenedFilePatched
+        types.isClosedFile = __isClosedFilePatched
     end,
 
     dispose = function(self)
@@ -229,7 +234,7 @@ local MockFileSystem =
         local dirNode, node = self:_seekToNode(fullPath)
         if dirNode and node
         then
-            utils.removeArrayElement(dirNode.children, node)
+            utils.removeArrayElements(dirNode.children, node)
             self:_doDeleteTreeNode(node)
             return true
         end

@@ -290,13 +290,13 @@ local function pushArrayElement(array, elem)
     end
 end
 
-local function removeArrayElement(array, val)
+local function removeArrayElementsIf(array, func, arg)
     if types.isTable(array)
     then
         local writeIdx = 1
         for i, element in ipairs(array)
         do
-            if element ~= val
+            if not func(element, arg)
             then
                 array[writeIdx] = element
                 writeIdx = writeIdx + 1
@@ -304,6 +304,10 @@ local function removeArrayElement(array, val)
         end
         clearArray(array, writeIdx)
     end
+end
+
+local function removeArrayElements(array, val)
+    removeArrayElementsIf(array, __equals, val)
 end
 
 return
@@ -315,7 +319,8 @@ return
     clearArray                  = clearArray,
     unpackArray                 = unpack or table.unpack,
     extendArray                 = extendArray,
-    removeArrayElement          = removeArrayElement,
+    removeArrayElements         = removeArrayElements,
+    removeArrayElementsIf       = removeArrayElementsIf,
     pushArrayElement            = pushArrayElement,
     popArrayElement             = popArrayElement,
     linearSearchArray           = linearSearchArray,
