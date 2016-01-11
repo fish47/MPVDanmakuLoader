@@ -11,7 +11,7 @@ local UI_STRINGS_CN =
 
         options =
         {
-            add_danmaku             = "添加弹幕源",
+            add_danmaku_src         = "添加弹幕源",
             update_danmaku          = "更新弹幕源",
             generate_ass_file       = "生成弹幕",
             delete_danmaku_cache    = "删除弹幕缓存",
@@ -19,20 +19,25 @@ local UI_STRINGS_CN =
         },
     },
 
-    add_danmaku =
+    add_danmaku_src =
     {
-        title = "添加弹幕"
+        title = "添加弹幕源"
     },
 
-    search_result_bili =
+    add_danmaku_src_bili =
     {
-        title = "BiliBili 视频分集标题",
+        title = "BiliBili 弹幕源",
     },
 
-    search_result_ddp =
+    add_danmaku_src_ddp =
     {
-        title = "弹弹Play 搜索结果",
+        title = "弹弹Play 弹幕源",
         columns = { "影片标题", "分集标题" },
+    },
+
+    add_danmaku_src_acfun =
+    {
+        title = "Acfun 弹幕源",
     },
 
     help =

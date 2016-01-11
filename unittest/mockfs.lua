@@ -103,21 +103,18 @@ local MockFileSystem =
     __doIteratePathElements = function(self, fullPath, findNodeFunc)
         local node = nil
         local parent = node
-        local found = nil
+        local found = true
         for i, path in unportable.iteratePathElements(fullPath)
         do
-            -- 不管是否能尽早得出结果，尽可能走完迭代可减少 table 生成
-            if found == nil or found
+            -- 尽可能走完迭代可减少 table 生成，虽然某些情况下很早就得出结果
+            if found
             then
                 parent, node = findNodeFunc(i, path, parent, node)
                 found = types.toBoolean(node)
             end
         end
 
-        if found
-        then
-            return parent, node
-        end
+        return found and parent, node
     end,
 
     _seekToNode = function(self, fullPath)

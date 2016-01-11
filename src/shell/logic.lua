@@ -67,16 +67,16 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    __showDanDanPlaySearchResult = function(self, keyword)
+    __showDanDanPlaySource = function(self, keyword)
         local uiSizes = self._mUISizes
         local uiStrings = self._mUIStrings
         local props = self._mListBoxProperties
         props:reset()
         self:__initWindowProperties(props, uiSizes.search_result)
-        props.listBoxTitle = uiStrings.search_result_ddp.title
+        props.listBoxTitle = uiStrings.add_danmaku_src_ddp.title
         props.listBoxColumnCount = 2
         props.isMultiSelectable = false
-        utils.appendArrayElements(props.listBoxHeaders, uiStrings.search_result_ddp.columns)
+        utils.appendArrayElements(props.listBoxHeaders, uiStrings.add_danmaku_src_ddp.columns)
 
         local titles = utils.clearTable(self.__mDDPVideoTitles)
         local subtitles = utils.clearTable(self.__mDDPVideoSubtitles)
@@ -100,13 +100,13 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    __showBiliBiliVideoPartNames = function(self, biliVideoID)
+    __showBiliBiliSource = function(self, biliVideoID)
         local uiSizes = self._mUISizes
         local uiStrings = self._mUIStrings
         local props = self._mListBoxProperties
         props:reset()
         self:__initWindowProperties(props, uiSizes.search_result)
-        props.listBoxTitle = uiStrings.search_result_bili.title
+        props.listBoxTitle = uiStrings.add_danmaku_src_bili.title
         props.listBoxColumnCount = 1
         props.isHeaderHidden = true
         props.isMultiSelectable = true
@@ -127,13 +127,18 @@ local MPVDanmakuLoaderShell =
     end,
 
 
+    __showAcfunSource = function(self, specialID)
+        --TODO
+    end,
+
+
     _showAddDanmakuSource = function(self)
         local uiSizes = self._mUISizes
         local uiStrings = self._mUIStrings
         local props = self._mEntryProperties
         props:reset()
         self:__initWindowProperties(props)
-        props.entryTitle = uiStrings.add_danmaku.title
+        props.entryTitle = uiStrings.add_danmaku_src.title
 
         local input = self._mGUIBuilder:showEntry(props)
         if not input
@@ -146,20 +151,19 @@ local MPVDanmakuLoaderShell =
         biliVideoID = biliVideoID or input:match(_SEARCH_PATTERN_BILI_URL)
         if biliVideoID
         then
-            return self:__showBiliBiliVideoPartNames(biliVideoID)
+            return self:__showBiliBiliSource(biliVideoID)
         end
 
         -- 弹弹Play
         local dandanplayKeyword = input:match(_SEARCH_PATTERN_DDP_KEYWORD)
         if dandanplayKeyword
         then
-            return self:__showDanDanPlaySearchResult(dandanplayKeyword)
+            return self:__showDanDanPlaySource(dandanplayKeyword)
         end
 
         -- Acfun
         -- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
         -- http://www.acfun.tv/video/getVideo.aspx?id=1280192
-        --TODO http://www.acfun.tv/v/ac1649563 多P视频
 
         return self:_showAddDanmakuSource(true)
     end,
@@ -209,7 +213,7 @@ local MPVDanmakuLoaderShell =
         props.listBoxTitle = uiStrings.main.title
         props.listBoxColumnCount = 1
         props.isHeaderHidden = true
-        table.insert(props.listBoxElements, uiStrings.main.options.add_danmaku)
+        table.insert(props.listBoxElements, uiStrings.main.options.add_danmaku_src)
         table.insert(props.listBoxElements, uiStrings.main.options.update_danmaku)
         table.insert(props.listBoxElements, uiStrings.main.options.generate_ass_file)
         table.insert(props.listBoxElements, uiStrings.main.options.delete_danmaku_cache)
