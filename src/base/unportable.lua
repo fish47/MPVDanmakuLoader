@@ -382,8 +382,8 @@ local _PATH_ROOT_DIR                    = "/"
 local _PATH_CURRENT_DIR                 = "."
 local _PATH_PARENT_DIR                  = ".."
 local _PATH_PATTERN_ELEMENT             = "[^/]+"
-local _PATH_PATTERN_STARTS_WITH_ROOT    = ""
-local _PATH_PATTERN_ROOT                = "^[/]+$"
+local _PATH_PATTERN_STARTS_WITH_ROOT    = "^/"
+local _PATH_PATTERN_ROOT                = "^/+$"
 
 local function _splitPathElements(fullPath)
     if not types.isString(fullPath)
@@ -455,11 +455,21 @@ end
 
 local function normalizePath(fullPath)
     local paths = _splitPathElements(fullPath)
-    return paths and _joinPathElements(paths) or nil
+    return paths and _joinPathElements(paths)
 end
 
-local function joinPath(fullPath, ...)
-    --TODO
+local function joinPath(dirName, pathName)
+    local paths1 = _splitPathElements(dirName)
+    local paths2 = _splitPathElements(pathName)
+    if paths1 and paths2
+    then
+        local p1 = _joinPathElements(paths1)
+        local p2 = _joinPathElements(paths2)
+        return p1 .. _PATH_SEPERATOR .. p2
+    else
+        utils._recycleTable(paths1)
+        utils._recycleTable(paths2)
+    end
 end
 
 local function splitPath(fullPath)

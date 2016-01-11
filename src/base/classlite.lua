@@ -337,8 +337,8 @@ local function __collectAutoFields(clzDef)
     then
         names = names or {}
         decls = decls or {}
-        utils.extendArray(names, parentFieldNames)
-        utils.extendArray(decls, parentFieldDecls)
+        utils.appendArrayElements(names, parentFieldNames)
+        utils.appendArrayElements(decls, parentFieldDecls)
     end
 
     -- 保证初始化序列与定义顺序相同

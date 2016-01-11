@@ -54,7 +54,7 @@ local MPVDanmakuLoaderApp =
     listFiles = function(self, dir, outList)
         local files = mp.utils.readdir(dir, "files")
         utils.clearTable(outList)
-        utils.extendArray(outList, files)
+        utils.appendArrayElements(outList, files)
     end,
 
     getVideoFilePath = function(self)

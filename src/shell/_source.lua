@@ -89,9 +89,9 @@ local __CachedDanmakuSource =
         self._mDate = os.time()
         self._mVideoMD5 = videoMD5
         utils.clearTable(self._mFilePaths)
-        utils.extendArray(self._mFilePaths, filePaths)
+        utils.appendArrayElements(self._mFilePaths, filePaths)
         utils.clearTable(self._mTimeOffsets)
-        utils.extendArray(self._mTimeOffsets, timeOffsets)
+        utils.appendArrayElements(self._mTimeOffsets, timeOffsets)
     end,
 
     getDate = function(self)
@@ -372,7 +372,7 @@ local DanmakuSourceFactory =
 
         -- 优先显示 SRT 字幕
         self:_listSRTDanmakuSource(app, app:getSRTFileSearchDirPath(), outList)
-        utils.extendArray(outList, danmakuSources)
+        utils.appendArrayElements(outList, danmakuSources)
     end,
 
     _doAddCachedDanmakuSource = function(self, sourceType, videoMD5, filePaths, timeOffsets)

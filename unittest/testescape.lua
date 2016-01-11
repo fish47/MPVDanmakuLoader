@@ -2,10 +2,6 @@ local lu    = require("unittest/luaunit")    --= luaunit lu
 local utils = require("src/base/utils")
 
 
-TestEscapeASSText =
-{
-}
-
 TestEscape =
 {
     __doTest = function(self, func, origin, expected)

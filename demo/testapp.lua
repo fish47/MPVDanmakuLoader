@@ -35,44 +35,49 @@ local MockApp =
         return self._mMockFileSystem:deleteTree(fullPath)
     end,
 
+    listFiles = function(self, dir, outList)
+        self._mMockFileSystem:listFiles(dir, outList)
+    end,
+
 
     getBiliBiliVideoPartNames = function(self, videoID, outNames)
         utils.clearTable(outNames)
         if videoID == "001"
         then
-            utils.extendArray(outNames,
+            utils.appendArrayElements(outNames,
             {
                 "1、分集1",
                 "2、分集2",
             })
         elseif videoID == "002"
         then
-            utils.extendArray(outNames,
+            utils.appendArrayElements(outNames,
             {
                 "1、没有分集"
             })
         end
     end,
 
-    searchDanDanPlayByKeyword = function(self, keyword)
+    getAcfunVideoPartNames = function(self, videoID, outNames)
+        --TODO
+    end,
+
+
+    searchDanDanPlayByKeyword = function(self, keyword, outNames, outSubtitles, outURLs)
         if keyword == "key1"
         then
-            return
-            {
-                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第一集", "11"),
-                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第二集", "11"),
-                dandanplay.DanDanPlayVideoInfo:new("野猪大改造", "第三集", "11"),
-            }
+            utils.appendArrayElements(outNames, { "野猪大改造", "野猪大改造", "野猪大改造" })
+            utils.appendArrayElements(outSubtitles, { "第一集", "第二集", "第三集" })
+            utils.appendArrayElements(outURLs, { "11", "11", "11" })
         elseif keyword == "key2"
         then
-            return
-            {
-                dandanplay.DanDanPlayVideoInfo:new("龙樱", "第一集", "11"),
-                dandanplay.DanDanPlayVideoInfo:new("一公升的眼泪", "第一集", "11"),
-                dandanplay.DanDanPlayVideoInfo:new("一公升的眼泪", "第二集", "11"),
-            }
+            utils.appendArrayElements(outNames, { "龙樱", "一公升的眼泪", "一公升的眼泪" })
+            utils.appendArrayElements(outSubtitles, { "第一集", "第一集", "第二集" })
+            utils.appendArrayElements(outURLs, { "11", "11", "11" })
         end
     end,
+
+    getAcfun
 }
 
 classlite.declareClass(MockApp, application.MPVDanmakuLoaderApp)

@@ -34,6 +34,10 @@ local MPVDanmakuLoaderShell =
     __mDanmakuTimeOffsets   = classlite.declareTableField(),
     __mDanmakuSources       = classlite.declareTableField(),
 
+    __mDDPVideoTitles       = classlite.declareTableField(),
+    __mDDPVideoSubtitles    = classlite.declareTableField(),
+    __mDDPDanmakuURLs       = classlite.declareTableField(),
+
 
     new = function(self, cfg)
         self._mConfiguration = cfg
@@ -72,13 +76,16 @@ local MPVDanmakuLoaderShell =
         props.listBoxTitle = uiStrings.search_result_ddp.title
         props.listBoxColumnCount = 2
         props.isMultiSelectable = false
-        utils.extendArray(props.listBoxHeaders, uiStrings.search_result_ddp.columns)
+        utils.appendArrayElements(props.listBoxHeaders, uiStrings.search_result_ddp.columns)
 
-        local results = self._mApplication:searchDanDanPlayByKeyword(keyword)
-        for _, result in utils.iterateArray(results)
+        local titles = utils.clearTable(self.__mDDPVideoTitles)
+        local subtitles = utils.clearTable(self.__mDDPVideoSubtitles)
+        local danmakuURLs = utils.clearTable(self.__mDDPDanmakuURLs)
+        self._mApplication:searchDanDanPlayByKeyword(keyword, titles, subtitles, danmakuURLs)
+        for i = 1, #titles
         do
-            table.insert(props.listBoxElements, result.videoTitle)
-            table.insert(props.listBoxElements, result.videoSubtitle)
+            table.insert(props.listBoxElements, titles[i])
+            table.insert(props.listBoxElements, subtitles[i])
         end
 
         local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
@@ -106,7 +113,7 @@ local MPVDanmakuLoaderShell =
 
         local videoNames = utils.clearTable(self.__mBiliVideoPartNames)
         self._mApplication:getBiliBiliVideoPartNames(biliVideoID, videoNames)
-        utils.extendArray(props.listBoxElements, videoNames)
+        utils.appendArrayElements(props.listBoxElements, videoNames)
 
         local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
         self._mGUIBuilder:showListBox(props, selectedIndexes)
@@ -152,6 +159,7 @@ local MPVDanmakuLoaderShell =
         -- Acfun
         -- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
         -- http://www.acfun.tv/video/getVideo.aspx?id=1280192
+        --TODO http://www.acfun.tv/v/ac1649563 多P视频
 
         return self:_showAddDanmakuSource(true)
     end,

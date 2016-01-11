@@ -86,6 +86,12 @@ local MockFileSystem =
         types.isClosedFile = __isClosedFilePatched
     end,
 
+    unsetup = function(self)
+        types.isOpenedFile = __gIsOpenedFileFunc
+        types.isClosedFile = __gIsClosedFileFunc
+    end,
+
+
     dispose = function(self)
         self:_doDeleteTreeNode(self._mRootNode)
         for _, node in ipairs(self._mFreeNodes)
@@ -237,6 +243,23 @@ local MockFileSystem =
             utils.removeArrayElements(dirNode.children, node)
             self:_doDeleteTreeNode(node)
             return true
+        end
+        return false
+    end,
+
+    listFiles = function(self, dir, outList)
+        utils.clearTable(outList)
+        local _, node = self:_seekToNode(dir)
+        if node and node:isDir()
+        then
+            for _, child in ipairs(node.children)
+            do
+                if child:isFile()
+                then
+                    local fullPath = unportable.joinPath(dir, child.name)
+                    table.insert(outList, fullPath)
+                end
+            end
         end
         return false
     end,

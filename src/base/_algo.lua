@@ -5,6 +5,10 @@ local function __equals(val1, val2)
     return val1 == val2
 end
 
+local function __true()
+    return true
+end
+
 
 local function clearTable(tbl)
     if types.isTable(tbl)
@@ -66,15 +70,22 @@ local function mergeTable(destTbl, srcTbl, isJustMergeMissed)
 end
 
 
-local function extendArray(destArray, srcArray)
+local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
     if types.isTable(destArray) and types.isTable(srcArray)
     then
         for _, v in ipairs(srcArray)
         do
-            table.insert(destArray, v)
+            if not filterFunc(v, arg)
+            then
+                table.insert(destArray, v)
+            end
         end
     end
-    return destArray
+end
+
+
+local function appendArrayElements(destArray, srcArray)
+    appendArrayElementsIf(destArray, srcArray, __true)
 end
 
 
@@ -142,12 +153,13 @@ end
 
 
 local function __doIteratePairsArray(array, idx)
-    if idx + 1 > #array
+    local nextIdx = idx and idx + 2 or 1
+    if nextIdx > #array
     then
         return nil
     end
 
-    return idx + 2, array[idx], array[idx + 1]
+    return nextIdx, array[nextIdx], array[nextIdx + 1]
 end
 
 local function iteratePairsArray(array, startIdx)
@@ -156,7 +168,7 @@ local function iteratePairsArray(array, startIdx)
         return constants.FUNC_EMPTY
     end
 
-    return __doIteratePairsArray, array, startIdx or 1
+    return __doIteratePairsArray, array, startIdx
 end
 
 
@@ -318,7 +330,8 @@ return
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,
     unpackArray                 = unpack or table.unpack,
-    extendArray                 = extendArray,
+    appendArrayElements         = appendArrayElements,
+    appendArrayElementsIf       = appendArrayElementsIf,
     removeArrayElements         = removeArrayElements,
     removeArrayElementsIf       = removeArrayElementsIf,
     pushArrayElement            = pushArrayElement,
