@@ -8,7 +8,9 @@ local uiconstants   = require("src/shell/uiconstants")
 
 
 local _SEARCH_PATTERN_BILI_AV       = "%s*av(%d+)%s*"
-local _SEARCH_PATTERN_BILI_URL      = ".*www%.bilbili%..*/av(%d+)"
+local _SEARCH_PATTERN_BILI_URL      = ".*www%.bilbili%..*/av(%d+).*"
+local _SEARCH_PATTERN_ACFUN_AC      = "%s*ac(%d+)%s*"
+local _SEARCH_PATTERN_ACFUN_URL     = ".*www%.acfun%..*/v/ac(%d+).*"
 local _SEARCH_PATTERN_DDP_KEYWORD   = "ddp:%s*(.+)%s*"
 
 
@@ -29,7 +31,7 @@ local MPVDanmakuLoaderShell =
 
 
     __mSelectedIndexes      = classlite.declareTableField(),
-    __mBiliVideoPartNames   = classlite.declareTableField(),
+    __mVideoPartNames       = classlite.declareTableField(),
     __mDanmakuFilePaths     = classlite.declareTableField(),
     __mDanmakuTimeOffsets   = classlite.declareTableField(),
     __mDanmakuSources       = classlite.declareTableField(),
@@ -100,35 +102,48 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    __showBiliBiliSource = function(self, biliVideoID)
+    __doShowGenericDanmakuSource = function(self,
+                                            title,
+                                            getVidePartNamesFunc,
+                                            videoID)
         local uiSizes = self._mUISizes
         local uiStrings = self._mUIStrings
         local props = self._mListBoxProperties
         props:reset()
         self:__initWindowProperties(props, uiSizes.search_result)
-        props.listBoxTitle = uiStrings.add_danmaku_src_bili.title
+        props.listBoxTitle = title
         props.listBoxColumnCount = 1
         props.isHeaderHidden = true
         props.isMultiSelectable = true
 
-        local videoNames = utils.clearTable(self.__mBiliVideoPartNames)
-        self._mApplication:getBiliBiliVideoPartNames(biliVideoID, videoNames)
+        local videoNames = utils.clearTable(self.__mVideoPartNames)
+        getVidePartNamesFunc(self, videoID, videoNames)
         utils.appendArrayElements(props.listBoxElements, videoNames)
 
         local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
         self._mGUIBuilder:showListBox(props, selectedIndexes)
+
         if types.isNilOrEmpty(selectedIndexes)
         then
             return self:_showAddDanmakuSource()
         end
 
-        --TODO
+        --TODO 时间偏移
         return self:_showAddDanmakuSource()
     end,
 
 
-    __showAcfunSource = function(self, specialID)
-        --TODO
+    __showBiliBiliSource = function(self, videoID)
+        return self:__doShowGenericDanmakuSource(self._mUIStrings.add_danmaku_src_bili.title,
+                                                 self._mApplication.getBiliBiliVideoPartNames,
+                                                 videoID)
+    end,
+
+
+    __showAcfunSource = function(self, videoID)
+        return self:__doShowGenericDanmakuSource(self._mUIStrings.add_danmaku_src_acfun.title,
+                                                 self._mApplication.getAcfunVideoPartNames,
+                                                 videoID)
     end,
 
 
@@ -154,16 +169,23 @@ local MPVDanmakuLoaderShell =
             return self:__showBiliBiliSource(biliVideoID)
         end
 
+        -- Acfun
+        local acfunVideoID = input:match(_SEARCH_PATTERN_ACFUN_AC)
+        acfunVideoID = acfunVideoID or input:match(_SEARCH_PATTERN_ACFUN_URL)
+        if acfunVideoID
+        then
+            --TODO
+            -- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
+            -- http://www.acfun.tv/video/getVideo.aspx?id=1280192
+            return self:__showAcfunSource(acfunVideoID)
+        end
+
         -- 弹弹Play
         local dandanplayKeyword = input:match(_SEARCH_PATTERN_DDP_KEYWORD)
         if dandanplayKeyword
         then
             return self:__showDanDanPlaySource(dandanplayKeyword)
         end
-
-        -- Acfun
-        -- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
-        -- http://www.acfun.tv/video/getVideo.aspx?id=1280192
 
         return self:_showAddDanmakuSource(true)
     end,

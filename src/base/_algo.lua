@@ -75,7 +75,7 @@ local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
     then
         for _, v in ipairs(srcArray)
         do
-            if not filterFunc(v, arg)
+            if filterFunc(v, arg)
             then
                 table.insert(destArray, v)
             end

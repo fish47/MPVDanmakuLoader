@@ -59,7 +59,21 @@ local MockApp =
     end,
 
     getAcfunVideoPartNames = function(self, videoID, outNames)
-        --TODO
+        utils.clearTable(outNames)
+        if videoID == "001"
+        then
+            utils.appendArrayElements(outNames,
+            {
+                "1、分集1",
+                "2、分集2",
+            })
+        elseif videoID == "002"
+        then
+            utils.appendArrayElements(outNames,
+            {
+                "1、没有分集"
+            })
+        end
     end,
 
 
@@ -76,8 +90,6 @@ local MockApp =
             utils.appendArrayElements(outURLs, { "11", "11", "11" })
         end
     end,
-
-    getAcfun
 }
 
 classlite.declareClass(MockApp, application.MPVDanmakuLoaderApp)

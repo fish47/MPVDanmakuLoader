@@ -50,7 +50,7 @@ local _SRTDanmakuSource =
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            local _, fileName = app:splitPath(self._mSRTFilePath)
+            local _, fileName = unportable.splitPath(self._mSRTFilePath)
             srt.parseSRTFile(cfg, pool, file, string.format(_SOURCE_FMT_SRT, fileName))
             file:close()
         end

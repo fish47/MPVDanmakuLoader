@@ -43,14 +43,6 @@ local MPVDanmakuLoaderApp =
         mp.commandv("sub_add ", path)
     end,
 
-    splitPath = function(self, path)
-        return mp.utils.split_path(path)
-    end,
-
-    joinPath = function(self, p1, p2)
-        return mp.utils.join_path(p1, p2)
-    end,
-
     listFiles = function(self, dir, outList)
         local files = mp.utils.readdir(dir, "files")
         utils.clearTable(outList)
@@ -70,21 +62,21 @@ local MPVDanmakuLoaderApp =
     end,
 
     _getPrivateDirPath = function(self)
-        local dir = self:splitPath(self:getVideoFilePath())
-        return self:joinPath(dir, ".danmakuloader")
+        local dir = unportable.splitPath(self:getVideoFilePath())
+        return unportable.joinPath(dir, ".danmakuloader")
     end,
 
     getSRTFileSearchDirPath = function(self)
-        local dir = self:splitPath(self:getVideoFilePath())
+        local dir = unportable.splitPath(self:getVideoFilePath())
         return dir
     end,
 
     getDanmakuSourceRawDataDirPath = function(self)
-        return self:joinPath(self:_getPrivateDirPath(), "rawdata")
+        return unportable.joinPath(self:_getPrivateDirPath(), "rawdata")
     end,
 
     getDanmakuSourceMetaFilePath = function(self)
-        return self:joinPath(self:_getPrivateDirPath(), "meta.lua")
+        return unportable.joinPath(self:_getPrivateDirPath(), "meta.lua")
     end,
 }
 

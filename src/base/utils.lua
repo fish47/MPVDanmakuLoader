@@ -76,6 +76,15 @@ local function __createSafeInvokeWrapper(funcName)
 end
 
 
+local function writeAndCloseFile(f, content)
+    if types.isOpenedFile(f)
+    then
+        f:write(content)
+        f:close()
+    end
+end
+
+
 local function readAndCloseFile(f)
     if types.isOpenedFile(f)
     then
@@ -92,6 +101,7 @@ local __exports =
     closeSafely         = __createSafeInvokeWrapper("close"),
     disposeSafely       = __createSafeInvokeWrapper("dispose"),
 
+    writeAndCloseFile   = writeAndCloseFile,
     readAndCloseFile    = readAndCloseFile,
     getUniqueFilePath   = getUniqueFilePath,
 }
