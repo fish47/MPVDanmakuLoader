@@ -59,35 +59,44 @@ local MockApp =
     end,
 
     getAcfunVideoPartNames = function(self, videoID, outNames)
-        utils.clearTable(outNames)
-        if videoID == "001"
-        then
-            utils.appendArrayElements(outNames,
-            {
-                "1、分集1",
-                "2、分集2",
-            })
-        elseif videoID == "002"
-        then
-            utils.appendArrayElements(outNames,
-            {
-                "1、没有分集"
-            })
+        return self:getBiliBiliVideoPartNames(videoID, outNames)
+    end,
+
+    getBiliBiliVideoDurations = function(self, videoID, partIndexes, outDurations)
+        local partCount = types.isTable(partIndexes) and #partIndexes or 0
+        for i = 1, partCount
+        do
+            utils.pushArrayElement(outDurations, math.random(10, 100))
         end
     end,
 
+    getAcfunVideoDurations = function(self, videoID, partIndexes, outDurations)
+        return self:getBiliBiliVideoDurations(videoID, partIndexes, outDurations)
+    end,
+
+    downloadBiliBiliDanmakuRawDatas = function(self, videoID, partIndexes, danmakuDir, outFilePaths)
+        --TODO
+    end,
+
+    downloadAcfunDanmakuRawDatas = function(self, videoID, partIndexes, danmakuDir, outFilePaths)
+        --TODO
+    end,
+
+    getVideoMD5 = function(self)
+        return string.rep("1", 32)
+    end,
 
     searchDanDanPlayByKeyword = function(self, keyword, outNames, outSubtitles, outURLs)
         if keyword == "key1"
         then
             utils.appendArrayElements(outNames, { "野猪大改造", "野猪大改造", "野猪大改造" })
             utils.appendArrayElements(outSubtitles, { "第一集", "第二集", "第三集" })
-            utils.appendArrayElements(outURLs, { "11", "11", "11" })
+            utils.appendArrayElements(outURLs, { "u1", "u2", "u3" })
         elseif keyword == "key2"
         then
             utils.appendArrayElements(outNames, { "龙樱", "一公升的眼泪", "一公升的眼泪" })
             utils.appendArrayElements(outSubtitles, { "第一集", "第一集", "第二集" })
-            utils.appendArrayElements(outURLs, { "11", "11", "11" })
+            utils.appendArrayElements(outURLs, { "u4", "u5", "u6" })
         end
     end,
 }

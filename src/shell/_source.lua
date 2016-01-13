@@ -30,6 +30,8 @@ local __IDanmakuSource =
     getDescription = constants.FUNC_EMPTY,
     serialize = constants.FUNC_EMPTY,
     deserizlie = constants.FUNC_EMPTY,
+
+    delete = constants.FUNC_EMPTY,
 }
 
 classlite.declareClass(__IDanmakuSource)

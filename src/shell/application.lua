@@ -31,6 +31,10 @@ local MPVDanmakuLoaderApp =
         self._mNetworkConnection = conn
     end,
 
+    _onLoadFile = function(self)
+        --TODO
+    end,
+
     getConfiguration = function(self)
         return self._mConfiguration
     end,
@@ -47,6 +51,10 @@ local MPVDanmakuLoaderApp =
         local files = mp.utils.readdir(dir, "files")
         utils.clearTable(outList)
         utils.appendArrayElements(outList, files)
+    end,
+
+    getVideoMD5 = function(self)
+        --TODO
     end,
 
     getVideoFilePath = function(self)
