@@ -39,6 +39,21 @@ local MockApp =
         self._mMockFileSystem:listFiles(dir, outList)
     end,
 
+    getVideoMD5 = function(self)
+        return string.rep("1", 32)
+    end,
+
+    getVideoWidth = function(self)
+        return 800
+    end,
+
+    getVideoHeight = function(self)
+        return 600
+    end,
+
+    downloadDanmakuRawDatas = function(self, urls, filePaths)
+        --TODO
+    end,
 
     getBiliBiliVideoPartNames = function(self, videoID, outNames)
         utils.clearTable(outNames)
@@ -72,18 +87,6 @@ local MockApp =
 
     getAcfunVideoDurations = function(self, videoID, partIndexes, outDurations)
         return self:getBiliBiliVideoDurations(videoID, partIndexes, outDurations)
-    end,
-
-    downloadBiliBiliDanmakuRawDatas = function(self, videoID, partIndexes, danmakuDir, outFilePaths)
-        --TODO
-    end,
-
-    downloadAcfunDanmakuRawDatas = function(self, videoID, partIndexes, danmakuDir, outFilePaths)
-        --TODO
-    end,
-
-    getVideoMD5 = function(self)
-        return string.rep("1", 32)
     end,
 
     searchDanDanPlayByKeyword = function(self, keyword, outNames, outSubtitles, outURLs)

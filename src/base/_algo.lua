@@ -92,7 +92,6 @@ end
 local function packArray(array, ...)
     if types.isTable(array)
     then
-        clearArray(array)
         for i = 1, types.getVarArgCount(...)
         do
             table.insert(array, select(i, ...))

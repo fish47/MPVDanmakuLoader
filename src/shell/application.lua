@@ -22,25 +22,8 @@ classlite.declareClass(MPVDanmakuLoaderCfg)
 
 local MPVDanmakuLoaderApp =
 {
-    _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
-    _mConfiguration         = classlite.declareConstantField(nil),
-    _mNetworkConnection     = classlite.declareConstantField(nil),
-
-    new = function(self, cfg, conn)
-        self._mConfiguration = cfg
-        self._mNetworkConnection = conn
-    end,
-
     _onLoadFile = function(self)
         --TODO
-    end,
-
-    getConfiguration = function(self)
-        return self._mConfiguration
-    end,
-
-    getDanmakuPools = function(self)
-        return self._mDanmakuPools
     end,
 
     setSubtitle = function(self, path)

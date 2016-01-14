@@ -2,7 +2,7 @@ local utils         = require("src/base/utils")
 local types         = require("src/base/types")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
-local _source       = require("src/shell/_source")
+local source        = require("src/shell/source")
 local application   = require("src/shell/application")
 local uiconstants   = require("src/shell/uiconstants")
 
@@ -68,7 +68,7 @@ local MPVDanmakuLoaderShell =
     end,
 
     _createDanmakuSourceFactory = function(self)
-        return _source.DanmakuSourceFactory:new()
+        return source.DanmakuSourceFactory:new()
     end,
 
 
