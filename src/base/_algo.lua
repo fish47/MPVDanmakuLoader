@@ -275,6 +275,14 @@ local function reverseIterateArray(array)
     return __doReverseIterateArrayImpl, array, #array
 end
 
+local function iterateTable(tbl)
+    if not types.isTable(tbl)
+    then
+        return constants.FUNC_EMPTY
+    end
+    return pairs(tbl)
+end
+
 local function iterateArray(array)
     if not types.isTable(array)
     then
@@ -317,8 +325,16 @@ local function removeArrayElementsIf(array, func, arg)
     end
 end
 
-local function removeArrayElements(array, val)
+local function removeArrayElement(array, val)
     removeArrayElementsIf(array, __equals, val)
+end
+
+local function forEachArrayElement(array, func, arg)
+    --TODO
+end
+
+local function forEachTableValue(tbl, func, arg)
+    --TODO
 end
 
 return
@@ -338,9 +354,12 @@ return
     linearSearchArray           = linearSearchArray,
     linearSearchArrayIf         = linearSearchArrayIf,
     binarySearchArrayIf         = binarySearchArrayIf,
+    iterateTable                = iterateTable,
     iterateArray                = iterateArray,
     reverseIterateArray         = reverseIterateArray,
     iteratePairsArray           = iteratePairsArray,
+    forEachArrayElement         = forEachArrayElement,
+    forEachTableValue           = forEachTableValue,
     sortParallelArrays          = sortParallelArrays,
     fillArrayWithAscNumbers     = fillArrayWithAscNumbers,
 }

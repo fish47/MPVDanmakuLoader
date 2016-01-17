@@ -31,20 +31,48 @@ local __gFieldDeclarations      = {}
 local __gFieldDeclartionID      = 0
 
 
+local function isInstanceOf(obj, clz)
+    local getClassFunc = types.isTable(obj) and obj[_METHOD_NAME_GET_CLASS]
+    local objClz = getClassFunc and getClassFunc(obj) or nil
+    if not objClz
+    then
+        return false
+    end
+
+    local iterClz = clz
+    while iterClz
+    do
+        if iterClz == objClz
+        then
+            return true
+        end
+
+        iterClz = __gParentClasses[iterClz]
+    end
+    return false
+end
+
+
 local function __constructConstantField(obj, name, decl)
-    obj[name] = decl[_FIELD_DECL_KEY_FIRST_ARG]
+    local field = decl[_FIELD_DECL_KEY_FIRST_ARG]
+    obj[name] = field
+    return field
 end
 
 local function __constructTableField(obj, name, decl)
-    obj[name] = {}
+    local field = {}
+    obj[name] = field
+    return field
 end
 
 local function __constructClassField(obj, name, decl)
     local classType = decl[_FIELD_DECL_KEY_FIRST_ARG]
     local constructor = classType[_METHOD_NAME_CONSTRUCT]
-    obj[name] = constructor(classType,
-                            select(_FIELD_DECL_KEY_CLASS_ARGS_START,
-                                   utils.unpackArray(decl)))
+    local field = constructor(classType,
+                              select(_FIELD_DECL_KEY_CLASS_ARGS_START,
+                                     utils.unpackArray(decl)))
+    obj[name] = field
+    return field
 end
 
 
@@ -77,33 +105,58 @@ local _AUTO_DECONSTRUCTORS =
 local _AUTO_ASSIGNERS =
 {
     [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
-        if arg ~= nil
+        -- 优先初始化为非空值
+        if types.isNil(arg)
         then
-            obj[name] = arg
+            __constructConstantField(obj, name, decl)
         else
-            __constructConstantField(obj, name, decl, arg)
+            obj[name] = arg
         end
     end,
 
     [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl, arg)
-        if types.isTable(arg)
-        then
-            obj[name] = arg
-        else
-            __constructTableField(obj, name, decl, arg)
-        end
+        local field = __constructTableField(obj, name, decl)
+        utils.appendArrayElements(field, arg)
     end,
 
     [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
-        if types.isTable(arg)
+        local field = __constructClassField(obj, name, decl)
+        if isInstanceOf(arg, field[_METHOD_NAME_GET_CLASS](field))
         then
-            obj[name] = arg
-        else
-            __constructClassField(obj, name, decl, arg)
+            arg[_METHOD_NAME_CLONE](arg, field)
         end
     end,
 }
 
+
+local _AUTO_CLONERS =
+{
+    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
+        obj[name] = arg
+    end,
+
+    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl, arg)
+        local field = utils.clearTable(obj[name])
+        if not field
+        then
+            field = {}
+            obj[name] = field
+        end
+        utils.appendArrayElements(field, arg)
+    end,
+
+    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
+        local field = obj[name]
+        if not field
+        then
+            field = __constructClassField(obj, name, decl)
+        end
+        if isInstanceOf(arg, field[_METHOD_NAME_GET_CLASS](field))
+        then
+            arg[_METHOD_NAME_CLONE](arg, field)
+        end
+    end,
+}
 
 
 local function __doDeclareField(fieldType, ...)
@@ -128,7 +181,7 @@ end
 
 local function _newInstance(obj)
     local mt = obj and __gMetatables[obj]
-    if mt ~= nil
+    if types.isTable(mt)
     then
         -- 如果以 ClazDefObj:new() 的形式调用，第一个参数就是指向 Class 本身
         local ret = {}
@@ -243,22 +296,40 @@ end
 
 local function _createCloneConstructor(clzDef)
     local fieldNames = __gFieldNames[clzDef]
+    local fieldDecls = __gFieldDeclarations[clzDef]
     local baseClz = __gParentClasses[clzDef]
     local baseCloneConstructor = baseClz and baseClz[_METHOD_NAME_CLONE]
     local cloneConstructor = clzDef[_METHOD_NAME_CLONE] or baseCloneConstructor
 
-    -- 外部调用时，不要用第二个参数
     local ret = function(self, cloneObj)
+        if self == cloneObj
+        then
+            return self
+        end
+
+        local shouldCloneFields = false
         if not cloneObj
         then
-            -- 深克隆要自己实现
             local _, newObj = _newInstance(clzDef)
             cloneObj = newObj
-            if fieldNames
-            then
-                for _, name in ipairs(fieldNames)
-                do
-                    cloneObj[name] = self[name]
+            shouldCloneFields = true
+        elseif cloneObj[_METHOD_NAME_GET_CLASS](cloneObj) == clzDef
+        then
+            shouldCloneFields = true
+        end
+
+        -- 深克隆要自己实现
+        if shouldCloneFields and fieldNames
+        then
+            for i = 1, #fieldNames
+            do
+                local fieldName = fieldNames[i]
+                local fieldDecl = fieldDecls[i]
+                local declType = fieldDecl[_FIELD_DECL_KEY_TYPE]
+                local func = _AUTO_CLONERS[declType]
+                if func
+                then
+                    func(cloneObj, fieldName, fieldDecl, self[fieldName])
                 end
             end
         end
@@ -337,8 +408,16 @@ local function __collectAutoFields(clzDef)
     then
         names = names or {}
         decls = decls or {}
-        utils.appendArrayElements(names, parentFieldNames)
-        utils.appendArrayElements(decls, parentFieldDecls)
+
+        -- 注意被覆盖的父类字段
+        for i, parentFieldName in ipairs(parentFieldNames)
+        do
+            if not utils.linearSearchArray(names, parentFieldName)
+            then
+                table.insert(names, parentFieldName)
+                table.insert(decls, parentFieldDecls[i])
+            end
+        end
     end
 
     -- 保证初始化序列与定义顺序相同
@@ -411,27 +490,6 @@ end
 
 local function iterateClassFields(clzDef)
     return __doIterateClassFields, clzDef, 0
-end
-
-local function isInstanceOf(obj, clz)
-    local getClassFunc = types.isTable(obj) and obj[_METHOD_NAME_GET_CLASS]
-    local objClz = getClassFunc and getClassFunc(obj) or nil
-    if not objClz
-    then
-        return false
-    end
-
-    local iterClz = clz
-    while iterClz
-    do
-        if iterClz == objClz
-        then
-            return true
-        end
-
-        iterClz = __gParentClasses[iterClz]
-    end
-    return false
 end
 
 

@@ -202,13 +202,13 @@ local function __createBuilderMethod(...)
                 argIdx = argIdx + 1
             end
 
-            if val
+            if types.isNil(val)
             then
-                table.insert(self._mContent, val)
-            else
-                --TODO warning
+                -- 只要有一次返回空值，就取消本次写操作
                 utils.clearArray(self._mContent, contentLastIdxBak + 1)
                 break
+            else
+                table.insert(self._mContent, val)
             end
         end
 
@@ -233,7 +233,11 @@ local DialogueBuilder =
         self._mDefaultFontSize = defaultFontSize
     end,
 
-    flush = function(self, f)
+    clear = function(self)
+        utils.clearTable(self._mContent)
+    end,
+
+    flushContent = function(self, f)
         local content = self._mContent
         local contentLen = #content
         for i = 1, contentLen

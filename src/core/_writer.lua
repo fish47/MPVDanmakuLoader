@@ -1,7 +1,9 @@
+local utf8      = require("src/base/utf8")
+local utils     = require("src/base/utils")
+local constants = require("src/base/constants")
+local classlite = require("src/base/classlite")
 local _ass      = require("src/core/_ass")
 local _poscalc  = require("src/core/_poscalc")
-local utf8      = require("src/base/utf8")
-local constants = require("src/base/constants")
 
 
 local function _measureDanmakuText(text, fontSize)
@@ -60,79 +62,89 @@ local function __writeBottomSubtitlePos(cfg, screenW, screenH, b, w, y)
 end
 
 
-local function writeDanmakus(pools, cfg, screenW, screenH, f)
-    local stageW = screenW
-    local stageH = math.max(screenH - cfg.bottomReserved, 1)
-
-    local calculators =
-    {
-        [_ass.LAYER_MOVING_L2R]     = _poscalc.Moving_poscalculator:new(stageW, stageH),
-        [_ass.LAYER_MOVING_R2L]     = _poscalc.Moving_poscalculator:new(stageW, stageH),
-        [_ass.LAYER_STATIC_TOP]     = _poscalc.Static_poscalculator:new(stageW, stageH),
-        [_ass.LAYER_STATIC_BOTTOM]  = _poscalc.Static_poscalculator:new(stageW, stageH),
-        [_ass.LAYER_ADVANCED]       = nil,
-        [_ass.LAYER_SUBTITLE]       = _poscalc.Static_poscalculator:new(stageW, screenH),
-    }
-
-    local writePosFuncs =
-    {
-        [_ass.LAYER_MOVING_L2R]     = __writeMovingL2RPos,
-        [_ass.LAYER_MOVING_R2L]     = __writeMovingR2LPos,
-        [_ass.LAYER_STATIC_TOP]     = __writeStaticTopPos,
-        [_ass.LAYER_STATIC_BOTTOM]  = __writeStaticBottomPos,
-        [_ass.LAYER_ADVANCED]       = nil,
-        [_ass.LAYER_SUBTITLE]       = __writeBottomSubtitlePos,
-    }
+local DanmakuWriter =
+{
+    _mCalculators       = classlite.declareTableField(),
+    _mWritePosFunctions = classlite.declareTableField(),
+    _mDialogueBuilder   = classlite.declareClassField(_ass.DialogueBuilder),
 
 
-    _ass.writeScriptInfo(f, screenW, screenH)
-    _ass.writeStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize)
-    _ass.writeEvents(f)
+    new = function(self)
+        local calcs = self._mCalculators
+        calcs[_ass.LAYER_MOVING_L2R]    = _poscalc.Moving_poscalculator:new()
+        calcs[_ass.LAYER_MOVING_R2L]    = _poscalc.Moving_poscalculator:new()
+        calcs[_ass.LAYER_STATIC_TOP]    = _poscalc.Static_poscalculator:new()
+        calcs[_ass.LAYER_STATIC_BOTTOM] = _poscalc.Static_poscalculator:new()
+        calcs[_ass.LAYER_SUBTITLE]      = _poscalc.Static_poscalculator:new()
 
-    local builder = _ass.DialogueBuilder:new()
-    builder:setDefaultFontColor(cfg.danmakuFontColor)
-    builder:setDefaultFontSize(cfg.danmakuFontSize)
+        local posFuncs = self._mWritePosFunctions
+        posFuncs[_ass.LAYER_MOVING_L2R]     = __writeMovingL2RPos
+        posFuncs[_ass.LAYER_MOVING_R2L]     = __writeMovingR2LPos
+        posFuncs[_ass.LAYER_STATIC_TOP]     = __writeStaticTopPos
+        posFuncs[_ass.LAYER_STATIC_BOTTOM]  = __writeStaticBottomPos
+        posFuncs[_ass.LAYER_SUBTITLE]       = __writeBottomSubtitlePos
+    end,
 
-    for layer, calc in pairs(calculators)
-    do
-        local writePosFunc = writePosFuncs[layer]
-        local pool = cfg.pools:getDanmakuPoolByLayer(layer)
-        pool:sortDanmakusByStartTime()
 
-        local prevDanmakuID = nil
-        local danmakuCount = pool:getDanmakuCount()
-        for i = 1, danmakuCount
+    dispose = function(self)
+        utils.forEachTableValue(self._mCalculators, utils.disposeSafely)
+    end,
+
+
+    writeDanmakus = function(self, pools, cfg, screenW, screenH, f)
+        local stageW = screenW
+        local stageH = math.max(screenH - cfg.bottomReserved, 1)
+
+        _ass.writeScriptInfo(f, screenW, screenH)
+        _ass.writeStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize)
+        _ass.writeEvents(f)
+
+        local builder = self._mDialogueBuilder
+        builder:clear()
+        builder:setDefaultFontColor(cfg.danmakuFontColor)
+        builder:setDefaultFontSize(cfg.danmakuFontSize)
+
+        local calculators = self._mCalculators
+        local writePosFuncs = self._mWritePosFunctions
+        for layer, calc in pairs(calculators)
         do
-            local start, life, color, size, danmakuID, text = pool:getSortedDanmakuAt(i)
-            if not prevDanmakuID or prevDanmakuID ~= danmakuID
-            then
-                prevDanmakuID = danmakuID
+            local writePosFunc = writePosFuncs[layer]
+            local pool = pools:getDanmakuPoolByLayer(layer)
+            pool:sortDanmakusByStartTime()
+            calc:init(screenW, screenH)
 
-                local w, h = _measureDanmakuText(text, size)
-                local y = calc:calculate(w, h, start, life)
+            --TODO ID
+            local prevDanmakuID = nil
+            local danmakuCount = pool:getDanmakuCount()
+            for i = 1, danmakuCount
+            do
+                local start, life, color, size, danmakuID, text = pool:getSortedDanmakuAt(i)
+                if not prevDanmakuID or prevDanmakuID ~= danmakuID
+                then
+                    prevDanmakuID = danmakuID
 
-                builder:startDialogue(layer, start, start + life)
-                builder:startStyle()
-                builder:addFontColor(color)
-                builder:addFontSize(size)
-                writePosFunc(cfg, builder, screenW, screenH, w, y)
-                builder:endStyle()
-                builder:addText(text)
-                builder:endDialogue()
-                builder:flush(f)
+                    local w, h = _measureDanmakuText(text, size)
+                    local y = calc:calculate(w, h, start, life)
+
+                    builder:startDialogue(layer, start, start + life)
+                    builder:startStyle()
+                    builder:addFontColor(color)
+                    builder:addFontSize(size)
+                    writePosFunc(cfg, builder, screenW, screenH, w, y)
+                    builder:endStyle()
+                    builder:addText(text)
+                    builder:endDialogue()
+                    builder:flushContent(f)
+                end
             end
         end
+    end,
+}
 
-        calc:dispose()
-        calculators[layer] = nil
-        writePosFuncs[layer] = nil
-    end
-
-    builder:dispose()
-end
+classlite.declareClass(DanmakuWriter)
 
 
 return
 {
-    writeDanmakus   = writeDanmakus,
+    DanmakuWriter   = DanmakuWriter,
 }

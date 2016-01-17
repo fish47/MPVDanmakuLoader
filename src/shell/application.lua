@@ -22,6 +22,22 @@ classlite.declareClass(MPVDanmakuLoaderCfg)
 
 local MPVDanmakuLoaderApp =
 {
+    _mConfiguration     = classlite.declareClassField(MPVDanmakuLoaderCfg),
+    _mDanmakuPools      = classlite.declareClassField(danmaku.DanmakuPools),
+    _mNetworkConnection = classlite.declareClassField(unportable.CURLNetworkConnection),
+
+    getConfiguration = function(self)
+        return self._mConfiguration
+    end,
+
+    getDanmakuPools = function(self)
+        return self._mDanmakuPools
+    end,
+
+    getNetworkConnection = function(self)
+        return self._mNetworkConnection
+    end,
+
     _onLoadFile = function(self)
         --TODO
     end,
@@ -38,6 +54,10 @@ local MPVDanmakuLoaderApp =
 
     getVideoMD5 = function(self)
         --TODO
+    end,
+
+    getCurrentDateTime = function(self)
+        return os.time()
     end,
 
     getVideoFilePath = function(self)

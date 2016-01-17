@@ -1,3 +1,4 @@
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
 
@@ -94,7 +95,7 @@ __readSubtitleContent = function(cfg, pool, f, line,
         while true
         do
             line = __readLine(f)
-            hasMoreLine = line ~= nil
+            hasMoreLine = types.isString(line)
             if not line or line == _SRT_SEP_SUBTITLE
             then
                 break

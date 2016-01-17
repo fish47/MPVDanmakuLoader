@@ -1,4 +1,5 @@
 local lu        = require("unittest/luaunit")    --= luaunit lu
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local _poscalc  = require("src/core/_poscalc")
 
@@ -145,7 +146,7 @@ TestPosCalculator =
         local function __doAssertAreaHeights(calc, heights)
             local area = calc._mDanmakuAreas
             local calcHeightList = {}
-            while area ~= nil
+            while area
             do
                 table.insert(calcHeightList, area.height)
                 area = area._next
@@ -156,7 +157,8 @@ TestPosCalculator =
 
         local function __doTest(heights, areaBounds, assertHeights)
             local addTop, addBottom = table.unpack(areaBounds)
-            local calc = _poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
+            local calc = _poscalc.MovingPosCalculator:new()
+            calc:init(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
             __doAddArea(calc, addTop, addBottom)
             __doAssertAreaHeights(calc, assertHeights)
@@ -173,14 +175,15 @@ TestPosCalculator =
 
     testScoreSum = function(self)
         local function __doTest(heights, areaBounds, assertAreaIndexes)
-            local calc = _poscalc.MovingPosCalculator:new(1, self:__sumHeights(heights))
+            local calc = _poscalc.MovingPosCalculator:new()
+            calc:init(1, self:__sumHeights(heights))
             self:__doInitAreaHeights(calc, heights)
 
             -- 编号
             local idx = 1
             local areaIndexes = {}
             local iterArea = calc._mDanmakuAreas
-            while iterArea ~= nil
+            while iterArea
             do
                 areaIndexes[iterArea] = idx
                 idx = idx + 1
@@ -222,7 +225,8 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = _poscalc.StaticPosCalculator:new(100, 50)
+        local calc = _poscalc.StaticPosCalculator:new()
+        calc:init(100, 50)
         __doTest(calc, 10, 0, 5, 0)
         __doTest(calc, 10, 1, 5, 10)
         __doTest(calc, 10, 2, 5, 20)
@@ -246,7 +250,8 @@ TestPosCalculator =
             lu.assertEquals(y, expectedYPos)
         end
 
-        local calc = _poscalc.MovingPosCalculator:new(100, 50)
+        local calc = _poscalc.MovingPosCalculator:new()
+        calc:init(100, 50)
         __doTest(calc, 100, 10, 0, 5, 0)
         __doTest(calc, 100, 10, 3, 5, 0)
         __doTest(calc, 100, 10, 8, 5, 0)

@@ -3,6 +3,7 @@ local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
+local application   = require("src/shell/application")
 
 
 local _BridgedFile =
@@ -81,9 +82,13 @@ local MockFileSystem =
     _mFreeNodes     = classlite.declareTableField(),
     _mRootNode      = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
 
-    setup = function(self)
+    setup = function(self, app)
         types.isOpenedFile = __isOpenedFilePatched
         types.isClosedFile = __isClosedFilePatched
+        if classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
+        then
+            --TODO
+        end
     end,
 
     unsetup = function(self)

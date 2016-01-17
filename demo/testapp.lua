@@ -15,12 +15,17 @@ local MockApp =
 {
     _mMockFileSystem    = classlite.declareClassField(mockfs.MockFileSystem),
 
+    new = function(self, ...)
+        self:getParent().new(self, ...)
+        self._mMockFileSystem:setup(self)
+    end,
+
     doesFileExist = function(self, fullPath)
         return self._mMockFileSystem.doesFileExist(fullPath)
     end,
 
-    writeFile = function(self, fullPath)
-        return self._mMockFileSystem:writeFile(fullPath)
+    writeFile = function(self, fullPath, mode)
+        return self._mMockFileSystem:writeFile(fullPath, mode)
     end,
 
     readUTF8File = function(self, fullPath)
@@ -49,10 +54,6 @@ local MockApp =
 
     getVideoHeight = function(self)
         return 600
-    end,
-
-    downloadDanmakuRawDatas = function(self, urls, filePaths)
-        --TODO
     end,
 
     getBiliBiliVideoPartNames = function(self, videoID, outNames)

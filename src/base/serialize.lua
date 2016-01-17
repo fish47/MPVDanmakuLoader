@@ -16,7 +16,7 @@ local _DESERIALIZE_USE_LAGACY_ENV_SETUP     = constants.LUA_VERSION <= 5.1
 
 
 local function serializeTuple(file, ...)
-    if not file
+    if not types.isOpenedFile(file) or types.getVarArgCount(...) == 0
     then
         return
     end

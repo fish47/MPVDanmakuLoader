@@ -1,4 +1,6 @@
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
+local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
@@ -11,8 +13,8 @@ local __DanmakuArea =
     _next   = classlite.declareConstantField(nil),  -- 链表指针
 
 
-    split = function(self, h1, h2)
-        local newArea = self:clone()
+    split = function(self, h1, h2, cloneArea)
+        local newArea = self:clone(cloneArea)
         self.height = h1
         self._next = newArea
         newArea.height = h2
@@ -127,12 +129,41 @@ local __BasePosCalculator =
     _mScreenHeight      = classlite.declareConstantField(1),
     _mDanmakuAreas      = classlite.declareConstantField(nil),
     __mTmpDanmakuArea   = classlite.declareClassField(__DanmakuArea),
+    __mFreeDanmakuAreas = classlite.declareTableField(),
 
 
-    new = function(self, width, height)
+    _doGetCollisionScore = constants.FUNC_EMPTY,
+    _doInitDanmakuArea = constants.FUNC_EMPTY,
+    _doUpdateDanmakuArea = constants.FUNC_EMPTY,
+
+
+    init = function(self, width, height)
         self._mScreenWidth = math.floor(width)
         self._mScreenHeight = math.floor(height)
-        self._mDanmakuAreas = self:_doInitDanmakuArea(width, height, 0, 0)
+        self:__recycleDanmakuAreas()
+        self._mDanmakuAreas = self:_obtainDanmakuArea()
+        self:_doInitDanmakuArea(width, height, 0, 0, self._mDanmakuAreas)
+    end,
+
+    __recycleDanmakuAreas = function(self)
+        local area = self._mDanmakuAreas
+        local areaPool = self.__mFreeDanmakuAreas
+        while area
+        do
+            local nextArea = area._next
+            utils.pushArrayElement(areaPool, area)
+            area = nextArea
+        end
+        self._mDanmakuAreas = nil
+    end,
+
+    _obtainDanmakuArea = function(self)
+        return utils.popArrayElement(self.__mFreeDanmakuAreas) or __DanmakuArea:new()
+    end,
+
+    dispose = function(self)
+        self:__recycleDanmakuAreas()
+        utils.forEachArrayElement(self.__mFreeDanmakuAreas, utils.disposeSafely)
     end,
 
 
@@ -140,7 +171,7 @@ local __BasePosCalculator =
         local scoreSum = 0
         local iterAreaBottom = iterAreaTop + iterArea.height
         local newAreaBottom = math.min(newAreaTop + area2.height, self._mScreenHeight)
-        while iterArea ~= nil
+        while iterArea
         do
             local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,
                                                       newAreaTop, newAreaBottom)
@@ -165,7 +196,7 @@ local __BasePosCalculator =
     __addDanmakuArea = function(self, iterArea, iterAreaTop, area2, newAreaTop)
         local iterAreaBottom = iterAreaTop
         local newAreaBottom = newAreaTop + area2.height
-        while iterArea ~= nil
+        while iterArea
         do
             iterAreaTop = iterAreaBottom
             iterAreaBottom = iterAreaTop + iterArea.height
@@ -188,14 +219,16 @@ local __BasePosCalculator =
                 -- 切割不相交的上半部分
                 if splitH1 > 0
                 then
-                    local upperArea, lowerArea = iterArea:split(splitH1, h2)
+                    local newArea = self:_obtainDanmakuArea()
+                    local upperArea, lowerArea = iterArea:split(splitH1, h2, newArea)
                     iterArea = lowerArea
                 end
 
                 -- 切割不相交的下半部分
                 if splitH3 > 0
                 then
-                    local upperArea, lowerArea = iterArea:split(h2, splitH3)
+                    local newArea = self:_obtainDanmakuArea()
+                    local upperArea, lowerArea = iterArea:split(h2, splitH3, newArea)
                     iterArea = upperArea
                 end
 
@@ -210,19 +243,6 @@ local __BasePosCalculator =
 
             iterArea = iterArea._next
         end
-    end,
-
-
-    _doGetCollisionScore = function(self, area1, area2)
-        --TODO
-    end,
-
-    _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
-        --TODO
-    end,
-
-    _doUpdateDanmakuArea = function(self, area1, area2)
-        --TODO
     end,
 
 
@@ -242,10 +262,10 @@ local __BasePosCalculator =
 
         local iterArea = self._mDanmakuAreas
         local area2 = self:_doInitDanmakuArea(w, h, start, lifeTime,
-                                             self.__mTmpDanmakuArea)
+                                              self.__mTmpDanmakuArea)
 
         local iterAreaBottom = 0
-        while iterArea ~= nil
+        while iterArea
         do
             -- 移动区域不记录上下边界，因为总是紧接的
             local iterAreaTop = iterAreaBottom
@@ -290,17 +310,6 @@ local __BasePosCalculator =
         self:__addDanmakuArea(insertArea, insertAreaTop, area2, retY)
         return retY
     end,
-
-
-    dispose = function(self)
-        local area = self._mDanmakuAreas
-        while area ~= nil
-        do
-            local org = area
-            area = area._next
-            utils.disposeSafely(org)
-        end
-    end
 }
 
 classlite.declareClass(__BasePosCalculator);
@@ -325,7 +334,6 @@ local MovingPosCalculator =
             speed = (w + self._mScreenWidth) / lifeTime
         end
 
-        outArea = outArea or __DanmakuArea:new()
         outArea.width = w
         outArea.height = h
         outArea.start = start
@@ -349,7 +357,6 @@ local StaticPosCalculator =
 {
     _doInitDanmakuArea = function(self, w, h, start, lifeTime, outArea)
         -- 这里把 speed 这个字段 hack 成存活时间了
-        outArea = outArea or __DanmakuArea:new()
         outArea.start = start
         outArea.width = 1
         outArea.height = h
