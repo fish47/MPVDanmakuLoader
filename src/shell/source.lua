@@ -36,12 +36,30 @@ local _PARSE_FUNC_MAP =
 
 
 local function __downloadDanmakuRawDatas(app, danmakuURLs, outFilePaths)
+    local function __writeRawData(content, rawDatas)
+        utils.pushArrayElement(rawDatas, content)
+    end
+
+    -- 暂存下载内容
+    local rawDatas = utils.clearTable(outFilePaths)
     local conn = app:getNetworkConnection()
+    conn:resetParams()
     for _, url in ipairs(danmakuURLs)
     do
-        --TODO
+        conn:receiveLater(url, __writeRawData, rawDatas)
     end
-    return -- 是否成功下载全部
+    conn:flushReceiveQueue()
+
+    if #rawDatas == #danmakuURLs
+    then
+        for i, rawData in ipairs(rawDatas)
+        do
+            --TODO
+        end
+    else
+        utils.clearTable(rawDatas)
+        return false
+    end
 end,
 
 
@@ -128,7 +146,7 @@ local _SRTDanmakuSource =
     _mSRTFilePath   = classlite.declareConstantField(nil),
 
     _init = function(self, app, filePath)
-        if app:doesFileExist(filePath)
+        if app:isExistedFile(filePath)
         then
             self._mSRTFilePath = filePath
             return true
@@ -323,8 +341,7 @@ local DanmakuSourceFactory =
     __mDanmakuSources           = classlite.declareTableField(),
 
 
-    new = function(self, app)
-        self._mApplication = app
+    new = function(self)
         self._mDanmakuSourcePools[_SRTDanmakuSource] = {}
         self._mDanmakuSourcePools[_CachedDanmakuSource] = {}
     end,
@@ -338,6 +355,10 @@ local DanmakuSourceFactory =
                 pool[i] = nil
             end
         end
+    end,
+
+    setApplication = function(self, app)
+        self._mApplication = app
     end,
 
     _obtainDanmakuSource = function(self, srcClz)

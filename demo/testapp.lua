@@ -20,30 +20,6 @@ local MockApp =
         self._mMockFileSystem:setup(self)
     end,
 
-    doesFileExist = function(self, fullPath)
-        return self._mMockFileSystem.doesFileExist(fullPath)
-    end,
-
-    writeFile = function(self, fullPath, mode)
-        return self._mMockFileSystem:writeFile(fullPath, mode)
-    end,
-
-    readUTF8File = function(self, fullPath)
-        return self._mMockFileSystem:readFile(fullPath)
-    end,
-
-    createDir = function(self, dirName)
-        return self._mMockFileSystem:createDir(dirName)
-    end,
-
-    deleteTree = function(self, fullPath)
-        return self._mMockFileSystem:deleteTree(fullPath)
-    end,
-
-    listFiles = function(self, dir, outList)
-        self._mMockFileSystem:listFiles(dir, outList)
-    end,
-
     getVideoMD5 = function(self)
         return string.rep("1", 32)
     end,

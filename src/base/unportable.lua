@@ -27,7 +27,7 @@ local function __quoteShellString(text)
 end
 
 local function __addRawArgument(arguments, arg)
-    if arg ~= nil
+    if not types.isNil(arg)
     then
         table.insert(arguments, arg)
     end
@@ -252,16 +252,53 @@ classlite.declareClass(ZenityGUIBuilder)
 
 
 
-local _CURL_TIMEOUT_SECONDS     = 10
-
-local CURLNetworkConnection =
+local _NetworkConnectionBase =
 {
-    _mArguments         = classlite.declareTableField(),
     _mIsCompressed      = classlite.declareConstantField(false),
     _mHeaders           = classlite.declareTableField(),
     _mCallbacks         = classlite.declareTableField(),
     _mCallbackArgs      = classlite.declareTableField(),
-    _mStdoutFiles       = classlite.declareTableField(),
+    _mConnections       = classlite.declareTableField(),
+
+    _createConnection = constants.FUNC_EMPTY,
+    _readConnection = constants.FUNC_EMPTY,
+
+    receive = function(self, url)
+        local succeed, conn = types.isString(url) and self:_createConnection(url)
+        local content = succeed and self:_readConnection(conn)
+        return content
+    end,
+
+    receiveLater = function(self, url, callback, arg)
+        if types.isString(url) and types.isFunction(callback)
+        then
+            local succeed, conn = self:_createConnection(url)
+            if succeed
+            then
+                -- 注意参数有可为空
+                local newCount = #self._mConnections
+                self._mConnections[newCount] = conn
+                self._mCallbacks[newCount] = callback
+                self._mCallbackArgs[newCount] = arg
+                return true
+            end
+        end
+    end,
+
+    flushReceiveQueue = function(self, url)
+        local conns = self._mConnections
+        local callbacks = self._mCallbacks
+        local callbackArgs = self._mCallbackArgs
+        local callbackCount = #callbacks
+        for i = 1, callbackCount
+        do
+            local content = self:_readConnection(conns[i])
+            callbacks[i](content, callbackArgs[i])
+            conns[i] = nil
+            callbacks[i] = nil
+            callbackArgs[i] = nil
+        end
+    end,
 
     resetParams = function(self)
         self._mIsCompressed = false
@@ -273,12 +310,22 @@ local CURLNetworkConnection =
     end,
 
     addHeader = function(self, val)
-        table.insert(self._mHeaders, val)
+        if types.isString(val)
+        then
+            table.insert(self._mHeaders, val)
+        end
     end,
+}
 
 
-    __doBuildCommandString = function(self, url)
-        local arguments = self._mArguments
+local _CURL_TIMEOUT_SECONDS     = 10
+
+local CURLNetworkConnection =
+{
+    __mArguments         = classlite.declareTableField(),
+
+    __buildCommandString = function(self, url)
+        local arguments = self.__mArguments
         utils.clearTable(arguments)
         _addCommand(arguments, "curl")
         _addOption(arguments, "--silent")
@@ -292,48 +339,18 @@ local CURLNetworkConnection =
         return _getCommandString(arguments)
     end,
 
-
-    doGET = function(self, url)
-        local commandStr = self:__doBuildCommandString(url)
-        local output = utils.readAndCloseFile(io.popen(commandStr))
-        return output
+    _createConnection = function(self, url)
+        local cmd = self:__buildCommandString(url)
+        local f = io.popen(cmd)
+        return types.isOpenedFile(f), f
     end,
 
-
-    doQueuedGET = function(self, url, callback, arg)
-        local f = io.popen(self:__doBuildCommandString(url))
-        table.insert(self._mStdoutFiles, f)
-        table.insert(self._mCallbacks, callback)
-        table.insert(self._mCallbackArgs, arg)
-        return (f ~= nil)
-    end,
-
-
-    flush = function(self)
-        local files = self._mStdoutFiles
-        local callbacks = self._mCallbacks
-        local callbackArgs = self._mCallbackArgs
-        local callbackCount = #callbacks
-        for i = 1, callbackCount
-        do
-            local f = files[i]
-            local content = utils.readAndCloseFile(f)
-            local arg = callbackArgs[i]
-            local callback = callbacks[i]
-
-            if callback
-            then
-                callbacks[i](content, arg)
-            end
-
-            files[i] = nil
-            callbacks[i] = nil
-            callbackArgs[i] = nil
-        end
+    _readConnection = function(self, conn)
+        return f:read(constants.FILE_MODE_READ)
     end,
 }
 
-classlite.declareClass(CURLNetworkConnection)
+classlite.declareClass(CURLNetworkConnection, _NetworkConnectionBase)
 
 
 
@@ -485,6 +502,8 @@ end
 
 return
 {
+    _NetworkConnectionBase  = _NetworkConnectionBase,
+
     TextInfoProperties      = TextInfoProperties,
     EntryProperties         = EntryProperties,
     ListBoxProperties       = ListBoxProperties,

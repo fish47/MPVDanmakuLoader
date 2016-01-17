@@ -87,7 +87,18 @@ local MockFileSystem =
         types.isClosedFile = __isClosedFilePatched
         if classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
         then
-            --TODO
+            for _, methodName in ipairs({ "isExistedFile",
+                                          "readUTF8File",
+                                          "readFile",
+                                          "writeFile",
+                                          "createDir",
+                                          "deleteTree",
+                                          "listFiles" })
+            do
+                app[methodName] = function(_, ...)
+                    return self[methodName](self, ...)
+                end
+            end
         end
     end,
 
@@ -152,12 +163,12 @@ local MockFileSystem =
         return ret and ret or _MockFileSystemTreeNode:new()
     end,
 
-    doesFileExist = function(self, fullPath)
+    isExistedFile = function(self, fullPath)
         local _, node = self:_seekToNode(fullPath)
         return node and node:isFile()
     end,
 
-    writeFile = function(self, fullPath)
+    writeFile = function(self, fullPath, mode)
         local dirName, fileName = unportable.splitPath(fullPath)
         local _, dirNode = self:_seekToNode(dirName)
         local fileNode = dirNode and dirNode:findChildByName(fileName)
@@ -181,9 +192,17 @@ local MockFileSystem =
             local f = _BridgedFile:new(io.tmpfile())
             local orgCloseFunc = f.close
             f.close = function(self)
-                self:seek(constants.SEEK_MODE_BEGIN)
-                fileNode.content = self:read(constants.READ_MODE_ALL)
-                orgCloseFunc(self)
+                if types.isOpenedFile(self)
+                then
+                    self:seek(constants.SEEK_MODE_BEGIN)
+                    local content = self:read(constants.READ_MODE_ALL)
+                    if mode == constants.FILE_MODE_WRITE_APPEND
+                    then
+                        content = fileNode.content .. content
+                    end
+                    fileNode.content = content
+                    orgCloseFunc(self)
+                end
             end
 
             return f
@@ -199,6 +218,10 @@ local MockFileSystem =
             f:seek(constants.SEEK_MODE_BEGIN)
             return f
         end
+    end,
+
+    readUTF8File = function(self, fullPath)
+        return self:readFile(fullPath)
     end,
 
     createDir = function(self, fullPath)

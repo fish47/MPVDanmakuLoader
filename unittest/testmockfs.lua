@@ -69,7 +69,7 @@ TestMockFileSystem =
         local pathsAndContents = self.__mPathsAndContents
         for _, path, content in utils.iteratePairsArray(pathsAndContents)
         do
-            lu.assertTrue(fs:doesFileExist(path))
+            lu.assertTrue(fs:isExistedFile(path))
             lu.assertEquals(__readFile(fs, path), content)
         end
     end,
