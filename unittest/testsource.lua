@@ -58,6 +58,11 @@ TestDanmakuSourceFactory =
         self._mApplication:dispose()
         self._mDanmakuSourceFactory:dispose()
     end,
+
+
+    testAddSource = function(self)
+--        local timeOffsets = {  }
+    end,
 }
 
 

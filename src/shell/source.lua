@@ -36,12 +36,21 @@ local _PARSE_FUNC_MAP =
 }
 
 
-local function __downloadDanmakuRawDatas(app, danmakuURLs, outFilePaths)
+local function __deleteDownloadedFiles(filePaths)
+    local function __deleteFile(fullPath, app)
+        app:deleteTree(fullPath)
+    end
+    utils.forEachArrayElement(filePaths, __deleteFile)
+    utils.clearTable(filePaths)
+end
+
+
+local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePaths)
     local function __writeRawData(content, rawDatas)
         utils.pushArrayElement(rawDatas, content)
     end
 
-    -- 暂存下载内容
+    -- 此数组先用来暂存下载内容，下载完写文件后再转为路径
     local rawDatas = utils.clearTable(outFilePaths)
     local conn = app:getNetworkConnection()
     conn:resetParams()
@@ -51,37 +60,30 @@ local function __downloadDanmakuRawDatas(app, danmakuURLs, outFilePaths)
     end
     conn:flushReceiveQueue()
 
-    if #rawDatas == #danmakuURLs
+    -- 有文件下不动的时候，数量就对不上
+    if #rawDatas ~= #danmakuURLs
     then
-        local prefix = os.date(_SOURCE_FMT_DATETIME, app:getCurrentDateTime())
-        local baseDir = app:getDanmakuSourceRawDataDirPath()
-        for i, rawData in ipairs(rawDatas)
-        do
-            local fileName = string.format(_SOURCE_FMT_FILE_NAME, prefix, i)
-            local fullPath = unportable.joinPath(baseDir, fileName)
-            local f = app:writeFile(fullPath)
-            if not utils.writeAndCloseFile(f, rawData)
-            then
-                -- 保留文件路径，后面流程会删除
-                utils.clearArray(rawDatas, i + 1)
-                return false
-            end
-            outFilePaths[i] = fullPath
-        end
-    else
         utils.clearTable(rawDatas)
         return false
     end
-end,
 
-
-local function __deleteDownloadedFiles(filePaths)
-    local function __deleteFile(fullPath, app)
-        app:deleteTree(fullPath)
+    local prefix = os.date(_SOURCE_FMT_DATETIME, datetime)
+    local baseDir = app:getDanmakuSourceRawDataDirPath()
+    for i, rawData in ipairs(rawDatas)
+    do
+        local fileName = string.format(_SOURCE_FMT_FILE_NAME, prefix, i)
+        local fullPath = unportable.joinPath(baseDir, fileName)
+        local f = app:writeFile(fullPath)
+        if not utils.writeAndCloseFile(f, rawData)
+        then
+            utils.clearArray(rawDatas, i + 1)
+            __deleteDownloadedFiles(outFilePaths)
+            return false
+        end
+        outFilePaths[i] = fullPath
     end
-    utils.forEachArrayElement(filePaths, __deleteFile)
-    utils.clearTable(filePaths)
-end
+    return true
+end,
 
 
 
@@ -271,7 +273,7 @@ local _CachedDanmakuSource =
         end
 
         local function __checkNonExistedFilePath(path, app)
-            return not app:doesFileExist(path)
+            return not app:isExistedFile(path)
         end
 
         local function __checkIsNotNumber(num)
@@ -336,16 +338,19 @@ local _CachedDanmakuSource =
 
 
     _update = function(self, app, source2)
+        local datetime = app:getCurrentDateTime()
         self:clone(source2)
-        source2._mDate = app:getCurrentDateTime()
-        utils.clearTable(source2._mFilePaths)
-        __downloadDanmakuRawDatas(app, source2._mDownloadURLs, source2._mFilePaths)
-        if source2:__isValid()
+        source2._mDate = datetime
+
+        local filePaths = source2._mFilePaths
+        if __downloadDanmakuRawDatas(app, source2._mDownloadURLs, filePaths)
         then
-            return true
-        else
-            __deleteDownloadedFiles(source2._mFilePaths)
-            return false
+            if source2:__isValid()
+            then
+                return true
+            end
+
+            __deleteDownloadedFiles(filePaths)
         end
     end,
 }
@@ -363,7 +368,8 @@ local DanmakuSourceFactory =
 
     __mSerializeTuple           = classlite.declareTableField(),
     __mDeserializeTuple         = classlite.declareTableField(),
-    __mFilePaths                = classlite.declareTableField(),
+    __mListFilePaths                = classlite.declareTableField(),
+    __mDownloadedFilePaths      = classlite.declareTableField(),
     __mDanmakuSources           = classlite.declareTableField(),
 
 
@@ -409,7 +415,7 @@ local DanmakuSourceFactory =
     end,
 
     _listSRTDanmakuSource = function(self, app, curDir, outList)
-        local filePaths = utils.clearTable(self.__mFilePaths)
+        local filePaths = utils.clearTable(self.__mListFilePaths)
         app:listFiles(filePaths)
 
         local function __filter(filePath, pattern)
@@ -484,15 +490,20 @@ local DanmakuSourceFactory =
     end,
 
 
-    _doAddCachedDanmakuSource = function(self, srcType, ...)
-        local source = self:_obtainDanmakuSource(_CachedDanmakuSource)
-        local date = self._mApplication:getCurrentDateTime()
-        if source and source:_init(self._mApplication, srcType, date, ...)
+    _doAddCachedDanmakuSource = function(self, srcType, desc, offsets, urls)
+        local app = self._mApplication
+        local datetime = app:getCurrentDateTime()
+        local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
+        if __downloadDanmakuRawDatas(app, datetime, urls, filePaths)
         then
-            self:_doAppendMetaFile(source)
-            return source
-        else
-            self:_recycleDanmakuSource(source)
+            local source = self:_obtainDanmakuSource(_CachedDanmakuSource)
+            if source and source:_init(app, srcType, datetime, desc, filePaths, offsets, urls)
+            then
+                self:_doAppendMetaFile(source)
+                return source
+            else
+                self:_recycleDanmakuSource(source)
+            end
         end
     end,
 
@@ -512,7 +523,7 @@ local DanmakuSourceFactory =
         local app = self._mApplication
         if classlite.isInstanceOf(source, _IDanmakuSource) and source:_delete(app)
         then
-            -- 调用者不要再用这个对象了
+            -- 调用者不要再持有这个对象
             self:_recycleDanmakuSource(source)
             return true
         end

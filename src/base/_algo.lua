@@ -334,22 +334,36 @@ local function removeArrayElements(array, val)
     removeArrayElementsIf(array, __equals, val)
 end
 
-
-local function __doForEach(tbl, iterFunc, func, arg)
-    for _, v in iterFunc(tbl)
-    do
-        func(v, arg)
+local function forEachArrayElement(array, func, arg)
+    if types.isFunction(func)
+    then
+        for i, v in iterateArray(array)
+        do
+            func(v, i, array, arg)
+        end
     end
 end
 
-
-local function forEachArrayElement(array, func, arg)
-    return __doForEach(array, iterateArray, func, arg)
+local function forEachTableKey(tbl, func, arg)
+    if types.isFunction(func)
+    then
+        for k, v in iterateTable(tbl)
+        do
+            func(k, v, tbl, arg)
+        end
+    end
 end
 
 local function forEachTableValue(tbl, func, arg)
-    return __doForEach(tbl, iterateTable, func, arg)
+    if types.isFunction(func)
+    then
+        for k, v in iterateTable(tbl)
+        do
+            func(v, k, tbl, arg)
+        end
+    end
 end
+
 
 return
 {
@@ -373,6 +387,7 @@ return
     reverseIterateArray         = reverseIterateArray,
     iteratePairsArray           = iteratePairsArray,
     forEachArrayElement         = forEachArrayElement,
+    forEachTableKey             = forEachTableKey,
     forEachTableValue           = forEachTableValue,
     sortParallelArrays          = sortParallelArrays,
     fillArrayWithAscNumbers     = fillArrayWithAscNumbers,

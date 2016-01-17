@@ -108,7 +108,7 @@ local DanmakuPools =
     end,
 
     dispose = function(self)
-        self:__doIterateDanmakuPools(utils.disposeSafely)
+        utils.forEachTableValue(self._mPools, utils.disposeSafely)
     end,
 
     getDanmakuPoolByLayer = function(self, layer)

@@ -109,7 +109,7 @@ local MockFileSystem =
     end,
 
     dispose = function(self)
-        utils.forEachTableValue(self._mPendingFileSet, utils.closeSafely)
+        utils.forEachTableKey(self._mPendingFileSet, utils.closeSafely)
         self:_doDeleteTreeNode(self._mRootNode)
         utils.forEachArrayElement(self._mFreeNodes, utils.disposeSafely)
     end,
@@ -165,7 +165,7 @@ local MockFileSystem =
         local f = _BridgedFile:new(io.tmpfile())
         local orgCloseFunc = f.close
         local pendingFiles = self._mPendingFileSet
-        pendingFiles[f] = f
+        pendingFiles[f] = true
         f.close = function(self, ...)
             if types.isOpenedFile(self:getFile())
             then
