@@ -79,8 +79,9 @@ end
 
 local MockFileSystem =
 {
-    _mFreeNodes     = classlite.declareTableField(),
-    _mRootNode      = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
+    _mFreeNodes         = classlite.declareTableField(),
+    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
+    _mPendingFileSet    = classlite.declareTableField(),
 
     setup = function(self, app)
         types.isOpenedFile = __isOpenedFilePatched
@@ -107,13 +108,10 @@ local MockFileSystem =
         types.isClosedFile = __gIsClosedFileFunc
     end,
 
-
     dispose = function(self)
+        utils.forEachTableValue(self._mPendingFileSet, utils.closeSafely)
         self:_doDeleteTreeNode(self._mRootNode)
-        for _, node in ipairs(self._mFreeNodes)
-        do
-            node:dispose()
-        end
+        utils.forEachArrayElement(self._mFreeNodes, utils.disposeSafely)
     end,
 
     __doIteratePathElements = function(self, fullPath, findNodeFunc)
@@ -163,6 +161,21 @@ local MockFileSystem =
         return ret and ret or _MockFileSystemTreeNode:new()
     end,
 
+    _doCreateBridgedFile = function(self)
+        local f = _BridgedFile:new(io.tmpfile())
+        local orgCloseFunc = f.close
+        local pendingFiles = self._mPendingFileSet
+        pendingFiles[f] = f
+        f.close = function(self, ...)
+            if types.isOpenedFile(self:getFile())
+            then
+                orgCloseFunc(self, ...)
+                pendingFiles[f] = nil
+            end
+        end
+        return f
+    end,
+
     isExistedFile = function(self, fullPath)
         local _, node = self:_seekToNode(fullPath)
         return node and node:isFile()
@@ -189,18 +202,26 @@ local MockFileSystem =
                 table.insert(dirNode.children, fileNode)
             end
 
-            local f = _BridgedFile:new(io.tmpfile())
+            local fs = self
+            local f = self:_doCreateBridgedFile()
             local orgCloseFunc = f.close
             f.close = function(self)
-                if types.isOpenedFile(self)
+                if types.isOpenedFile(self:getFile())
                 then
                     self:seek(constants.SEEK_MODE_BEGIN)
                     local content = self:read(constants.READ_MODE_ALL)
-                    if mode == constants.FILE_MODE_WRITE_APPEND
+
+                    -- 一定要重新搜结点，在打开到关闭期间，可能文件结构已经改变了
+                    local _, fileNode = fs:_seekToNode(fullPath)
+                    if fileNode and fileNode:isFile()
                     then
-                        content = fileNode.content .. content
+                        if mode == constants.FILE_MODE_WRITE_APPEND
+                        then
+                            content = fileNode.content .. content
+                        end
+                        fileNode.content = content
                     end
-                    fileNode.content = content
+
                     orgCloseFunc(self)
                 end
             end
@@ -213,7 +234,7 @@ local MockFileSystem =
         local _, fileNode = self:_seekToNode(fullPath)
         if fileNode and fileNode:isFile()
         then
-            local f = _BridgedFile:new(io.tmpfile())
+            local f = self:_doCreateBridgedFile()
             f:write(fileNode.content)
             f:seek(constants.SEEK_MODE_BEGIN)
             return f
@@ -250,15 +271,18 @@ local MockFileSystem =
     end,
 
     _doDeleteTreeNode = function(self, node)
-        local children = node.children
-        for i, child in ipairs(children)
-        do
-            children[i] = nil
-            self:_doDeleteTreeNode(child)
+        if node
+        then
+            local children = node.children
+            for i, child in utils.iterateArray(children)
+            do
+                children[i] = nil
+                self:_doDeleteTreeNode(child)
+            end
+            node.name = nil
+            node.content = nil
+            table.insert(self._mFreeNodes, node)
         end
-        node.name = nil
-        node.content = nil
-        table.insert(self._mFreeNodes, node)
     end,
 
     deleteTree = function(self, fullPath)

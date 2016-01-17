@@ -79,8 +79,9 @@ end
 local function writeAndCloseFile(f, content)
     if types.isOpenedFile(f)
     then
-        f:write(content)
+        local succeed = f:write(content)
         f:close()
+        return succeed
     end
 end
 

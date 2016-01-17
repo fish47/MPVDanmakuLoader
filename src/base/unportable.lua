@@ -325,8 +325,7 @@ local CURLNetworkConnection =
     __mArguments         = classlite.declareTableField(),
 
     __buildCommandString = function(self, url)
-        local arguments = self.__mArguments
-        utils.clearTable(arguments)
+        local arguments = utils.clearTable(self.__mArguments)
         _addCommand(arguments, "curl")
         _addOption(arguments, "--silent")
         _addOption(arguments, self._mIsCompressed and "--compressed")

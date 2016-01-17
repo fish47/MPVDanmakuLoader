@@ -1,5 +1,6 @@
 local _ass      = require("src/core/_ass")
 local _writer   = require("src/core/_writer")
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
@@ -95,6 +96,7 @@ classlite.declareClass(DanmakuPool)
 local DanmakuPools =
 {
     _mPools     = classlite.declareTableField(),
+    _mWriter    = classlite.declareClassField(_writer.DanmakuWriter),
 
     new = function(self)
         self._mPools[_ass.LAYER_MOVING_L2R]     = DanmakuPool:new()
@@ -109,34 +111,19 @@ local DanmakuPools =
         self:__doIterateDanmakuPools(utils.disposeSafely)
     end,
 
-
-    __doIterateDanmakuPools = function(self, func)
-        if not self._mPools
-        then
-            return
-        end
-
-        for _, pool in pairs(self._mPools)
-        do
-            if pool
-            then
-                func(pool)
-            end
-        end
-    end,
-
-
     getDanmakuPoolByLayer = function(self, layer)
         return self._mPools[layer]
     end,
 
-    write = function(self, cfg, screenW, screenH, f)
-        --TODO
-        _writer.writeDanmakus(self, cfg, screenW, screenH, f)
+    writeDanmakus = function(self, cfg, screenW, screenH, f)
+        if types.isOpenedFile(f)
+        then
+            self._mWriter:writeDanmakus(self, cfg, screenW, screenH, f)
+        end
     end,
 
     clear = function(self)
-        self:__doIterateDanmakuPools(DanmakuPool.clear)
+        utils.forEachTableValue(self._mPools, DanmakuPool.clear)
     end,
 }
 

@@ -5,10 +5,6 @@ local function __equals(val1, val2)
     return val1 == val2
 end
 
-local function __true()
-    return true
-end
-
 
 local function clearTable(tbl)
     if types.isTable(tbl)
@@ -75,7 +71,7 @@ local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
     then
         for _, v in ipairs(srcArray)
         do
-            if filterFunc(v, arg)
+            if not filterFunc or filterFunc(v, arg)
             then
                 table.insert(destArray, v)
             end
@@ -85,7 +81,7 @@ end
 
 
 local function appendArrayElements(destArray, srcArray)
-    appendArrayElementsIf(destArray, srcArray, __true)
+    appendArrayElementsIf(destArray, srcArray)
 end
 
 
@@ -309,6 +305,15 @@ local function pushArrayElement(array, elem)
     end
 end
 
+local function putTableKeyValue(tbl, key, val)
+    --TODO
+end
+
+local function popTableKeyValue(tbl, key)
+
+end
+
+
 local function removeArrayElementsIf(array, func, arg)
     if types.isTable(array)
     then
@@ -325,16 +330,25 @@ local function removeArrayElementsIf(array, func, arg)
     end
 end
 
-local function removeArrayElement(array, val)
+local function removeArrayElements(array, val)
     removeArrayElementsIf(array, __equals, val)
 end
 
+
+local function __doForEach(tbl, iterFunc, func, arg)
+    for _, v in iterFunc(tbl)
+    do
+        func(v, arg)
+    end
+end
+
+
 local function forEachArrayElement(array, func, arg)
-    --TODO
+    return __doForEach(array, iterateArray, func, arg)
 end
 
 local function forEachTableValue(tbl, func, arg)
-    --TODO
+    return __doForEach(tbl, iterateTable, func, arg)
 end
 
 return

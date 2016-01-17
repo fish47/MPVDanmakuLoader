@@ -75,12 +75,12 @@ local function __doDeserialize(input, isFilePath, callback)
 end
 
 
-local function deserializeTupleFromFilePath(file, callback)
-    return __doDeserialize(file, true, callback)
+local function deserializeTupleFromFilePath(filePath, callback)
+    return types.isString(filePath) and __doDeserialize(filePath, true, callback)
 end
 
 local function deserializeTupleFromString(chunks, callback)
-    return __doDeserialize(chunks, false, callback)
+    return types.isString(chunks) and __doDeserialize(chunks, false, callback)
 end
 
 

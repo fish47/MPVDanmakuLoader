@@ -30,15 +30,14 @@ end
 
 TestMockFileSystem =
 {
-    __mFileSystem           = nil,
-
-    __mPathsAndContents     = nil,
+    _mFileSystem        = nil,
+    _mPathsAndContents  = nil,
 
 
     setUp = function(self)
         local fs = mockfs.MockFileSystem:new()
         fs:setup()
-        self.__mFileSystem = fs
+        self._mFileSystem = fs
 
         local pathsAndContents =
         {
@@ -55,18 +54,19 @@ TestMockFileSystem =
         do
             __writeFile(fs, path, content)
         end
-        self.__mPathsAndContents = pathsAndContents
+        self._mPathsAndContents = pathsAndContents
     end,
 
     tearDown = function(self)
-        self.__mFileSystem:unsetup()
-        self.__mFileSystem:dispose()
+        self._mFileSystem:unsetup()
+        self._mFileSystem:dispose()
+        utils.clearTable(self._mPathsAndContents)
     end,
 
 
     testRead = function(self)
-        local fs = self.__mFileSystem
-        local pathsAndContents = self.__mPathsAndContents
+        local fs = self._mFileSystem
+        local pathsAndContents = self._mPathsAndContents
         for _, path, content in utils.iteratePairsArray(pathsAndContents)
         do
             lu.assertTrue(fs:isExistedFile(path))
@@ -84,7 +84,7 @@ TestMockFileSystem =
             "/b/",      { "/b/8.txt" },
         }
 
-        local fs = self.__mFileSystem
+        local fs = self._mFileSystem
         local filePaths = {}
         for _, dir, assertFilePaths in utils.iteratePairsArray(assertDirsAndFilePaths)
         do
@@ -97,7 +97,7 @@ TestMockFileSystem =
 
 
     testDeleteTree = function(self)
-        local fs = self.__mFileSystem
+        local fs = self._mFileSystem
         local filePaths = {}
         local assertEmptyDirs = { "/a/c", "/a/b", "/b", "/a" }
         for _, dir in ipairs(assertEmptyDirs)
@@ -106,6 +106,17 @@ TestMockFileSystem =
             fs:listFiles(dir, filePaths)
             lu.assertTrue(types.isEmptyTable(filePaths))
         end
+    end,
+
+
+    testClosePenddingFiles = function(self)
+        local fs = mockfs.MockFileSystem:new()
+        utils.writeAndCloseFile(fs:writeFile("/1.txt"), "123")
+        local f1 = fs:readFile("/1.txt")
+        local f2 = fs:writeFile("/2.txt")
+        fs:dispose()
+        lu.assertTrue(types.isClosedFile(f1))
+        lu.assertTrue(types.isClosedFile(f2))
     end,
 }
 

@@ -14,9 +14,10 @@ local SOURCE_TYPE_ACFUN     = "acfun"
 local SOURCE_TYPE_DDP       = "ddp"
 
 
-local _SOURCE_FMT_SRT           = "srt: %s"
 local _SOURCE_DATE_SRT          = 0
-local _SOURCE_PATTER_SRT_FILE   = ".*[sS][rR][tT]$"
+local _SOURCE_FMT_DATETIME      = "%y%m%d_%H%M%S"
+local _SOURCE_FMT_FILE_NAME     = "%s_%d.txt"
+local _SOURCE_PATTERN_SRT_FILE  = ".*[sS][rR][tT]$"
 
 
 local _PARSE_FUNC_MAP =
@@ -52,15 +53,36 @@ local function __downloadDanmakuRawDatas(app, danmakuURLs, outFilePaths)
 
     if #rawDatas == #danmakuURLs
     then
+        local prefix = os.date(_SOURCE_FMT_DATETIME, app:getCurrentDateTime())
+        local baseDir = app:getDanmakuSourceRawDataDirPath()
         for i, rawData in ipairs(rawDatas)
         do
-            --TODO
+            local fileName = string.format(_SOURCE_FMT_FILE_NAME, prefix, i)
+            local fullPath = unportable.joinPath(baseDir, fileName)
+            local f = app:writeFile(fullPath)
+            if not utils.writeAndCloseFile(f, rawData)
+            then
+                -- 保留文件路径，后面流程会删除
+                utils.clearArray(rawDatas, i + 1)
+                return false
+            end
+            outFilePaths[i] = fullPath
         end
     else
         utils.clearTable(rawDatas)
         return false
     end
 end,
+
+
+local function __deleteDownloadedFiles(filePaths)
+    local function __deleteFile(fullPath, app)
+        app:deleteTree(fullPath)
+    end
+    utils.forEachArrayElement(filePaths, __deleteFile)
+    utils.clearTable(filePaths)
+end
+
 
 
 local __TupleAndCursorMixin =
@@ -316,10 +338,14 @@ local _CachedDanmakuSource =
     _update = function(self, app, source2)
         self:clone(source2)
         source2._mDate = app:getCurrentDateTime()
-        --TODO download
+        utils.clearTable(source2._mFilePaths)
+        __downloadDanmakuRawDatas(app, source2._mDownloadURLs, source2._mFilePaths)
         if source2:__isValid()
         then
-            --TODO
+            return true
+        else
+            __deleteDownloadedFiles(source2._mFilePaths)
+            return false
         end
     end,
 }
@@ -389,7 +415,7 @@ local DanmakuSourceFactory =
         local function __filter(filePath, pattern)
             return not filePath:match(pattern)
         end
-        utils.removeArrayElementsIf(filePaths, _SOURCE_PATTER_SRT_FILE)
+        utils.removeArrayElementsIf(filePaths, _SOURCE_PATTERN_SRT_FILE)
         table.sort(filePaths)
 
         for _, filePath in ipairs(filePaths)
