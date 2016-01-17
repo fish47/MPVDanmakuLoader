@@ -36,11 +36,11 @@ local _PARSE_FUNC_MAP =
 }
 
 
-local function __deleteDownloadedFiles(filePaths)
-    local function __deleteFile(fullPath, app)
+local function __deleteDownloadedFiles(app, filePaths)
+    local function __deleteFile(fullPath, _, __, app)
         app:deleteTree(fullPath)
     end
-    utils.forEachArrayElement(filePaths, __deleteFile)
+    utils.forEachArrayElement(filePaths, __deleteFile, app)
     utils.clearTable(filePaths)
 end
 
@@ -50,7 +50,7 @@ local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePath
         utils.pushArrayElement(rawDatas, content)
     end
 
-    -- 此数组先用来暂存下载内容，下载完写文件后再转为路径
+    -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
     local rawDatas = utils.clearTable(outFilePaths)
     local conn = app:getNetworkConnection()
     conn:resetParams()
@@ -60,15 +60,18 @@ local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePath
     end
     conn:flushReceiveQueue()
 
+    local baseDir = app:getDanmakuSourceRawDataDirPath()
+    local hasCreatedDir = app:isExistedDir(baseDir)
+    hasCreatedDir = not hasCreatedDir and app:createDir(baseDir)
+
     -- 有文件下不动的时候，数量就对不上
-    if #rawDatas ~= #danmakuURLs
+    if not hasCreatedDir or #rawDatas ~= #danmakuURLs
     then
         utils.clearTable(rawDatas)
         return false
     end
 
     local prefix = os.date(_SOURCE_FMT_DATETIME, datetime)
-    local baseDir = app:getDanmakuSourceRawDataDirPath()
     for i, rawData in ipairs(rawDatas)
     do
         local fileName = string.format(_SOURCE_FMT_FILE_NAME, prefix, i)
@@ -77,13 +80,13 @@ local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePath
         if not utils.writeAndCloseFile(f, rawData)
         then
             utils.clearArray(rawDatas, i + 1)
-            __deleteDownloadedFiles(outFilePaths)
+            __deleteDownloadedFiles(app, outFilePaths)
             return false
         end
         outFilePaths[i] = fullPath
     end
     return true
-end,
+end
 
 
 
@@ -94,7 +97,7 @@ local __TupleAndCursorMixin =
 
     _init = function(self, tuple)
         self._mTuple = tuple
-        self._Cursor = 1
+        self._mCursor = 1
     end,
 }
 
@@ -284,9 +287,9 @@ local _CachedDanmakuSource =
             return not types.isString(url)
         end
 
-        if utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath)
-            or utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
-            or utils.linearSearchArrayIf(downloadURLs, __checkIsNotString)
+        if utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
+            or utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber, app)
+            or utils.linearSearchArrayIf(downloadURLs, __checkIsNotString, app)
         then
             return false
         end
@@ -322,8 +325,6 @@ local _CachedDanmakuSource =
             succeed = succeed and deserializer:readArray(self._mDownloadURLs)
             return types.toBoolean(succeed and self:__isValid())
         end
-
-        return false
     end,
 
 
@@ -350,7 +351,7 @@ local _CachedDanmakuSource =
                 return true
             end
 
-            __deleteDownloadedFiles(filePaths)
+            __deleteDownloadedFiles(app, filePaths)
         end
     end,
 }
@@ -441,9 +442,9 @@ local DanmakuSourceFactory =
     _doAppendMetaFile = function(self, source)
         local app = self._mApplication
         local tuple = utils.clearTable(self.__mSerializeTuple)
-        local serializer = self._mSerializer.
+        local serializer = self._mSerializer
         serializer:_init(tuple)
-        if source:_serialize(app, serialize)
+        if source:_serialize(app, serializer)
         then
             local metaFilePath = app:getDanmakuSourceMetaFilePath()
             local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
@@ -544,6 +545,8 @@ local DanmakuSourceFactory =
         end
     end,
 }
+
+classlite.declareClass(DanmakuSourceFactory)
 
 
 return

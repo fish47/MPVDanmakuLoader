@@ -22,32 +22,66 @@ local _FIELD_DECL_KEY_TYPE              = 1
 local _FIELD_DECL_KEY_FIRST_ARG         = 2
 local _FIELD_DECL_KEY_CLASS_ARGS_START  = 3
 
+local _CLASS_INHERIT_LEVEL_START        = 1
+
 
 local __gIsPlainClass           = {}
 local __gMetatables             = {}
 local __gParentClasses          = {}
+local __gClassInheritLevels     = {}
 local __gFieldNames             = {}
 local __gFieldDeclarations      = {}
 local __gFieldDeclartionID      = 0
 
 
+local function __invokeInstanceMethod(obj, methodName, ...)
+    return utils.invokeSafelly(obj[methodName], obj, ...)
+end
+
+
 local function isInstanceOf(obj, clz)
-    local getClassFunc = types.isTable(obj) and obj[_METHOD_NAME_GET_CLASS]
-    local objClz = getClassFunc and getClassFunc(obj) or nil
+    if not types.isTable(obj) or not types.isTable(clz)
+    then
+        return false
+    end
+
+    local objClz = __invokeInstanceMethod(obj, _METHOD_NAME_GET_CLASS)
     if not objClz
     then
         return false
     end
 
-    local iterClz = clz
-    while iterClz
+    local objLv = __gClassInheritLevels[objClz]
+    local clzLv = __gClassInheritLevels[clz]
+    if not objLv or not clzLv
+    then
+        return false
+    end
+
+    local function __traceBackToSameLevel(parentMap, clz1, level1, clz2, level2)
+        if level1 > level2
+        then
+            return __traceBackToSameLevel(parentMap, clz2, level2, clz1, level1)
+        end
+
+        while level2 ~= level1
+        do
+            level2 = level2 - 1
+            clz2 = parentMap[clz2]
+        end
+        return clz1, clz2
+    end
+
+    local clz1, clz2 = __traceBackToSameLevel(__gParentClasses, objClz, objLv, clz, clzLv)
+    while clz1 and clz2
     do
-        if iterClz == objClz
+        if clz1 == clz2
         then
             return true
         end
 
-        iterClz = __gParentClasses[iterClz]
+        clz1 = __gParentClasses[clz1]
+        clz2 = __gParentClasses[clz2]
     end
     return false
 end
@@ -76,7 +110,7 @@ local function __constructClassField(obj, name, decl)
 end
 
 
-local _AUTO_CONSTRUCTORS =
+local _FUNCS_CONSTRUCT =
 {
     [FIELD_DECL_TYPE_CONSTANT]  = __constructConstantField,
     [FIELD_DECL_TYPE_TABLE]     = __constructTableField,
@@ -84,7 +118,7 @@ local _AUTO_CONSTRUCTORS =
 }
 
 
-local _AUTO_DECONSTRUCTORS =
+local _FUNCS_DECONSTRUCT =
 {
     [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl)
         obj[name] = nil
@@ -102,7 +136,7 @@ local _AUTO_DECONSTRUCTORS =
 }
 
 
-local _AUTO_ASSIGNERS =
+local _FUNCS_ASSIGN =
 {
     [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
         -- 优先初始化为非空值
@@ -121,15 +155,16 @@ local _AUTO_ASSIGNERS =
 
     [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
         local field = __constructClassField(obj, name, decl)
-        if isInstanceOf(arg, field[_METHOD_NAME_GET_CLASS](field))
+        local fieldClz = __invokeInstanceMethod(field, _METHOD_NAME_GET_CLASS)
+        if isInstanceOf(arg, fieldClz)
         then
-            arg[_METHOD_NAME_CLONE](arg, field)
+            __invokeInstanceMethod(arg, _METHOD_NAME_CLONE, field)
         end
     end,
 }
 
 
-local _AUTO_CLONERS =
+local _FUNCS_CLONE =
 {
     [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
         obj[name] = arg
@@ -151,9 +186,9 @@ local _AUTO_CLONERS =
         then
             field = __constructClassField(obj, name, decl)
         end
-        if isInstanceOf(arg, field[_METHOD_NAME_GET_CLASS](field))
+        if isInstanceOf(arg, __invokeInstanceMethod(field, _METHOD_NAME_GET_CLASS))
         then
-            arg[_METHOD_NAME_CLONE](arg, field)
+            __invokeInstanceMethod(arg, _METHOD_NAME_CLONE, field)
         end
     end,
 }
@@ -238,8 +273,8 @@ local function _createFieldsConstructor(clzDef)
         -- 简单的结构体允许用构造参数初始化所有字段
         local isPlainClass = __gIsPlainClass[clzDef]
         local funcMap = isPlainClass
-                        and _AUTO_ASSIGNERS
-                        or _AUTO_CONSTRUCTORS
+                        and _FUNCS_ASSIGN
+                        or _FUNCS_CONSTRUCT
 
         return __createFielesFunction(names,
                                       decls,
@@ -259,7 +294,7 @@ local function _createFieldsDeconstructor(clzDef)
         return __createFielesFunction(names,
                                       decls,
                                       false,
-                                      _AUTO_DECONSTRUCTORS)
+                                      _FUNCS_DECONSTRUCT)
     else
         return constants.FUNC_EMPTY
     end
@@ -278,7 +313,7 @@ local function _createConstructor(clzDef, names, decls)
         -- 在执行构造方法前，将继承链上所有声明的字段都初始化，只执行一次
         if isNewlyAllocated
         then
-            obj[_METHOD_NAME_INIT_FIELDS](obj, ...)
+            __invokeInstanceMethod(obj, _METHOD_NAME_INIT_FIELDS, ...)
         end
 
         -- 如果没有明确构造方法，允许用参数按顺序初始化字段
@@ -313,7 +348,7 @@ local function _createCloneConstructor(clzDef)
             local _, newObj = _newInstance(clzDef)
             cloneObj = newObj
             shouldCloneFields = true
-        elseif cloneObj[_METHOD_NAME_GET_CLASS](cloneObj) == clzDef
+        elseif __invokeInstanceMethod(cloneObj, _METHOD_NAME_GET_CLASS) == clzDef
         then
             shouldCloneFields = true
         end
@@ -326,7 +361,7 @@ local function _createCloneConstructor(clzDef)
                 local fieldName = fieldNames[i]
                 local fieldDecl = fieldDecls[i]
                 local declType = fieldDecl[_FIELD_DECL_KEY_TYPE]
-                local func = _AUTO_CLONERS[declType]
+                local func = _FUNCS_CLONE[declType]
                 if func
                 then
                     func(cloneObj, fieldName, fieldDecl, self[fieldName])
@@ -362,7 +397,7 @@ local function _createDeconstructor(clzDef)
         if not baseClz
         then
             -- 销毁所有字段
-            self[_METHOD_NAME_DEINIT_FIELDS](self)
+            __invokeInstanceMethod(self, _METHOD_NAME_DEINIT_FIELDS)
 
             -- 销毁整个对象
             _disposeInstance(self)
@@ -429,6 +464,12 @@ end
 local function _initClassMetaData(clzDef, baseClz)
     -- 绑定父类
     __gParentClasses[clzDef] = baseClz
+
+    -- 继承深度
+    local parentLevel = baseClz
+                        and __gClassInheritLevels[baseClz]
+                        or _CLASS_INHERIT_LEVEL_START
+    __gClassInheritLevels[clzDef] = 1 + parentLevel
 
     -- 是否需要合成构造方法
     local isPlainClass = (not clzDef[_METHOD_NAME_CONSTRUCT])

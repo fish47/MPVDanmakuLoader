@@ -88,7 +88,8 @@ local MockFileSystem =
         types.isClosedFile = __isClosedFilePatched
         if classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
         then
-            for _, methodName in ipairs({ "isExistedFile",
+            for _, methodName in ipairs({ "isExistedDir",
+                                          "isExistedFile",
                                           "readUTF8File",
                                           "readFile",
                                           "writeFile",
@@ -179,6 +180,11 @@ local MockFileSystem =
     isExistedFile = function(self, fullPath)
         local _, node = self:_seekToNode(fullPath)
         return node and node:isFile()
+    end,
+
+    isExistedDir = function(self, fullPath)
+        local _, node = self:_seekToNode(fullPath)
+        return node and node:isDir()
     end,
 
     writeFile = function(self, fullPath, mode)

@@ -276,7 +276,7 @@ local _NetworkConnectionBase =
             if succeed
             then
                 -- 注意参数有可为空
-                local newCount = #self._mConnections
+                local newCount = #self._mConnections + 1
                 self._mConnections[newCount] = conn
                 self._mCallbacks[newCount] = callback
                 self._mCallbackArgs[newCount] = arg
@@ -316,6 +316,8 @@ local _NetworkConnectionBase =
         end
     end,
 }
+
+classlite.declareClass(_NetworkConnectionBase)
 
 
 local _CURL_TIMEOUT_SECONDS     = 10
@@ -479,9 +481,10 @@ local function joinPath(dirName, pathName)
     local paths2 = _splitPathElements(pathName)
     if paths1 and paths2
     then
-        local p1 = _joinPathElements(paths1)
-        local p2 = _joinPathElements(paths2)
-        return p1 .. _PATH_SEPERATOR .. p2
+        utils.appendArrayElements(paths1, paths2)
+        local ret = _joinPathElements(paths1)
+        utils._recycleTable(paths2)
+        return ret
     else
         utils._recycleTable(paths1)
         utils._recycleTable(paths2)
