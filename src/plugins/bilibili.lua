@@ -1,4 +1,6 @@
+local _intf     = require("src/plugins/_intf")
 local utils     = require("src/base/utils")
+local classlite = require("src/base/classlite")
 local danmaku   = require("src/core/danmaku")
 
 
@@ -31,6 +33,35 @@ local _BILI_LIFETIME_MAP        =
     [_BILI_POS_STATIC_TOP]      = danmaku._LIFETIME_STATIC,
     [_BILI_POS_STATIC_BOTTOM]   = danmaku._LIFETIME_STATIC,
 }
+
+local BiliBiliDanmakuSourcePlugin =
+{
+    getName = function()
+        return "BiliBili"
+    end,
+
+    getType = function()
+        return _intf.SOURCE_TYPE_REMOTE
+    end,
+
+    parse = function(self, )
+        --TODO
+    end,
+
+    getFuzzyMatchedDanmakuURL = function(self, app)
+        --TODO
+    end,
+
+    getDanmakuURLs = function(self, videoIDs, outURLs)
+        --TODO
+    end,
+
+    getVideoPartDurations = function(self, videoIDs, outDurations)
+        --TODO
+    end,
+}
+
+classlite.declareClass(BiliBiliDanmakuSourcePlugin, _intf.IDanmakuSourcePlugin)
 
 
 local function parseBiliBiliRawData(cfg, pools, rawData, offset)

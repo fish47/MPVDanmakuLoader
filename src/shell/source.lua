@@ -45,7 +45,7 @@ local function __deleteDownloadedFiles(app, filePaths)
 end
 
 
-local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePaths)
+local function __downloadDanmakuRawDataFiles(app, datetime, urls, outFilePaths)
     local function __writeRawData(content, rawDatas)
         utils.pushArrayElement(rawDatas, content)
     end
@@ -54,7 +54,7 @@ local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePath
     local rawDatas = utils.clearTable(outFilePaths)
     local conn = app:getNetworkConnection()
     conn:resetParams()
-    for _, url in ipairs(danmakuURLs)
+    for _, url in ipairs(urls)
     do
         conn:receiveLater(url, __writeRawData, rawDatas)
     end
@@ -65,7 +65,7 @@ local function __downloadDanmakuRawDatas(app, datetime, danmakuURLs, outFilePath
     hasCreatedDir = not hasCreatedDir and app:createDir(baseDir)
 
     -- 有文件下不动的时候，数量就对不上
-    if not hasCreatedDir or #rawDatas ~= #danmakuURLs
+    if not hasCreatedDir or #rawDatas ~= #urls
     then
         utils.clearTable(rawDatas)
         return false
@@ -344,7 +344,7 @@ local _CachedDanmakuSource =
         source2._mDate = datetime
 
         local filePaths = source2._mFilePaths
-        if __downloadDanmakuRawDatas(app, source2._mDownloadURLs, filePaths)
+        if __downloadDanmakuRawDataFiles(app, source2._mDownloadURLs, filePaths)
         then
             if source2:__isValid()
             then
@@ -369,7 +369,7 @@ local DanmakuSourceFactory =
 
     __mSerializeTuple           = classlite.declareTableField(),
     __mDeserializeTuple         = classlite.declareTableField(),
-    __mListFilePaths                = classlite.declareTableField(),
+    __mListFilePaths            = classlite.declareTableField(),
     __mDownloadedFilePaths      = classlite.declareTableField(),
     __mDanmakuSources           = classlite.declareTableField(),
 
@@ -495,7 +495,7 @@ local DanmakuSourceFactory =
         local app = self._mApplication
         local datetime = app:getCurrentDateTime()
         local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
-        if __downloadDanmakuRawDatas(app, datetime, urls, filePaths)
+        if __downloadDanmakuRawDataFiles(app, datetime, urls, filePaths)
         then
             local source = self:_obtainDanmakuSource(_CachedDanmakuSource)
             if source and source:_init(app, srcType, datetime, desc, filePaths, offsets, urls)

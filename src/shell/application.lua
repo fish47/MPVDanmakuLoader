@@ -6,7 +6,7 @@ local bilibili      = require("src/search/bilibili")
 local dandanplay    = require("src/search/dandanplay")
 
 
-local MPVDanmakuLoaderCfg   =
+local MPVDanmakuLoaderCfg =
 {
     bottomReservedHeight    = 0,                -- 弹幕底部预留空间
     danmakuFontSize         = 34,               -- 弹幕默认字体大小
@@ -15,6 +15,8 @@ local MPVDanmakuLoaderCfg   =
     subtitleFontSize        = 34,               -- 字幕默认字体大小
     subtitleFontName        = "mono",           -- 字幕默认字体名
     subtitleFontColor       = 0xFFFFFFFF,       -- 字幕默认颜色 BBGGRR
+    movingDanmakuLifeTime   = 8000,             -- 滚动弹幕存活时间
+    staticDanmakuLIfeTime   = 5000,             -- 固定位置弹幕存活时间
 }
 
 classlite.declareClass(MPVDanmakuLoaderCfg)
