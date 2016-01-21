@@ -2,8 +2,9 @@ local utils         = require("src/base/utils")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
-local bilibili      = require("src/search/bilibili")
-local dandanplay    = require("src/search/dandanplay")
+local srt           = require("src/plugins/srt")
+local bilibili      = require("src/plugins/bilibili")
+local dandanplay    = require("src/plugins/dandanplay")
 
 
 local MPVDanmakuLoaderCfg =
@@ -24,9 +25,27 @@ classlite.declareClass(MPVDanmakuLoaderCfg)
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration     = classlite.declareClassField(MPVDanmakuLoaderCfg),
-    _mDanmakuPools      = classlite.declareClassField(danmaku.DanmakuPools),
-    _mNetworkConnection = classlite.declareClassField(unportable.CURLNetworkConnection),
+    _mConfiguration         = classlite.declareClassField(MPVDanmakuLoaderCfg),
+    _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
+    _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
+    _mDanmakuSourcePlugins  = classlite.declareTableField(),
+
+
+    new = function(self)
+        self:_initDanmakuSourcePlugins()
+    end,
+
+    _onLoadFile = function(self)
+        --TODO
+    end,
+
+    _initDanmakuSourcePlugins = function(self)
+        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
+        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
+        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
+        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new()))
+    end,
 
     getConfiguration = function(self)
         return self._mConfiguration
@@ -38,10 +57,6 @@ local MPVDanmakuLoaderApp =
 
     getNetworkConnection = function(self)
         return self._mNetworkConnection
-    end,
-
-    _onLoadFile = function(self)
-        --TODO
     end,
 
     setSubtitle = function(self, path)
@@ -77,11 +92,6 @@ local MPVDanmakuLoaderApp =
     _getPrivateDirPath = function(self)
         local dir = unportable.splitPath(self:getVideoFilePath())
         return unportable.joinPath(dir, ".danmakuloader")
-    end,
-
-    getSRTFileSearchDirPath = function(self)
-        local dir = unportable.splitPath(self:getVideoFilePath())
-        return dir
     end,
 
     getDanmakuSourceRawDataDirPath = function(self)

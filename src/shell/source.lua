@@ -20,22 +20,6 @@ local _SOURCE_FMT_FILE_NAME     = "%s_%d.txt"
 local _SOURCE_PATTERN_SRT_FILE  = ".*[sS][rR][tT]$"
 
 
-local _PARSE_FUNC_MAP =
-{
-    [SOURCE_TYPE_ACFUN]     = function(app, src, danmakuFile, timeOffset)
-        --TODO
-    end,
-
-    [SOURCE_TYPE_BILI]      = function(app, src, danmakuFile, timeOffset)
-        --TODO
-    end,
-
-    [SOURCE_TYPE_DDP]       = function(app, src, danmakuFile, timeOffset)
-        --TODO
-    end,
-}
-
-
 local function __deleteDownloadedFiles(app, filePaths)
     local function __deleteFile(fullPath, _, __, app)
         app:deleteTree(fullPath)
