@@ -48,6 +48,10 @@ local MPVDanmakuLoaderApp =
 --        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new()))
     end,
 
+    iterateDanmakuSourcePlugin = function(self)
+        return utils.iterateArray(self._mDanmakuSourcePlugins)
+    end,
+
     getConfiguration = function(self)
         return self._mConfiguration
     end,
@@ -93,6 +97,10 @@ local MPVDanmakuLoaderApp =
     _getPrivateDirPath = function(self)
         local dir = unportable.splitPath(self:getVideoFilePath())
         return unportable.joinPath(dir, ".danmakuloader")
+    end,
+
+    getLocalDanamakuSourceDirPath = function(self)
+        --TODO
     end,
 
     getDanmakuSourceRawDataDirPath = function(self)

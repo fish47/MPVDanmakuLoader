@@ -1,7 +1,7 @@
-local _intf     = require("src/plugins/_intf")
-local utils     = require("src/base/utils")
-local classlite = require("src/base/classlite")
-local danmaku   = require("src/core/danmaku")
+local _pluginbase   = require("src/plugins/_pluginbase")
+local utils         = require("src/base/utils")
+local classlite     = require("src/base/classlite")
+local danmaku       = require("src/core/danmaku")
 
 
 local _BILI_PATTERN_DANMAKU_ID  = "_bili_%s_%s"
@@ -98,9 +98,13 @@ local BiliBiliDanmakuSourcePlugin =
     getVideoPartDurations = function(self, videoIDs, outDurations)
         --TODO
     end,
+
+    isRawDataCacheable = function(self)
+        return true
+    end,
 }
 
-classlite.declareClass(BiliBiliDanmakuSourcePlugin, _intf.IRemoteDanmakuSourcePlugin)
+classlite.declareClass(BiliBiliDanmakuSourcePlugin, _pluginbase.IRemoteDanmakuSourcePlugin)
 
 
 return
