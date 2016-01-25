@@ -1,9 +1,9 @@
-local lu        = require("unittest/luaunit")    --= luaunit lu
-local _ass      = require("src/core/_ass")
-local srt       = require("src/core/srt")
-local danmaku   = require("src/core/danmaku")
-local utils     = require("src/base/utils")
-local app       = require("src/shell/app")
+local lu            = require("unittest/luaunit")    --= luaunit lu
+local _ass          = require("src/core/_ass")
+local danmaku       = require("src/core/danmaku")
+local utils         = require("src/base/utils")
+local srt           = require("src/plugins/srt")
+local application   = require("src/shell/application")
 
 
 TestParseSRTFile =
@@ -12,7 +12,7 @@ TestParseSRTFile =
     __mCfg      = nil,
 
     setUp = function(self)
-        self.__mCfg = app.MPVDanmakuLoaderCfg:new()
+        self.__mCfg = application.MPVDanmakuLoaderCfg:new()
         self.__mPools = {}
     end,
 
@@ -37,7 +37,7 @@ TestParseSRTFile =
         f:seek("set", 0)
 
         local pool = danmaku.DanmakuPool:new()
-        local ret = srt.parseSRTFile(self.__mCfg, pool, f, "foo")
+        local ret = srt._parseSRTFile(self.__mCfg, pool, f, "foo")
 
         f:close()
         pool:sortDanmakusByStartTime()
@@ -47,7 +47,7 @@ TestParseSRTFile =
 
 
     __doGetDanmakuText = function(self, pool, idx)
-        local _, _, _, _, _, text = pool:getSortedDanmakuAt(idx)
+        local _, _, _, _, _, _, text = pool:getDanmakuAt(idx)
         return text
     end,
 
@@ -86,7 +86,7 @@ TestParseSRTFile =
 
         lu.assertEquals(pool:getDanmakuCount(), 5)
 
-        local startTime4, lifeTime4 = pool:getSortedDanmakuAt(4)
+        local startTime4, lifeTime4 = pool:getDanmakuAt(4)
         lu.assertEquals(startTime4, 28700)
         lu.assertEquals(lifeTime4, 4790)
 

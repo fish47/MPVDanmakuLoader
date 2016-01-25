@@ -219,15 +219,19 @@ local function sortParallelArrays(...)
     local compareFunc = hasCompareFunc and firstArg
     local arrayStartIdx = 1 + types.toNumber(hasCompareFunc)
 
+    -- 以第一个数组内容作为排序关键词
     local firstArray = select(arrayStartIdx, ...)
     if not firstArray
     then
         return
     end
 
-
-    local compareFuncArg = hasCompareFunc and function(idx1, idx2)
-        return compareFunc(firstArray[idx1], firstArray[idx2])
+    local compareFuncArg = nil
+    if hasCompareFunc
+    then
+        compareFuncArg = function(idx1, idx2)
+            return compareFunc(firstArray[idx1], firstArray[idx2])
+        end
     end
 
     -- 获取排序后的新位置

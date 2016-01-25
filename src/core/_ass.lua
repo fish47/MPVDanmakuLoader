@@ -4,9 +4,6 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local _LIFETIME_STATIC      = 5000
-local _LIFETIME_MOVING      = 8000
-
 local LAYER_MOVING_L2R      = 6
 local LAYER_MOVING_R2L      = 5
 local LAYER_STATIC_TOP      = 4

@@ -99,7 +99,7 @@ local _WidgetPropertiesBase =
             then
                 utils.clearTable(self[name])
             else
-                --TODO 不允许出现
+                -- 只会出现基本数据类型
             end
         end
     end,

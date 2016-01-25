@@ -152,26 +152,27 @@ local _IDanmakuSource =
 classlite.declareClass(_IDanmakuSource)
 
 
-local _SRTDanmakuSource =
+local _LocalDanmakuSource =
 {
-    _mSRTFilePath   = classlite.declareConstantField(nil),
+    _mPlugin            = classlite.declareConstantField(nil),
+    _mLocalFilePaths    = classlite.declareTableField(),
 
-    _init = function(self, app, filePath)
+    _init = function(self, app, plugin, filePath)
         if app:isExistedFile(filePath)
         then
-            self._mSRTFilePath = filePath
+            self._mLocalFilePaths = filePath
             return true
         end
     end,
 
     parse = function(self, app)
-        local file = app:openUTF8File(self._mSRTFilePath)
+        local file = app:openUTF8File(self._mLocalFilePaths)
         if file
         then
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            local _, fileName = unportable.splitPath(self._mSRTFilePath)
+            local _, fileName = unportable.splitPath(self._mLocalFilePaths)
             srt.parseSRTFile(cfg, pool, file, string.format(_SOURCE_FMT_SRT, fileName))
             file:close()
         end
@@ -182,11 +183,11 @@ local _SRTDanmakuSource =
     end,
 
     getDescription = function(self)
-        return self._mSRTFilePath
+        return self._mLocalFilePaths
     end,
 }
 
-classlite.declareClass(_SRTDanmakuSource, _IDanmakuSource)
+classlite.declareClass(_LocalDanmakuSource, _IDanmakuSource)
 
 
 local _CachedDanmakuSource =
@@ -359,7 +360,7 @@ local DanmakuSourceFactory =
 
 
     new = function(self)
-        self._mDanmakuSourcePools[_SRTDanmakuSource] = {}
+        self._mDanmakuSourcePools[_LocalDanmakuSource] = {}
         self._mDanmakuSourcePools[_CachedDanmakuSource] = {}
     end,
 
@@ -411,7 +412,7 @@ local DanmakuSourceFactory =
 
         for _, filePath in ipairs(filePaths)
         do
-            local source = self:_obtainDanmakuSource(_SRTDanmakuSource)
+            local source = self:_obtainDanmakuSource(_LocalDanmakuSource)
             source:_init(app, filePath)
             utils.pushArrayElement(outList, source)
         end

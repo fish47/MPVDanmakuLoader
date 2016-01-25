@@ -28,7 +28,8 @@ local MPVDanmakuLoaderApp =
     _mConfiguration         = classlite.declareClassField(MPVDanmakuLoaderCfg),
     _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
     _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
-    _mDanmakuSourcePlugins  = classlite.declareTableField(),
+    _mLocalSourcePlugins    = classlite.declareTableField(),
+    _mRemoteSourcePlugins   = classlite.declareTableField(),
 
 
     new = function(self)
@@ -40,11 +41,11 @@ local MPVDanmakuLoaderApp =
     end,
 
     _initDanmakuSourcePlugins = function(self)
-        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
-        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
-        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
-        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
-        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new()))
+--        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
+--        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
+--        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+--        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
+--        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new()))
     end,
 
     getConfiguration = function(self)
