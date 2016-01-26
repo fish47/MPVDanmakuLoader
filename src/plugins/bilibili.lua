@@ -1,4 +1,4 @@
-local _pluginbase   = require("src/plugins/_pluginbase")
+local pluginbase    = require("src/plugins/pluginbase")
 local utils         = require("src/base/utils")
 local classlite     = require("src/base/classlite")
 local danmaku       = require("src/core/danmaku")
@@ -104,7 +104,7 @@ local BiliBiliDanmakuSourcePlugin =
     end,
 }
 
-classlite.declareClass(BiliBiliDanmakuSourcePlugin, _pluginbase.IRemoteDanmakuSourcePlugin)
+classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase.IRemoteDanmakuSourcePlugin)
 
 
 return

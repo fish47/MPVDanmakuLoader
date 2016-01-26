@@ -2,7 +2,9 @@ local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
+local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
+local source        = require("src/shell/source")
 local application   = require("src/shell/application")
 
 
@@ -323,7 +325,74 @@ local MockFileSystem =
 classlite.declareClass(MockFileSystem)
 
 
+local MockNetworkConnection =
+{
+    _mContentMap    = classlite.declareTableField(),
+
+    setContent = function(self, url, content)
+        if types.isString(url) and (types.isString(content) or content == nil)
+        then
+            self._mContentMap[url] = content
+        end
+    end,
+
+    _createConnection = function(self, url)
+        local content = types.isString(url) and self._mContentMap[url]
+        return types.toBoolean(content), content
+    end,
+
+    _readConnection = function(self, conn)
+        return conn
+    end,
+}
+
+classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
+
+
+
+local MockApplication =
+{
+    _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
+    _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
+
+    new = function(self, ...)
+        self:getParent().new(self, ...)
+        self._mMockFileSystem:setup(self)
+    end,
+
+    dispose = function(self)
+        self._mMockFileSystem:unsetup()
+    end,
+
+    addDanmakuSourcePlugin = function(self, plugin)
+        --TODO
+    end,
+
+    _getPrivateDirPath = function(self)
+        return "/"
+    end,
+}
+
+classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)
+
+
+local MockDanmakuSourceFactory =
+{
+    _doReadMetaFile = function(self, callback)
+        local app = self._mApplication
+        local f = app:readFile(app:getDanmakuSourceMetaFilePath())
+        local content = utils.readAndCloseFile(f)
+        serialize.deserializeTupleFromString(content, callback)
+    end,
+}
+
+classlite.declareClass(MockDanmakuSourceFactory, source.DanmakuSourceFactory)
+
+
 return
 {
-    MockFileSystem      = MockFileSystem,
+    MockFileSystem              = MockFileSystem,
+    MockNetworkConnection       = MockNetworkConnection,
+    MockApplication             = MockApplication,
+    MockDanmakuSourceFactory    = MockDanmakuSourceFactory,
 }

@@ -1,5 +1,5 @@
 local lu            = require("unittest/luaunit")    --= luaunit lu
-local mockfs        = require("unittest/mockfs")
+local mocks         = require("unittest/mocks")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
@@ -35,7 +35,7 @@ TestMockFileSystem =
 
 
     setUp = function(self)
-        local fs = mockfs.MockFileSystem:new()
+        local fs = mocks.MockFileSystem:new()
         fs:setup()
         self._mFileSystem = fs
 
@@ -110,7 +110,7 @@ TestMockFileSystem =
 
 
     testClosePenddingFiles = function(self)
-        local fs = mockfs.MockFileSystem:new()
+        local fs = mocks.MockFileSystem:new()
         utils.writeAndCloseFile(fs:writeFile("/1.txt"), "123")
         local f1 = fs:readFile("/1.txt")
         local f2 = fs:writeFile("/2.txt")

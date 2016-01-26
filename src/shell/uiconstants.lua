@@ -1,50 +1,15 @@
 local UI_STRINGS_CN =
 {
-    app =
-    {
-        title = "MPVDanmakuLoader",
-    },
+    title_app = "MPVDanmakuLoader",
+    title_main = "选择操作",
+    title_help = "帮助",
+    title_add_src = "添加弹幕源",
 
-    main =
-    {
-        title = "操作",
-
-        options =
-        {
-            add_danmaku_src         = "添加弹幕源",
-            update_danmaku          = "更新弹幕源",
-            generate_ass_file       = "生成弹幕",
-            delete_danmaku_cache    = "删除弹幕缓存",
-            show_help               = "帮助",
-        },
-    },
-
-    add_danmaku_src =
-    {
-        title = "添加弹幕源"
-    },
-
-    add_danmaku_src_bili =
-    {
-        title = "BiliBili 弹幕源",
-    },
-
-    add_danmaku_src_ddp =
-    {
-        title = "弹弹Play 弹幕源",
-        columns = { "影片标题", "分集标题" },
-    },
-
-    add_danmaku_src_acfun =
-    {
-        title = "Acfun 弹幕源",
-    },
-
-    help =
-    {
-        title = "帮助",
-        content = "Hahahahaha",
-    },
+    option_main_add_danmaku_source      = "添加弹幕源",
+    option_main_update_danmaku_source   = "更新弹幕源",
+    option_main_generate_ass_file       = "生成 ASS 文件",
+    option_main_delete_danmaku_source   = "删除弹幕源",
+    option_main_show_help               = "帮助",
 }
 
 

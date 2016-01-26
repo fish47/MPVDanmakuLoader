@@ -5,8 +5,7 @@ local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
-local srt           = require("src/parse/srt")
-local _pluginbase   = require("src/plugin/_pluginbase")
+local pluginbase    = require("src/plugins/pluginbase")
 
 
 local _SOURCE_FMT_DATETIME      = "%y%m%d_%H%M%S"
@@ -170,7 +169,7 @@ local _LocalDanmakuSource =
     end,
 
     __isValid = function(self, app)
-        return classlite.isInstanceOf(self._mPlugin, _pluginbase.IDanmakuSourcePlugin)
+        return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
                and app:isExistedFile(self._mFilePath)
     end,
 }
@@ -217,7 +216,7 @@ local CachedRemoteDanmakuSource =
 
 
     __isValid = function(self, app)
-        if not classlite.isInstanceOf(self._mPlugin, _pluginbase.IDanmakuSourcePlugin)
+        if not classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
             or not types.isNumber(self._mDate)
             or not types.isString(self._mDescription)
         then
@@ -437,7 +436,7 @@ local DanmakuSourceFactory =
         local app = self._mApplication
         local danmakuSources = utils.clearTable(self.__mDanmakuSources)
         local function __callback(md5, ...)
-            -- 用 MD5 来区分不同视频文件的弹幕源，提早判可以过滤大部分记录
+            -- 用 MD5 来区分不同视频文件的弹幕源，提前判可以过滤大部分记录
             if md5 == app:getVideoMD5()
             then
                 local deserializer = self._mDeserializer
@@ -473,14 +472,14 @@ local DanmakuSourceFactory =
     end,
 
 
-    _doAddCachedDanmakuSource = function(self, srcType, desc, offsets, urls)
+    addDanmakuSource = function(self, plugin, desc, offsets, urls)
         local app = self._mApplication
         local datetime = app:getCurrentDateTime()
         local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
         if __downloadDanmakuRawDataFiles(app, datetime, urls, filePaths)
         then
             local source = self:_obtainDanmakuSource(CachedRemoteDanmakuSource)
-            if source and source:_init(app, srcType, datetime, desc, filePaths, offsets, urls)
+            if source and source:_init(app, plugin, datetime, desc, filePaths, offsets, urls)
             then
                 self:_doAppendMetaFile(source)
                 return source

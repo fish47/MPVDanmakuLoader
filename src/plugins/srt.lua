@@ -1,4 +1,4 @@
-local _pluginbase   = require("src/plugins/_pluginbase")
+local pluginbase    = require("src/plugins/pluginbase")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
@@ -143,7 +143,7 @@ local SRTDanmakusrcPlugin =
     end,
 }
 
-classlite.declareClass(SRTDanmakusrcPlugin, _pluginbase.IRemoteDanmakusrcPlugin)
+classlite.declareClass(SRTDanmakusrcPlugin, pluginbase.IRemoteDanmakusrcPlugin)
 
 
 return
