@@ -5,8 +5,18 @@ local utils         = require("src/base/utils")
 local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
+local pluginbase    = require("src/plugins/pluginbase")
 local source        = require("src/shell/source")
 local application   = require("src/shell/application")
+
+
+local MockPlugin =
+{
+    getName = function(self)
+        return "mock_plugin"
+    end,
+}
+classlite.declareClass(MockPlugin, pluginbase.IDanmakuSourcePlugin)
 
 
 TestDanmakuSourceFactory =

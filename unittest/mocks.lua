@@ -4,6 +4,7 @@ local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
+local pluginbase    = require("src/plugins/pluginbase")
 local source        = require("src/shell/source")
 local application   = require("src/shell/application")
 
@@ -364,11 +365,23 @@ local MockApplication =
         self._mMockFileSystem:unsetup()
     end,
 
+    _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
+
     addDanmakuSourcePlugin = function(self, plugin)
-        --TODO
+        local function __isNameMatched(p1, p2)
+            return p1:getName() == p2:getName()
+        end
+
+        local plugins = self._mDanmakuSourcePlugins
+        if classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
+            and not utils.binarySearchArrayIf(plugins, __isNameMatched, plugin)
+        then
+            utils.pushArrayElement(plugins, plugin)
+        end
     end,
 
     _getPrivateDirPath = function(self)
+        --TODO 新建文件夹
         return "/"
     end,
 }
