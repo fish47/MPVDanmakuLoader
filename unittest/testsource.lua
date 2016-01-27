@@ -2,6 +2,7 @@ local lu            = require("unittest/luaunit")    --= luaunit lu
 local mocks         = require("unittest/mocks")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
+local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
@@ -12,8 +13,24 @@ local application   = require("src/shell/application")
 
 local MockPlugin =
 {
+    _mName              = classlite.declareConstantField(nil),
+    _mFileNamePattern   = classlite.declareConstantField(nil),
+    _mParseFilePaths    = classlite.declareConstantField(nil),
+
     getName = function(self)
-        return "mock_plugin"
+        local name = self._mName
+        lu.assertTrue(types.isString(name))
+        return name
+    end,
+
+    parse = function(self, app, filePath)
+        utils.pushArrayElement(self._mParseFilePaths, filePath)
+    end,
+
+    isMatchedRawDataFile = function(self, app, filePath)
+        local pattern = self._mFileNamePattern
+        lu.assertTrue(types.isString)
+        return app:isExistedFile(filePath) and filePath:match(pattern)
     end,
 }
 classlite.declareClass(MockPlugin, pluginbase.IDanmakuSourcePlugin)
@@ -36,10 +53,17 @@ TestDanmakuSourceFactory =
     end,
 
 
-    testAddSource = function(self)
-        local urls = { "1", "2", "3" }
-        local offsets = { 0, 1, 2 }
-        local desc = "123"
+    testMatchedLocalSources = function(self)
+        local function __writeFile(app, dir, fileName, content)
+            local f = app:writeFile(unportable.joinPath(dir, fileName))
+            utils.writeAndCloseFile(f, content or constants.STR_EMPTY)
+        end
+
+        local app = self._mApplication
+        local factory = self._mDanmakuSourceFactory
+        local dir = app:getLocalDanamakuSourceDirPath()
+
+
     end,
 }
 

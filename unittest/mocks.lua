@@ -328,17 +328,17 @@ classlite.declareClass(MockFileSystem)
 
 local MockNetworkConnection =
 {
-    _mContentMap    = classlite.declareTableField(),
+    _mResponseMap    = classlite.declareTableField(),
 
-    setContent = function(self, url, content)
+    setResponse = function(self, url, content)
         if types.isString(url) and (types.isString(content) or content == nil)
         then
-            self._mContentMap[url] = content
+            self._mResponseMap[url] = content
         end
     end,
 
     _createConnection = function(self, url)
-        local content = types.isString(url) and self._mContentMap[url]
+        local content = types.isString(url) and self._mResponseMap[url]
         return types.toBoolean(content), content
     end,
 

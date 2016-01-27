@@ -100,7 +100,8 @@ local MPVDanmakuLoaderApp =
     end,
 
     getLocalDanamakuSourceDirPath = function(self)
-        --TODO
+        local dir = unportable.splitPath(self:getVideoFilePath())
+        return dir
     end,
 
     getDanmakuSourceRawDataDirPath = function(self)
