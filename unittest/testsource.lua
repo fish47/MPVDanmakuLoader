@@ -53,15 +53,58 @@ TestDanmakuSourceFactory =
     end,
 
 
-    testMatchedLocalSources = function(self)
-        local function __writeFile(app, dir, fileName, content)
-            local f = app:writeFile(unportable.joinPath(dir, fileName))
-            utils.writeAndCloseFile(f, content or constants.STR_EMPTY)
+    testMatchLocalSource = function(self)
+        local function __createFile(app, dir, fileName, suffix)
+            local fullPath = unportable.joinPath(dir, fileName)
+            local f = app:writeFile(fullPath)
+            local ret = utils.writeAndCloseFile(f, constants.STR_EMPTY)
+            return ret and fullPath
+        end
+
+        local function __assertLocalRawDataFiles(app, plugin, factory, assertPaths)
+            local parsedFilePaths = {}
+            local orgParseFunc = plugin.parse
+            plugin.parse = function(self, app, filePath)
+                table.insert(parsedFilePaths, filePath)
+            end
+
+            local listedSources = {}
+            factory:listDanmakuSources(listedSources)
+            for _, source in ipairs(listedSources)
+            do
+                source:parse(app)
+            end
+
+            local pathsBak = {}
+            utils.appendArrayElements(assertPaths)
+            table.sort(pathsBak)
+            table.sort(parsedFilePaths)
+            lu.assertEquals(pathsBak, parsedFilePaths)
         end
 
         local app = self._mApplication
         local factory = self._mDanmakuSourceFactory
         local dir = app:getLocalDanamakuSourceDirPath()
+
+        local suffix1 = ".p1"
+        local filePaths1 = {}
+        for _, fileName in ipairs({ "a", "b", "c" })
+        do
+            local fullPath = unportable.joinPath(dir, fileName .. suffix1)
+            local f = app:writeFile(fullPath)
+            if utils.writeAndCloseFile(f, constants.STR_EMPTY)
+            then
+                table.insert(filePaths1, fullPath)
+            end
+        end
+
+        local plugin1 = pluginbase.IDanmakuSourcePlugin:new()
+        plugin1.isMatchedRawDataFile = function(self, app, filePath)
+            return utils.linearSearchArray(filePaths1, filePath)
+        end
+
+        app:addDanmakuSourcePlugin(plugin1)
+        __assertLocalRawDataFiles(app, plugin1, factory, dir, filePaths1)
 
 
     end,

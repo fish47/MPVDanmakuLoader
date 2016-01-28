@@ -381,8 +381,15 @@ local MockApplication =
     end,
 
     _getPrivateDirPath = function(self)
-        --TODO 新建文件夹
-        return "/"
+        local dir = "/private"
+        self:createDir(dir)
+        return dir
+    end,
+
+    getLocalDanamakuSourceDirPath = function(self)
+        local dir = "/local_source"
+        self:createDir(dir)
+        return dir
     end,
 }
 
