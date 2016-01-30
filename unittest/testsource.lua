@@ -53,60 +53,101 @@ TestDanmakuSourceFactory =
     end,
 
 
-    testMatchLocalSource = function(self)
-        local function __createFile(app, dir, fileName, suffix)
+    _writeEmptyFiles = function(self, dir, fileNames, outFullPaths)
+        for _, fileName in ipairs(fileNames)
+        do
             local fullPath = unportable.joinPath(dir, fileName)
-            local f = app:writeFile(fullPath)
-            local ret = utils.writeAndCloseFile(f, constants.STR_EMPTY)
-            return ret and fullPath
+            local file = self._mApplication:writeFile(fullPath)
+            local ret = utils.writeAndCloseFile(file, constants.STR_EMPTY)
+            lu.assertTrue(ret)
+            utils.pushArrayElement(outFullPaths, fullPath)
         end
+    end,
 
-        local function __assertLocalRawDataFiles(app, plugin, factory, assertPaths)
-            local parsedFilePaths = {}
-            local orgParseFunc = plugin.parse
-            plugin.parse = function(self, app, filePath)
-                table.insert(parsedFilePaths, filePath)
-            end
 
-            local listedSources = {}
-            factory:listDanmakuSources(listedSources)
-            for _, source in ipairs(listedSources)
+    testMatchLocalSource = function(self)
+
+        local function __assertPluginMatchedFilePaths(app, factory, plugin, assertPaths)
+            local localSources = {}
+            local pluginParsedPaths = plugin:getParsedFilePaths()
+            factory:listDanmakuSources(localSources)
+            utils.clearTable(pluginParsedPaths)
+            for _, source in ipairs(localSources)
             do
                 source:parse(app)
             end
 
-            local pathsBak = {}
-            utils.appendArrayElements(assertPaths)
-            table.sort(pathsBak)
-            table.sort(parsedFilePaths)
-            lu.assertEquals(pathsBak, parsedFilePaths)
+            local parsedPathsBak = utils.appendArrayElements({}, pluginParsedPaths)
+            local assertPathsBak = utils.appendArrayElements({}, assertPaths)
+            table.sort(parsedPathsBak)
+            table.sort(assertPathsBak)
+            lu.assertEquals(parsedPathsBak, assertPathsBak)
+            utils.clearTable(localSources)
+            utils.clearTable(parsedPathsBak)
+            utils.clearTable(assertPathsBak)
         end
+
+        local PatternBasedPlugin =
+        {
+            _mName              = classlite.declareConstantField(nil),
+            _mPathPattern       = classlite.declareConstantField(nil),
+            _mParsedFilePaths   = classlite.declareTableField(),
+
+            new = function(self, pattern)
+                lu.assertTrue(types.isString(pattern))
+                self._mName = tostring(os.time())
+                self._mPathPattern = pattern
+            end,
+
+            getName = function(self)
+                return self._mName
+            end,
+
+            getParsedFilePaths = function(self)
+                return self._mParsedFilePaths
+            end,
+
+            parse = function(self, app, filePath)
+                local paths = self._mParsedFilePaths
+                lu.assertTrue(types.isTable(paths))
+                utils.pushArrayElement(paths, filePath)
+            end,
+
+            isMatchedRawDataFile = function(self, app, fullPath)
+                lu.assertTrue(types.isString(fullPath))
+                return fullPath:match(self._mPathPattern)
+            end,
+        }
+        classlite.declareClass(PatternBasedPlugin, pluginbase.IDanmakuSourcePlugin)
+
 
         local app = self._mApplication
         local factory = self._mDanmakuSourceFactory
         local dir = app:getLocalDanamakuSourceDirPath()
 
-        local suffix1 = ".p1"
         local filePaths1 = {}
-        for _, fileName in ipairs({ "a", "b", "c" })
-        do
-            local fullPath = unportable.joinPath(dir, fileName .. suffix1)
-            local f = app:writeFile(fullPath)
-            if utils.writeAndCloseFile(f, constants.STR_EMPTY)
-            then
-                table.insert(filePaths1, fullPath)
-            end
-        end
+        local filePaths2 = {}
+        self:_writeEmptyFiles(dir, { "1.p1", "2.p1", "3.p1" }, filePaths1)
+        self:_writeEmptyFiles(dir, { "1.p2", "2.p2", "3.p2" }, filePaths2)
 
-        local plugin1 = pluginbase.IDanmakuSourcePlugin:new()
-        plugin1.isMatchedRawDataFile = function(self, app, filePath)
-            return utils.linearSearchArray(filePaths1, filePath)
-        end
-
+        local plugin1 = PatternBasedPlugin:new(".*%.p1$")
+        local plugin2 = PatternBasedPlugin:new(".*%.p2$")
         app:addDanmakuSourcePlugin(plugin1)
-        __assertLocalRawDataFiles(app, plugin1, factory, dir, filePaths1)
+        app:addDanmakuSourcePlugin(plugin2)
+        __assertPluginMatchedFilePaths(app, factory, plugin1, filePaths1)
+        __assertPluginMatchedFilePaths(app, factory, plugin2, filePaths2)
+
+        -- 匹配插件有优先级
+        local filePaths3 = {}
+        self:_writeEmptyFiles(dir, { "1.p3", "2.p4", "3.p5" }, filePaths3)
+
+        local plugin3 = PatternBasedPlugin:new(".*%.p[0-9]$")
+        app:addDanmakuSourcePlugin(plugin3)
+        __assertPluginMatchedFilePaths(app, factory, plugin3, filePaths3)
+    end,
 
 
+    testAddSource = function(self)
     end,
 }
 

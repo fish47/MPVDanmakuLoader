@@ -373,11 +373,13 @@ local MockApplication =
         end
 
         local plugins = self._mDanmakuSourcePlugins
-        if classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
-            and not utils.binarySearchArrayIf(plugins, __isNameMatched, plugin)
+        if not classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
+           or utils.linearSearchArrayIf(plugins, __isNameMatched, plugin)
         then
-            utils.pushArrayElement(plugins, plugin)
+            return
         end
+
+        utils.pushArrayElement(plugins, plugin)
     end,
 
     _getPrivateDirPath = function(self)

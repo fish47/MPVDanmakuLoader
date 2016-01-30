@@ -77,11 +77,12 @@ local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
             end
         end
     end
+    return destArray
 end
 
 
 local function appendArrayElements(destArray, srcArray)
-    appendArrayElementsIf(destArray, srcArray)
+    return appendArrayElementsIf(destArray, srcArray)
 end
 
 

@@ -28,8 +28,7 @@ local MPVDanmakuLoaderApp =
     _mConfiguration         = classlite.declareClassField(MPVDanmakuLoaderCfg),
     _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
     _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
-    _mLocalSourcePlugins    = classlite.declareTableField(),
-    _mRemoteSourcePlugins   = classlite.declareTableField(),
+    _mDanmakuSourcePlugins  = classlite.declareTableField(),
 
 
     new = function(self)
