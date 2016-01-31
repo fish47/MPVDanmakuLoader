@@ -38,7 +38,7 @@ local function __downloadDanmakuRawDataFiles(app, datetime, urls, outFilePaths)
 
     local baseDir = app:getDanmakuSourceRawDataDirPath()
     local hasCreatedDir = app:isExistedDir(baseDir)
-    hasCreatedDir = not hasCreatedDir and app:createDir(baseDir)
+    hasCreatedDir = hasCreatedDir or app:createDir(baseDir)
 
     -- 有文件下不动的时候，数量就对不上
     if not hasCreatedDir or #rawDatas ~= #urls
@@ -265,6 +265,7 @@ local CachedRemoteDanmakuSource =
             serializer:writeArray(self._mFilePaths)
             serializer:writeArray(self._mTimeOffsets)
             serializer:writeArray(self._mDownloadURLs)
+            return true
         end
     end,
 

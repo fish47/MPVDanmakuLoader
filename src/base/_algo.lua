@@ -91,7 +91,8 @@ local function packArray(array, ...)
     then
         for i = 1, types.getVarArgCount(...)
         do
-            table.insert(array, select(i, ...))
+            local val = select(i, ...)
+            table.insert(array, val)
         end
     end
     return array
@@ -377,6 +378,7 @@ return
     clearTable                  = clearTable,
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,
+    packArray                   = packArray,
     unpackArray                 = unpack or table.unpack,
     appendArrayElements         = appendArrayElements,
     appendArrayElementsIf       = appendArrayElementsIf,

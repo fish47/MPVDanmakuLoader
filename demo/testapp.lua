@@ -5,9 +5,9 @@ local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
 local dandanplay    = require("src/search/dandanplay")
 local bilibili      = require("src/search/bilibili")
-local _source       = require("src/shell/_source")
 local logic         = require("src/shell/logic")
 local application   = require("src/shell/application")
+local sourcefactory = require("src/shell/sourcefactory")
 local mockfs        = require("unittest/mockfs")
 
 
@@ -95,7 +95,7 @@ local MockDanmakuSourceFactory =
     end,
 }
 
-classlite.declareClass(MockDanmakuSourceFactory, _source.DanmakuSourceFactory)
+classlite.declareClass(MockDanmakuSourceFactory, sourcefactory.DanmakuSourceFactory)
 
 
 local MockShell =

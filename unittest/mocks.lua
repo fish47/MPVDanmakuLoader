@@ -5,8 +5,8 @@ local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
-local source        = require("src/shell/source")
 local application   = require("src/shell/application")
+local sourcefactory = require("src/shell/sourcefactory")
 
 
 local _BridgedFile =
@@ -382,6 +382,10 @@ local MockApplication =
         utils.pushArrayElement(plugins, plugin)
     end,
 
+    getVideoMD5 = function(self)
+        return string.rep("1", 32)
+    end,
+
     _getPrivateDirPath = function(self)
         local dir = "/private"
         self:createDir(dir)
@@ -408,7 +412,7 @@ local MockDanmakuSourceFactory =
     end,
 }
 
-classlite.declareClass(MockDanmakuSourceFactory, source.DanmakuSourceFactory)
+classlite.declareClass(MockDanmakuSourceFactory, sourcefactory.DanmakuSourceFactory)
 
 
 return

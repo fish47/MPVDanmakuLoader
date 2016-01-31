@@ -2,9 +2,9 @@ local utils         = require("src/base/utils")
 local types         = require("src/base/types")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
-local source        = require("src/shell/source")
 local application   = require("src/shell/application")
 local uiconstants   = require("src/shell/uiconstants")
+local sourcefactory = require("src/shell/sourcefactory")
 
 
 local _SEARCH_PATTERN_BILI_AV       = "%s*av(%d+)%s*"
@@ -68,7 +68,7 @@ local MPVDanmakuLoaderShell =
     end,
 
     _createDanmakuSourceFactory = function(self)
-        return source.DanmakuSourceFactory:new()
+        return sourcefactory.DanmakuSourceFactory:new()
     end,
 
 
