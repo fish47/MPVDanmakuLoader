@@ -14,23 +14,33 @@ local application   = require("src/shell/application")
 local MockPlugin =
 {
     _mName              = classlite.declareConstantField(nil),
-    _mFileNamePattern   = classlite.declareConstantField(nil),
-    _mParseFilePaths    = classlite.declareConstantField(nil),
+    _mPathPattern       = classlite.declareConstantField(nil),
+    _mParsedFilePaths   = classlite.declareTableField(),
+
+    new = function(self, name, pattern)
+        lu.assertTrue(types.isString(name))
+        self._mName = name
+        self._mPathPattern = pattern
+    end,
 
     getName = function(self)
-        local name = self._mName
-        lu.assertTrue(types.isString(name))
-        return name
+        return self._mName
+    end,
+
+    getParsedFilePaths = function(self)
+        return self._mParsedFilePaths
     end,
 
     parse = function(self, app, filePath)
-        utils.pushArrayElement(self._mParseFilePaths, filePath)
+        local paths = self._mParsedFilePaths
+        lu.assertTrue(types.isTable(paths))
+        utils.pushArrayElement(paths, filePath)
     end,
 
-    isMatchedRawDataFile = function(self, app, filePath)
-        local pattern = self._mFileNamePattern
-        lu.assertTrue(types.isString)
-        return app:isExistedFile(filePath) and filePath:match(pattern)
+    isMatchedRawDataFile = function(self, app, fullPath)
+        local pattern = self._mPathPattern
+        lu.assertTrue(types.isString(fullPath))
+        return types.isString(pattern) and fullPath:match(pattern)
     end,
 }
 classlite.declareClass(MockPlugin, pluginbase.IDanmakuSourcePlugin)
@@ -87,40 +97,6 @@ TestDanmakuSourceFactory =
             utils.clearTable(assertPathsBak)
         end
 
-        local PatternBasedPlugin =
-        {
-            _mName              = classlite.declareConstantField(nil),
-            _mPathPattern       = classlite.declareConstantField(nil),
-            _mParsedFilePaths   = classlite.declareTableField(),
-
-            new = function(self, pattern)
-                lu.assertTrue(types.isString(pattern))
-                self._mName = tostring(os.time())
-                self._mPathPattern = pattern
-            end,
-
-            getName = function(self)
-                return self._mName
-            end,
-
-            getParsedFilePaths = function(self)
-                return self._mParsedFilePaths
-            end,
-
-            parse = function(self, app, filePath)
-                local paths = self._mParsedFilePaths
-                lu.assertTrue(types.isTable(paths))
-                utils.pushArrayElement(paths, filePath)
-            end,
-
-            isMatchedRawDataFile = function(self, app, fullPath)
-                lu.assertTrue(types.isString(fullPath))
-                return fullPath:match(self._mPathPattern)
-            end,
-        }
-        classlite.declareClass(PatternBasedPlugin, pluginbase.IDanmakuSourcePlugin)
-
-
         local app = self._mApplication
         local factory = self._mDanmakuSourceFactory
         local dir = app:getLocalDanamakuSourceDirPath()
@@ -130,8 +106,8 @@ TestDanmakuSourceFactory =
         self:_writeEmptyFiles(dir, { "1.p1", "2.p1", "3.p1" }, filePaths1)
         self:_writeEmptyFiles(dir, { "1.p2", "2.p2", "3.p2" }, filePaths2)
 
-        local plugin1 = PatternBasedPlugin:new(".*%.p1$")
-        local plugin2 = PatternBasedPlugin:new(".*%.p2$")
+        local plugin1 = MockPlugin:new("1", ".*%.p1$")
+        local plugin2 = MockPlugin:new("2", ".*%.p2$")
         app:addDanmakuSourcePlugin(plugin1)
         app:addDanmakuSourcePlugin(plugin2)
         __assertPluginMatchedFilePaths(app, factory, plugin1, filePaths1)
@@ -141,7 +117,7 @@ TestDanmakuSourceFactory =
         local filePaths3 = {}
         self:_writeEmptyFiles(dir, { "1.p3", "2.p4", "3.p5" }, filePaths3)
 
-        local plugin3 = PatternBasedPlugin:new(".*%.p[0-9]$")
+        local plugin3 = MockPlugin:new("3", ".*%.p[0-9]$")
         app:addDanmakuSourcePlugin(plugin3)
         __assertPluginMatchedFilePaths(app, factory, plugin3, filePaths3)
     end,
