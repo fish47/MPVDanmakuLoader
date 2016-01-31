@@ -364,7 +364,7 @@ local DanmakuSourceFactory =
         return pool and utils.popArrayElement(pool) or srcClz:new()
     end,
 
-    _recycleDanmakuSource = function(self, source)
+    recycleDanmakuSource = function(self, source)
         if classlite.isInstanceOf(source, IDanmakuSource)
         then
             local clz = source:getClass()
@@ -382,7 +382,7 @@ local DanmakuSourceFactory =
     recycleDanmakuSources = function(self, danmakuSources)
         for i, source in ipairs(danmakuSources)
         do
-            self:_recycleDanmakuSource(source)
+            self:recycleDanmakuSource(source)
             danmakuSources[i] = nil
         end
     end,
@@ -408,7 +408,7 @@ local DanmakuSourceFactory =
                 end
             end
         end
-        self:_recycleDanmakuSource(src)
+        self:recycleDanmakuSource(src)
     end,
 
 
@@ -449,7 +449,7 @@ local DanmakuSourceFactory =
                 then
                     utils.pushArrayElement(danmakuSources, source)
                 else
-                    self:_recycleDanmakuSource(source)
+                    self:recycleDanmakuSource(source)
                 end
             end
         end
@@ -485,7 +485,7 @@ local DanmakuSourceFactory =
                 self:_doAppendMetaFile(source)
                 return source
             else
-                self:_recycleDanmakuSource(source)
+                self:recycleDanmakuSource(source)
             end
         end
     end,
@@ -495,7 +495,7 @@ local DanmakuSourceFactory =
         if classlite.isInstanceOf(source, IDanmakuSource) and source:_delete(app)
         then
             -- 调用者不要再持有这个对象
-            self:_recycleDanmakuSource(source)
+            self:recycleDanmakuSource(source)
             return true
         end
     end,
@@ -510,7 +510,7 @@ local DanmakuSourceFactory =
                 self:_doAppendMetaFile(updatedSource)
                 return updatedSource
             else
-                self:_recycleDanmakuSource(updatedSource)
+                self:recycleDanmakuSource(updatedSource)
             end
         end
     end,

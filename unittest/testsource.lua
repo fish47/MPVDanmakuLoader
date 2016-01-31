@@ -14,7 +14,6 @@ local MockPlugin =
 {
     _mName              = classlite.declareConstantField(nil),
     _mPathPattern       = classlite.declareConstantField(nil),
-    _mParsedFilePaths   = classlite.declareTableField(),
 
     new = function(self, name, pattern)
         lu.assertTrue(types.isString(name))
@@ -24,16 +23,6 @@ local MockPlugin =
 
     getName = function(self)
         return self._mName
-    end,
-
-    getParsedFilePaths = function(self)
-        return self._mParsedFilePaths
-    end,
-
-    parse = function(self, app, filePath)
-        local paths = self._mParsedFilePaths
-        lu.assertTrue(types.isTable(paths))
-        utils.pushArrayElement(paths, filePath)
     end,
 
     isMatchedRawDataFile = function(self, app, fullPath)
@@ -88,22 +77,22 @@ TestDanmakuSourceFactory =
 
         local function __assertPluginMatchedFilePaths(app, factory, plugin, assertPaths)
             local localSources = {}
-            local pluginParsedPaths = plugin:getParsedFilePaths()
+            local sourcePaths = {}
             factory:listDanmakuSources(localSources)
-            utils.clearTable(pluginParsedPaths)
+            lu.assertFalse(types.isEmptyTable(localSources))
+
             for _, source in ipairs(localSources)
             do
-                source:parse(app)
+                if source._mPlugin == plugin
+                then
+                    table.insert(sourcePaths, source._mFilePath)
+                end
             end
 
-            local parsedPathsBak = utils.appendArrayElements({}, pluginParsedPaths)
             local assertPathsBak = utils.appendArrayElements({}, assertPaths)
-            table.sort(parsedPathsBak)
+            table.sort(sourcePaths)
             table.sort(assertPathsBak)
-            lu.assertEquals(parsedPathsBak, assertPathsBak)
-            utils.clearTable(localSources)
-            utils.clearTable(parsedPathsBak)
-            utils.clearTable(assertPathsBak)
+            lu.assertEquals(sourcePaths, assertPathsBak)
         end
 
         local app = self._mApplication
@@ -132,15 +121,15 @@ TestDanmakuSourceFactory =
     end,
 
 
-    testAddSource = function(self)
+    testAddAndRemoveSource = function(self)
         local function __createRandomOffsetsAndURLs(self, conn)
             local count = math.random(10)
             local urls = {}
             local offsets = {}
             for i = 1, count
             do
-                utils.pushArrayElement(offsets, math.random(100))
-                utils.pushArrayElement(urls, self:_createRandomURL())
+                table.insert(offsets, math.random(100))
+                table.insert(urls, self:_createRandomURL())
             end
             return offsets, urls
         end
@@ -149,19 +138,56 @@ TestDanmakuSourceFactory =
         local factory = self._mDanmakuSourceFactory
         local dir = app:getDanmakuSourceRawDataDirPath()
 
-        local plugin1 = MockPlugin:new("1")
-        app:addDanmakuSourcePlugin(plugin1)
-        --TODO 回收
-        factory:addDanmakuSource(plugin1, "source1", __createRandomOffsetsAndURLs(self))
-        factory:addDanmakuSource(plugin1, "source2", __createRandomOffsetsAndURLs(self))
-        factory:addDanmakuSource(plugin1, "source3", __createRandomOffsetsAndURLs(self))
+        local plugins = {}
+        local pluginCount = math.random(5)
+        for i = 1, pluginCount
+        do
+            local plugin = MockPlugin:new(string.format("Plugin_%d", i))
+            table.insert(plugins, plugin)
+        end
 
+        local srcURLs = {}
+        local srcOffsets = {}
+        local srcPlugins = {}
+        local sourceCount = math.random(100)
+        for i = 1, sourceCount
+        do
+            local count = math.random(10)
+            local urls = {}
+            local offsets = {}
+            for i = 1, count
+            do
+                table.insert(urls, self:_createRandomURL())
+                table.insert(offsets, math.random(100))
+            end
+
+            local plugin = plugins[math.random(pluginCount)]
+            table.insert(srcPlugins, plugin)
+            table.insert(srcOffsets, offsets)
+            table.insert(srcURLs, urls)
+
+            -- 每次添加都会写一次序列化文件
+            local source = factory:addDanmakuSource(plugin, tostring(i), offsets, urls)
+            factory:recycleDanmakuSource(source)
+        end
+
+        --TODO UUID
+
+
+        local function __assertDanmakuSources(sources, plugins, offsets, urls)
+            lu.assertFalse(types.isEmptyTable(sources))
+            for i, source in ipairs(sources)
+            do
+                lu.assertEquals(source._mPlugin, plugins[i])
+                lu.assertEquals(source._mTimeOffsets, offsets[i])
+                lu.assertEquals(source._mDownloadURLs, urls[i])
+            end
+        end
+
+        -- 看一下反序列化正不正确
         local sources = {}
         factory:listDanmakuSources(sources)
-        lu.assertEquals(#sources, 3)
-        lu.assertEquals(sources[1]:getDescription(), "source1")
-        lu.assertEquals(sources[2]:getDescription(), "source2")
-        lu.assertEquals(sources[3]:getDescription(), "source3")
+        __assertDanmakuSources(sources, srcPlugins)
     end,
 }
 
