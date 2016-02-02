@@ -8,8 +8,8 @@ local danmaku       = require("src/core/danmaku")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local _SOURCE_FMT_DATETIME      = "%y%m%d_%H%M%S"
-local _SOURCE_FMT_FILE_NAME     = "%s_%d.txt"
+local _RAW_DATA_FILE_PREFFIX        = "raw_"
+local _RAW_DATA_FILE_SUFFIX_FMT     = "_%d.txt"
 
 
 local function __deleteDownloadedFiles(app, filePaths)
@@ -21,7 +21,7 @@ local function __deleteDownloadedFiles(app, filePaths)
 end
 
 
-local function __downloadDanmakuRawDataFiles(app, datetime, urls, outFilePaths)
+local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
     local function __writeRawData(content, rawDatas)
         utils.pushArrayElement(rawDatas, content)
     end
@@ -47,11 +47,10 @@ local function __downloadDanmakuRawDataFiles(app, datetime, urls, outFilePaths)
         return false
     end
 
-    local prefix = os.date(_SOURCE_FMT_DATETIME, datetime)
     for i, rawData in ipairs(rawDatas)
     do
-        local fileName = string.format(_SOURCE_FMT_FILE_NAME, prefix, i)
-        local fullPath = unportable.joinPath(baseDir, fileName)
+        local suffix = string.format(_RAW_DATA_FILE_SUFFIX_FMT, i)
+        local fullPath = app:getUniqueFilePath(baseDir, _RAW_DATA_FILE_PREFFIX, suffix)
         local f = app:writeFile(fullPath)
         if not utils.writeAndCloseFile(f, rawData)
         then
@@ -454,14 +453,6 @@ local DanmakuSourceFactory =
             end
         end
         self:_doReadMetaFile(__callback)
-
-        -- 按日期降序排序
-        local function __cmp(source1, source2)
-            local date1 = source1:getDate()
-            local date2 = source2:getDate()
-            return date1 < date2
-        end
-        table.sort(danmakuSources, __cmp)
         utils.appendArrayElements(outList, danmakuSources)
     end,
 
@@ -477,7 +468,7 @@ local DanmakuSourceFactory =
         local app = self._mApplication
         local datetime = app:getCurrentDateTime()
         local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
-        if __downloadDanmakuRawDataFiles(app, datetime, urls, filePaths)
+        if __downloadDanmakuRawDataFiles(app, urls, filePaths)
         then
             local source = self:_obtainDanmakuSource(CachedRemoteDanmakuSource)
             if source and source:_init(app, plugin, datetime, desc, filePaths, offsets, urls)

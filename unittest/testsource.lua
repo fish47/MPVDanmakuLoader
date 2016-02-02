@@ -144,6 +144,7 @@ TestDanmakuSourceFactory =
         do
             local plugin = MockPlugin:new(string.format("Plugin_%d", i))
             table.insert(plugins, plugin)
+            app:addDanmakuSourcePlugin(plugin)
         end
 
         local srcURLs = {}
@@ -171,23 +172,54 @@ TestDanmakuSourceFactory =
             factory:recycleDanmakuSource(source)
         end
 
-        --TODO UUID
-
-
         local function __assertDanmakuSources(sources, plugins, offsets, urls)
-            lu.assertFalse(types.isEmptyTable(sources))
-            for i, source in ipairs(sources)
+            for _, source in ipairs(sources)
             do
-                lu.assertEquals(source._mPlugin, plugins[i])
-                lu.assertEquals(source._mTimeOffsets, offsets[i])
-                lu.assertEquals(source._mDownloadURLs, urls[i])
+                local idx = tonumber(source:getDescription())
+                lu.assertNotNil(idx)
+                lu.assertEquals(source._mPlugin, plugins[idx])
+                lu.assertEquals(source._mTimeOffsets, offsets[idx])
+                lu.assertEquals(source._mDownloadURLs, urls[idx])
             end
         end
 
         -- 看一下反序列化正不正确
         local sources = {}
         factory:listDanmakuSources(sources)
-        __assertDanmakuSources(sources, srcPlugins)
+        __assertDanmakuSources(sources, srcPlugins, srcOffsets, srcURLs)
+
+        -- 测一下删除弹幕源
+        local filePaths = {}
+        while true
+        do
+            local count = #sources
+            if count == 0
+            then
+                break
+            end
+
+            -- 删除对应文件
+            local removeSource = table.remove(sources, math.random(count))
+            utils.appendArrayElements(utils.clearTable(filePaths), removeSource._mFilePaths)
+            factory:deleteDanmakuSource(removeSource)
+            for _, filePath in ipairs(filePaths)
+            do
+                lu.assertFalse(app:isExistedFile(filePath))
+            end
+
+            factory:listDanmakuSources(utils.clearTable(sources))
+            __assertDanmakuSources(sources, srcPlugins, srcOffsets, srcURLs)
+            lu.assertEquals(#sources, count - 1)
+        end
+    end,
+
+
+    testDeleteUnfinishedDownloadFiles = function(self)
+        --TODO
+    end,
+
+    testUpdateSource = function(self)
+        --TODO
     end,
 }
 
