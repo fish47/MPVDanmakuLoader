@@ -52,7 +52,7 @@ TestDanmakuSourceFactory =
         self._mDanmakuSourceFactory:dispose()
     end,
 
-    _createRandomURL = function(self, content)
+    _getRandomURL = function(self, content)
         local conn = self._mApplication:getNetworkConnection()
         local url = string.format("http://www.xxx.com/%d", self._mRandomURLCount)
         conn:setResponse(url, types.isString(content) or constants.STR_EMPTY)
@@ -129,7 +129,7 @@ TestDanmakuSourceFactory =
             for i = 1, count
             do
                 table.insert(offsets, math.random(100))
-                table.insert(urls, self:_createRandomURL())
+                table.insert(urls, self:_getRandomURL())
             end
             return offsets, urls
         end
@@ -158,7 +158,7 @@ TestDanmakuSourceFactory =
             local offsets = {}
             for i = 1, count
             do
-                table.insert(urls, self:_createRandomURL())
+                table.insert(urls, self:_getRandomURL())
                 table.insert(offsets, math.random(100))
             end
 
@@ -214,15 +214,67 @@ TestDanmakuSourceFactory =
     end,
 
 
-    testDeleteUnfinishedDownloadFiles = function(self)
-        --TODO
-    end,
-
     testUpdateSource = function(self)
-        --TODO
+        local app = self._mApplication
+        local conn = app:getNetworkConnection()
+        local dir = app:getDanmakuSourceRawDataDirPath()
+        local factory = self._mDanmakuSourceFactory
+        local plugin = MockPlugin:new("mock_plugin")
+        app:addDanmakuSourcePlugin(plugin)
+
+        local urls = {}
+        local offsets = {}
+        local filePaths = {}
+        for i = 1, 10
+        do
+            local urlCount = math.random(5)
+            for j = 1, urlCount
+            do
+                table.insert(urls, self:_getRandomURL())
+                table.insert(offsets, math.random(1000))
+            end
+
+            local source = factory:addDanmakuSource(plugin, nil, offsets, urls)
+            lu.assertNotNil(source)
+
+            -- 因为某些文件下载不来，应该是更新失败的
+            for j = 1, math.random(urlCount)
+            do
+                conn:setResponse(urls[math.random(urlCount)], nil)
+            end
+            local source2 = factory:updateDanmakuSource(source)
+            lu.assertNil(source2)
+
+            -- 更改下载的内容
+            for j = 1, urlCount
+            do
+                conn:setResponse(urls[j], tostring(j))
+            end
+            source2 = factory:updateDanmakuSource(source)
+            lu.assertNotNil(source2)
+            for j, filePath in ipairs(source2._mFilePaths)
+            do
+                local content = utils.readAndCloseFile(app:readFile(filePath))
+                lu.assertNotNil(content)
+                lu.assertEquals(tonumber(content), j)
+            end
+
+            factory:deleteDanmakuSource(source)
+            factory:deleteDanmakuSource(source2)
+
+            -- 更新失败后的临时文件应该被删除
+            app:listFiles(dir, filePaths)
+            lu.assertTrue(types.isEmptyTable(filePaths))
+
+            utils.clearTable(filePaths)
+            utils.clearTable(urls)
+            utils.clearTable(offsets)
+            conn:clearAllResponses()
+            factory:recycleDanmakuSource(source)
+            factory:recycleDanmakuSource(source2)
+        end
     end,
 }
-
 
 
 lu.LuaUnit.verbosity = 2

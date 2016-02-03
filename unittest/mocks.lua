@@ -337,6 +337,10 @@ local MockNetworkConnection =
         end
     end,
 
+    clearAllResponses = function(self)
+        utils.clearTable(self._mResponseMap)
+    end,
+
     _createConnection = function(self, url)
         local content = types.isString(url) and self._mResponseMap[url]
         return types.toBoolean(content), content
