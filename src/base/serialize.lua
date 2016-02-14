@@ -12,8 +12,6 @@ local _SERIALIZE_SEP_ARG                    = ","
 local _SERIALIZE_SEP_LINE                   = "\n"
 local _SERIALIZE_QUOTE_STRING_FORMAT        = "%q"
 
-local _DESERIALIZE_USE_LAGACY_ENV_SETUP     = constants.LUA_VERSION <= 5.1
-
 
 local function serializeTuple(file, ...)
     if not types.isOpenedFile(file) or types.getVarArgCount(...) == 0
@@ -50,20 +48,10 @@ end
 
 
 local function __doDeserialize(input, isFilePath, callback)
-    local compiledChunks = nil
     local loadEnv = { [_SERIALIZE_FUNC_NAME] = callback }
-    if _DESERIALIZE_USE_LAGACY_ENV_SETUP
-    then
-        compiledChunks = isFilePath and loadfile(input) or load(input)
-        if compiledChunks
-        then
-            setfenv(compiledChunks, loadEnv)
-        end
-    else
-        compiledChunks = isFilePath
-                         and loadfile(input, constants.LOAD_MODE_CHUNKS, loadEnv)
-                         or load(input, nil, constants.LOAD_MODE_CHUNKS, loadEnv)
-    end
+    local compiledChunks = isFilePath
+                           and loadfile(input, constants.LOAD_MODE_CHUNKS, loadEnv)
+                           or load(input, nil, constants.LOAD_MODE_CHUNKS, loadEnv)
 
     if compiledChunks
     then

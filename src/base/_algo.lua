@@ -305,18 +305,10 @@ local function popArrayElement(array)
 end
 
 local function pushArrayElement(array, elem)
-    if types.isTable(array)
+    if types.isTable(array) and not types.isNil(elem)
     then
         table.insert(array, elem)
     end
-end
-
-local function putTableKeyValue(tbl, key, val)
-    --TODO
-end
-
-local function popTableKeyValue(tbl, key)
-
 end
 
 
@@ -371,6 +363,14 @@ local function forEachTableValue(tbl, func, arg)
 end
 
 
+local function doesStringStartWith(str1, prefix)
+    return types.isString(str1)
+           and types.isString(prefix)
+           and #str1 >= #prefix
+           and str1:sub(1, #prefix) == prefix
+end
+
+
 return
 {
     _obtainTable                = _obtainTable,
@@ -398,4 +398,5 @@ return
     forEachTableValue           = forEachTableValue,
     sortParallelArrays          = sortParallelArrays,
     fillArrayWithAscNumbers     = fillArrayWithAscNumbers,
+    doesStringStartWith         = doesStringStartWith,
 }

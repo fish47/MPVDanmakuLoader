@@ -1,5 +1,5 @@
-local lu            = require("unittest/luaunit")    --= luaunit lu
-local mocks         = require("unittest/mocks")
+local lu            = require("test/luaunit")
+local mocks         = require("test/mocks")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")

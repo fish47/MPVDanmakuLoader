@@ -42,8 +42,7 @@ local BiliBiliDanmakuSourcePlugin =
         return "bilibili"
     end,
 
-    parse = function(self, app, file, timeOffset, sourceID)
-        local rawData = utils.readAndCloseFile(file)
+    parseData = function(self, app, rawData, timeOffset, sourceID)
         if not rawData
         then
             return
@@ -91,7 +90,7 @@ local BiliBiliDanmakuSourcePlugin =
         for _, videoID in utils.iterateArray(videoIDs)
         do
             local url = string.format(_BILI_FMT_URL_DAMAKU, videoID)
-            utils.pushArrayElement(outURLs, url)
+            table.insert(outURLs, url)
         end
     end,
 
@@ -104,7 +103,7 @@ local BiliBiliDanmakuSourcePlugin =
     end,
 }
 
-classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase.IRemoteDanmakuSourcePlugin)
+classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase.StringBasedDanmakuSourcePlugin)
 
 
 return

@@ -1,5 +1,5 @@
-local lu            = require("unittest/luaunit")    --= luaunit lu
-local mocks         = require("unittest/mocks")
+local lu            = require("test/luaunit")
+local mocks         = require("test/mocks")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
@@ -34,22 +34,22 @@ local MockPlugin =
 classlite.declareClass(MockPlugin, pluginbase.IDanmakuSourcePlugin)
 
 
-TestDanmakuSourceFactory =
+TestDanmakuSourceManager =
 {
     _mApplication           = nil,
-    _mDanmakuSourceFactory  = nil,
+    _mDanmakuSourceManager  = nil,
     _mRandomURLCount        = nil,
 
     setUp = function(self)
         self._mApplication = mocks.MockApplication:new()
-        self._mDanmakuSourceFactory = mocks.MockDanmakuSourceFactory:new()
-        self._mDanmakuSourceFactory:setApplication(self._mApplication)
+        self._mDanmakuSourceManager = mocks.MockDanmakuSourceManager:new()
+        self._mDanmakuSourceManager:setApplication(self._mApplication)
         self._mRandomURLCount = 0
     end,
 
     tearDown = function(self)
         self._mApplication:dispose()
-        self._mDanmakuSourceFactory:dispose()
+        self._mDanmakuSourceManager:dispose()
     end,
 
     _getRandomURL = function(self, content)
@@ -62,23 +62,25 @@ TestDanmakuSourceFactory =
 
 
     _writeEmptyFiles = function(self, dir, fileNames, outFullPaths)
+        local app = self._mApplication
+        app:createDir(dir)
         for _, fileName in ipairs(fileNames)
         do
             local fullPath = unportable.joinPath(dir, fileName)
-            local file = self._mApplication:writeFile(fullPath)
+            local file = app:writeFile(fullPath)
             local ret = utils.writeAndCloseFile(file, constants.STR_EMPTY)
             lu.assertTrue(ret)
-            utils.pushArrayElement(outFullPaths, fullPath)
+            table.insert(outFullPaths, fullPath)
         end
     end,
 
 
     testMatchLocalSource = function(self)
 
-        local function __assertPluginMatchedFilePaths(app, factory, plugin, assertPaths)
+        local function __assertPluginMatchedFilePaths(app, manager, plugin, assertPaths)
             local localSources = {}
             local sourcePaths = {}
-            factory:listDanmakuSources(localSources)
+            manager:listDanmakuSources(localSources)
             lu.assertFalse(types.isEmptyTable(localSources))
 
             for _, source in ipairs(localSources)
@@ -96,8 +98,9 @@ TestDanmakuSourceFactory =
         end
 
         local app = self._mApplication
-        local factory = self._mDanmakuSourceFactory
-        local dir = app:getLocalDanamakuSourceDirPath()
+        local manager = self._mDanmakuSourceManager
+        local dir = app:getConfiguration().localDanmakuSourceDirPath
+        lu.assertNotNil(dir)
 
         local filePaths1 = {}
         local filePaths2 = {}
@@ -108,8 +111,8 @@ TestDanmakuSourceFactory =
         local plugin2 = MockPlugin:new("2", ".*%.p2$")
         app:addDanmakuSourcePlugin(plugin1)
         app:addDanmakuSourcePlugin(plugin2)
-        __assertPluginMatchedFilePaths(app, factory, plugin1, filePaths1)
-        __assertPluginMatchedFilePaths(app, factory, plugin2, filePaths2)
+        __assertPluginMatchedFilePaths(app, manager, plugin1, filePaths1)
+        __assertPluginMatchedFilePaths(app, manager, plugin2, filePaths2)
 
         -- 匹配插件有优先级
         local filePaths3 = {}
@@ -117,7 +120,7 @@ TestDanmakuSourceFactory =
 
         local plugin3 = MockPlugin:new("3", ".*%.p[0-9]$")
         app:addDanmakuSourcePlugin(plugin3)
-        __assertPluginMatchedFilePaths(app, factory, plugin3, filePaths3)
+        __assertPluginMatchedFilePaths(app, manager, plugin3, filePaths3)
     end,
 
 
@@ -135,8 +138,8 @@ TestDanmakuSourceFactory =
         end
 
         local app = self._mApplication
-        local factory = self._mDanmakuSourceFactory
-        local dir = app:getDanmakuSourceRawDataDirPath()
+        local manager = self._mDanmakuSourceManager
+        local dir = app:getConfiguration().danmakuSourceRawDataDirPath
 
         local plugins = {}
         local pluginCount = math.random(5)
@@ -168,8 +171,9 @@ TestDanmakuSourceFactory =
             table.insert(srcURLs, urls)
 
             -- 每次添加都会写一次序列化文件
-            local source = factory:addDanmakuSource(plugin, tostring(i), offsets, urls)
-            factory:recycleDanmakuSource(source)
+            local source = manager:addDanmakuSource(plugin, tostring(i), offsets, urls)
+            lu.assertNotNil(source)
+            manager:recycleDanmakuSource(source)
         end
 
         local function __assertDanmakuSources(sources, plugins, offsets, urls)
@@ -185,7 +189,7 @@ TestDanmakuSourceFactory =
 
         -- 看一下反序列化正不正确
         local sources = {}
-        factory:listDanmakuSources(sources)
+        manager:listDanmakuSources(sources)
         __assertDanmakuSources(sources, srcPlugins, srcOffsets, srcURLs)
 
         -- 测一下删除弹幕源
@@ -201,13 +205,13 @@ TestDanmakuSourceFactory =
             -- 删除对应文件
             local removeSource = table.remove(sources, math.random(count))
             utils.appendArrayElements(utils.clearTable(filePaths), removeSource._mFilePaths)
-            factory:deleteDanmakuSource(removeSource)
+            manager:deleteDanmakuSource(removeSource)
             for _, filePath in ipairs(filePaths)
             do
                 lu.assertFalse(app:isExistedFile(filePath))
             end
 
-            factory:listDanmakuSources(utils.clearTable(sources))
+            manager:listDanmakuSources(utils.clearTable(sources))
             __assertDanmakuSources(sources, srcPlugins, srcOffsets, srcURLs)
             lu.assertEquals(#sources, count - 1)
         end
@@ -217,8 +221,7 @@ TestDanmakuSourceFactory =
     testUpdateSource = function(self)
         local app = self._mApplication
         local conn = app:getNetworkConnection()
-        local dir = app:getDanmakuSourceRawDataDirPath()
-        local factory = self._mDanmakuSourceFactory
+        local manager = self._mDanmakuSourceManager
         local plugin = MockPlugin:new("mock_plugin")
         app:addDanmakuSourcePlugin(plugin)
 
@@ -234,7 +237,7 @@ TestDanmakuSourceFactory =
                 table.insert(offsets, math.random(1000))
             end
 
-            local source = factory:addDanmakuSource(plugin, nil, offsets, urls)
+            local source = manager:addDanmakuSource(plugin, nil, offsets, urls)
             lu.assertNotNil(source)
 
             -- 因为某些文件下载不来，应该是更新失败的
@@ -242,7 +245,7 @@ TestDanmakuSourceFactory =
             do
                 conn:setResponse(urls[math.random(urlCount)], nil)
             end
-            local source2 = factory:updateDanmakuSource(source)
+            local source2 = manager:updateDanmakuSource(source)
             lu.assertNil(source2)
 
             -- 更改下载的内容
@@ -250,7 +253,7 @@ TestDanmakuSourceFactory =
             do
                 conn:setResponse(urls[j], tostring(j))
             end
-            source2 = factory:updateDanmakuSource(source)
+            source2 = manager:updateDanmakuSource(source)
             lu.assertNotNil(source2)
             for j, filePath in ipairs(source2._mFilePaths)
             do
@@ -259,19 +262,20 @@ TestDanmakuSourceFactory =
                 lu.assertEquals(tonumber(content), j)
             end
 
-            factory:deleteDanmakuSource(source)
-            factory:deleteDanmakuSource(source2)
+            manager:deleteDanmakuSource(source)
+            manager:deleteDanmakuSource(source2)
 
             -- 更新失败后的临时文件应该被删除
-            app:listFiles(dir, filePaths)
+            local cfg = app:getConfiguration()
+            app:listFiles(cfg.danmakuSourceRawDataDirPath, filePaths)
             lu.assertTrue(types.isEmptyTable(filePaths))
 
             utils.clearTable(filePaths)
             utils.clearTable(urls)
             utils.clearTable(offsets)
             conn:clearAllResponses()
-            factory:recycleDanmakuSource(source)
-            factory:recycleDanmakuSource(source2)
+            manager:recycleDanmakuSource(source)
+            manager:recycleDanmakuSource(source2)
         end
     end,
 }

@@ -1,4 +1,4 @@
-local lu        = require("unittest/luaunit")    --= luaunit lu
+local lu        = require("test/luaunit")
 local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local classlite = require("src/base/classlite")
@@ -205,41 +205,32 @@ TestClassLite =
     end,
 
 
-    testIterateFields = function()
+    testResetFields = function(self)
         local Foo =
         {
-            bar = classlite.declareTableField(),
+            a = classlite.declareConstantField(2),
+            b = classlite.declareTableField(),
         }
         classlite.declareClass(Foo)
 
-        local Base =
+        local foo = Foo:new()
+        foo.a = {}
+        foo.b = 1
+        foo:reset()
+        lu.assertEquals(foo, Foo:new())
+
+        local Bar =
         {
-            a   = classlite.declareConstantField(1),
-            b   = classlite.declareTableField(),
+            a = classlite.declareClassField(Foo),
         }
-        classlite.declareClass(Base)
+        classlite.declareClass(Bar)
 
-        local Derived =
-        {
-            c   = classlite.declareClassField(Foo)
-        }
-        classlite.declareClass(Derived, Base)
-
-        local names = {}
-        local fieldTypes = {}
-        for _, name, decl in classlite.iterateClassFields(Derived)
-        do
-            table.insert(names, name)
-            table.insert(fieldTypes, decl[1])
-        end
-
-        lu.assertEquals(names, { "a", "b", "c" })
-        lu.assertEquals(fieldTypes,
-                        {
-                            classlite.FIELD_DECL_TYPE_CONSTANT,
-                            classlite.FIELD_DECL_TYPE_TABLE,
-                            classlite.FIELD_DECL_TYPE_CLASS,
-                        })
+        --TODO 对于实例重置的定义待完善
+        local bar = Bar:new()
+        bar.a.a = {}
+        bar.a.b = 5
+        bar:reset()
+        lu.assertEquals(bar, Bar:new())
     end,
 }
 

@@ -1,32 +1,33 @@
-local lu            = require("unittest/luaunit")    --= luaunit lu
+local lu            = require("test/luaunit")
+local mocks         = require("test/mocks")
 local _ass          = require("src/core/_ass")
 local danmaku       = require("src/core/danmaku")
 local utils         = require("src/base/utils")
 local srt           = require("src/plugins/srt")
-local application   = require("src/shell/application")
 
 
 TestParseSRTFile =
 {
-    __mPools    = nil,
-    __mCfg      = nil,
+    _mPools = nil,
+    _mCfg   = nil,
+
 
     setUp = function(self)
-        self.__mCfg = application.MPVDanmakuLoaderCfg:new()
-        self.__mPools = {}
+        self._mCfg = mocks.MockConfiguration:new()
+        self._mPools = {}
     end,
 
 
     tearDown = function(self)
-        for i, pools in ipairs(self.__mPools)
+        for i, pools in ipairs(self._mPools)
         do
             pools:dispose()
-            self.__mPools[i] = nil
+            self._mPools[i] = nil
         end
-        self.__mPools = nil
+        self._mPools = nil
 
-        self.__mCfg:dispose()
-        self.__mCfg = nil
+        self._mCfg:dispose()
+        self._mCfg = nil
     end,
 
 
@@ -37,11 +38,11 @@ TestParseSRTFile =
         f:seek("set", 0)
 
         local pool = danmaku.DanmakuPool:new()
-        local ret = srt._parseSRTFile(self.__mCfg, pool, f, "foo")
+        local ret = srt._parseSRTFile(self._mCfg, pool, f, "foo")
 
         f:close()
         pool:sortDanmakusByStartTime()
-        table.insert(self.__mPools, pool)
+        table.insert(self._mPools, pool)
         return ret, pool
     end,
 

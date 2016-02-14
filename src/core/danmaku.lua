@@ -100,8 +100,9 @@ local DanmakuPools =
         return self._mPools[layer]
     end,
 
-    writeDanmakus = function(self, cfg, screenW, screenH, f)
-        self._mWriter:writeDanmakus(self, cfg, screenW, screenH, f)
+    writeDanmakus = function(self, app, f)
+        local cfg = app:getConfiguration()
+        self._mWriter:writeDanmakus(self, cfg, app:getVideoWidth(), app:getVideoHeight(), f)
     end,
 
     clear = function(self)

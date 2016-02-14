@@ -8,14 +8,15 @@ local _METATABLE_NAME_INDEX             = "__index"
 local _METHOD_NAME_CONSTRUCT            = "new"
 local _METHOD_NAME_DECONSTRUCT          = "dispose"
 local _METHOD_NAME_CLONE                = "clone"
+local _METHOD_NAME_RESET                = "reset"
 local _METHOD_NAME_GET_CLASS            = "getClass"
 local _METHOD_NAME_GET_PARENT           = "getParent"
 local _METHOD_NAME_INIT_FIELDS          = "__classlite_init_fields"
 local _METHOD_NAME_DEINIT_FIELDS        = "__classlite_deinit_fields"
 
-local FIELD_DECL_TYPE_CONSTANT          = 1
-local FIELD_DECL_TYPE_TABLE             = 2
-local FIELD_DECL_TYPE_CLASS             = 3
+local _FIELD_DECL_TYPE_CONSTANT         = 1
+local _FIELD_DECL_TYPE_TABLE            = 2
+local _FIELD_DECL_TYPE_CLASS            = 3
 
 local _FIELD_DECL_KEY_ID                = {}
 local _FIELD_DECL_KEY_TYPE              = 1
@@ -112,24 +113,24 @@ end
 
 local _FUNCS_CONSTRUCT =
 {
-    [FIELD_DECL_TYPE_CONSTANT]  = __constructConstantField,
-    [FIELD_DECL_TYPE_TABLE]     = __constructTableField,
-    [FIELD_DECL_TYPE_CLASS]     = __constructClassField,
+    [_FIELD_DECL_TYPE_CONSTANT] = __constructConstantField,
+    [_FIELD_DECL_TYPE_TABLE]    = __constructTableField,
+    [_FIELD_DECL_TYPE_CLASS]    = __constructClassField,
 }
 
 
 local _FUNCS_DECONSTRUCT =
 {
-    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl)
+    [_FIELD_DECL_TYPE_CONSTANT] = function(obj, name, decl)
         obj[name] = nil
     end,
 
-    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl)
+    [_FIELD_DECL_TYPE_TABLE]    = function(obj, name, decl)
         utils.clearTable(obj[name])
         obj[name] = nil
     end,
 
-    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl)
+    [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl)
         utils.disposeSafely(obj[name])
         obj[name] = nil
     end,
@@ -138,7 +139,7 @@ local _FUNCS_DECONSTRUCT =
 
 local _FUNCS_ASSIGN =
 {
-    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_CONSTANT] = function(obj, name, decl, arg)
         -- 优先初始化为非空值
         if types.isNil(arg)
         then
@@ -148,12 +149,12 @@ local _FUNCS_ASSIGN =
         end
     end,
 
-    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_TABLE]    = function(obj, name, decl, arg)
         local field = __constructTableField(obj, name, decl)
         utils.appendArrayElements(field, arg)
     end,
 
-    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl, arg)
         local field = __constructClassField(obj, name, decl)
         local fieldClz = __invokeInstanceMethod(field, _METHOD_NAME_GET_CLASS)
         if isInstanceOf(arg, fieldClz)
@@ -166,11 +167,11 @@ local _FUNCS_ASSIGN =
 
 local _FUNCS_CLONE =
 {
-    [FIELD_DECL_TYPE_CONSTANT]  = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_CONSTANT] = function(obj, name, decl, arg)
         obj[name] = arg
     end,
 
-    [FIELD_DECL_TYPE_TABLE]     = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_TABLE]    = function(obj, name, decl, arg)
         local field = utils.clearTable(obj[name])
         if not field
         then
@@ -180,7 +181,7 @@ local _FUNCS_CLONE =
         utils.appendArrayElements(field, arg)
     end,
 
-    [FIELD_DECL_TYPE_CLASS]     = function(obj, name, decl, arg)
+    [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl, arg)
         local field = obj[name]
         if not field
         then
@@ -194,6 +195,33 @@ local _FUNCS_CLONE =
 }
 
 
+local _FUNCS_RESET =
+{
+    [_FIELD_DECL_TYPE_CONSTANT] = __constructConstantField,
+
+    [_FIELD_DECL_TYPE_TABLE]    = function(obj, name, decl)
+        local field = obj[name]
+        if types.isTable(field)
+        then
+            utils.clearTable(field)
+        else
+            __constructTableField(obj, name, decl)
+        end
+    end,
+
+    [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl)
+        local field = obj[name]
+        local fieldClz = __invokeInstanceMethod(field, _METHOD_NAME_GET_CLASS)
+        if isInstanceOf(field, fieldClz)
+        then
+            __invokeInstanceMethod(field, _METHOD_NAME_RESET)
+        else
+            __constructClassField(obj, name, decl)
+        end
+    end,
+}
+
+
 local function __doDeclareField(fieldType, ...)
     local ret = { fieldType, ... }
     ret[_FIELD_DECL_KEY_ID] = __gFieldDeclartionID
@@ -202,15 +230,15 @@ local function __doDeclareField(fieldType, ...)
 end
 
 local function declareConstantField(val)
-    return __doDeclareField(FIELD_DECL_TYPE_CONSTANT, val)
+    return __doDeclareField(_FIELD_DECL_TYPE_CONSTANT, val)
 end
 
 local function declareTableField(val)
-    return __doDeclareField(FIELD_DECL_TYPE_TABLE, val)
+    return __doDeclareField(_FIELD_DECL_TYPE_TABLE, val)
 end
 
 local function declareClassField(classType, ...)
-    return __doDeclareField(FIELD_DECL_TYPE_CLASS, classType, ...)
+    return __doDeclareField(_FIELD_DECL_TYPE_CLASS, classType, ...)
 end
 
 
@@ -237,15 +265,7 @@ local function _disposeInstance(obj)
 end
 
 
-local function __compareByDeclIDAsc(decl1, decl2)
-    return (decl1[_FIELD_DECL_KEY_ID] < decl2[_FIELD_DECL_KEY_ID])
-end
-
-
-local function __createFielesFunction(names,
-                                      decls,
-                                      needToPassVarags,
-                                      functionMap)
+local function __createFielesFunction(names, decls, needToPassVarags, functionMap)
     if not names or not decls
     then
         return nil
@@ -256,7 +276,7 @@ local function __createFielesFunction(names,
         do
             local decl = decls[i]
             local declType = decl[_FIELD_DECL_KEY_TYPE]
-            local arg = needToPassVarags and select(i, ...) or nil
+            local arg = needToPassVarags and select(i, ...)
             functionMap[declType](self, name, decl, arg)
         end
     end
@@ -272,14 +292,8 @@ local function _createFieldsConstructor(clzDef)
     then
         -- 简单的结构体允许用构造参数初始化所有字段
         local isPlainClass = __gIsPlainClass[clzDef]
-        local funcMap = isPlainClass
-                        and _FUNCS_ASSIGN
-                        or _FUNCS_CONSTRUCT
-
-        return __createFielesFunction(names,
-                                      decls,
-                                      isPlainClass,
-                                      funcMap)
+        local funcMap = isPlainClass and _FUNCS_ASSIGN or _FUNCS_CONSTRUCT
+        return __createFielesFunction(names, decls, isPlainClass, funcMap)
     else
         return constants.FUNC_EMPTY
     end
@@ -291,10 +305,7 @@ local function _createFieldsDeconstructor(clzDef)
     local decls = __gFieldDeclarations[clzDef]
     if names and decls
     then
-        return __createFielesFunction(names,
-                                      decls,
-                                      false,
-                                      _FUNCS_DECONSTRUCT)
+        return __createFielesFunction(names, decls, false, _FUNCS_DECONSTRUCT)
     else
         return constants.FUNC_EMPTY
     end
@@ -418,6 +429,18 @@ local function _createGetClassMethod(clzDef)
 end
 
 
+local function _createFieldsResetMethod(clzDef)
+    local names = __gFieldNames[clzDef]
+    local decls = __gFieldDeclarations[clzDef]
+    if names and decls
+    then
+        return __createFielesFunction(names, decls, false, _FUNCS_RESET)
+    else
+        return constants.FUNC_EMPTY
+    end
+end
+
+
 local function __collectAutoFields(clzDef)
     local names = nil
     local decls = nil
@@ -456,7 +479,10 @@ local function __collectAutoFields(clzDef)
     end
 
     -- 保证初始化序列与定义顺序相同
-    utils.sortParallelArrays(__compareByDeclIDAsc, decls, names)
+    local function __cmp(decl1, decl2)
+        return (decl1[_FIELD_DECL_KEY_ID] < decl2[_FIELD_DECL_KEY_ID])
+    end
+    utils.sortParallelArrays(__cmp, decls, names)
     return names, decls
 end
 
@@ -503,6 +529,7 @@ local function declareClass(clzDef, baseClz)
     clzDef[_METHOD_NAME_DEINIT_FIELDS]  = _createFieldsDeconstructor(clzDef)
     clzDef[_METHOD_NAME_CONSTRUCT]      = _createConstructor(clzDef)
     clzDef[_METHOD_NAME_CLONE]          = _createCloneConstructor(clzDef)
+    clzDef[_METHOD_NAME_RESET]          = _createFieldsResetMethod(clzDef)
     clzDef[_METHOD_NAME_DECONSTRUCT]    = _createDeconstructor(clzDef)
     clzDef[_METHOD_NAME_GET_CLASS]      = _createGetClassMethod(clzDef)
     clzDef[_METHOD_NAME_GET_PARENT]     = _createGetClassMethod(baseClz)
@@ -512,38 +539,11 @@ local function declareClass(clzDef, baseClz)
 end
 
 
-local function __doIterateClassFields(clzDef, idx)
-    local names = clzDef and __gFieldNames[clzDef]
-    local decls = clzDef and __gFieldDeclarations[clzDef]
-    if types.isNilOrEmpty(names) or types.isNilOrEmpty(decls)
-    then
-        return nil
-    end
-
-    idx = idx + 1
-    if idx > #names or idx > #decls
-    then
-        return nil
-    end
-
-    return idx, names[idx], decls[idx]
-end
-
-local function iterateClassFields(clzDef)
-    return __doIterateClassFields, clzDef, 0
-end
-
-
 return
 {
-    FIELD_DECL_TYPE_CONSTANT    = FIELD_DECL_TYPE_CONSTANT,
-    FIELD_DECL_TYPE_TABLE       = FIELD_DECL_TYPE_TABLE,
-    FIELD_DECL_TYPE_CLASS       = FIELD_DECL_TYPE_CLASS,
-
     declareClass                = declareClass,
     declareConstantField        = declareConstantField,
     declareTableField           = declareTableField,
     declareClassField           = declareClassField,
-    iterateClassFields          = iterateClassFields,
     isInstanceOf                = isInstanceOf,
 }

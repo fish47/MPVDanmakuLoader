@@ -6,7 +6,8 @@ local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
-local sourcefactory = require("src/shell/sourcefactory")
+local configuration = require("src/shell/configuration")
+local sourcemgr     = require("src/shell/sourcemgr")
 
 
 local _BridgedFile =
@@ -58,7 +59,7 @@ local _MockFileSystemTreeNode =
                 return node.name == findName
             end
             local found, _, node = utils.linearSearchArrayIf(self.children, func, name)
-            return found and node or nil
+            return found and node
         end
     end,
 }
@@ -354,9 +355,19 @@ local MockNetworkConnection =
 classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
 
 
+local MockConfiguration =
+{
+    new = function(self)
+        configuration.updateConfiguration(self, "/1.mp4", unportable.joinPath, unportable.splitPath)
+    end,
+}
+
+classlite.declareClass(MockConfiguration)
+
 
 local MockApplication =
 {
+    _mConfiguration     = classlite.declareClassField(MockConfiguration),
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
@@ -369,6 +380,7 @@ local MockApplication =
         self._mMockFileSystem:unsetup()
     end,
 
+    clearCallbacks = constants.FUNC_EMPTY,
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
     addDanmakuSourcePlugin = function(self, plugin)
@@ -383,46 +395,47 @@ local MockApplication =
             return
         end
 
-        utils.pushArrayElement(plugins, plugin)
+        table.insert(plugins, plugin)
     end,
 
     getVideoMD5 = function(self)
         return string.rep("1", 32)
     end,
 
-    _getPrivateDirPath = function(self)
-        local dir = "/private"
-        self:createDir(dir)
-        return dir
-    end,
-
-    getLocalDanamakuSourceDirPath = function(self)
-        local dir = "/local_source"
-        self:createDir(dir)
-        return dir
+    getVideoFilePath = function(self)
+        local videoFilePath = "/mockfile.mp4"
+        if not self:isExistedFile(videoFilePath)
+        then
+            local file = self:writeFile(videoFilePath)
+            file:write("video_file")
+            utils.closeSafely(file)
+        end
+        return videoFilePath
     end,
 }
 
 classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)
 
 
-local MockDanmakuSourceFactory =
+local MockDanmakuSourceManager =
 {
     _doReadMetaFile = function(self, callback)
         local app = self._mApplication
-        local f = app:readFile(app:getDanmakuSourceMetaFilePath())
+        local cfg = app:getConfiguration()
+        local f = app:readFile(cfg.danmakuSourceMetaDataFilePath)
         local content = utils.readAndCloseFile(f)
         serialize.deserializeTupleFromString(content, callback)
     end,
 }
 
-classlite.declareClass(MockDanmakuSourceFactory, sourcefactory.DanmakuSourceFactory)
+classlite.declareClass(MockDanmakuSourceManager, sourcemgr.DanmakuSourceManager)
 
 
 return
 {
     MockFileSystem              = MockFileSystem,
     MockNetworkConnection       = MockNetworkConnection,
+    MockConfiguration           = MockConfiguration,
     MockApplication             = MockApplication,
-    MockDanmakuSourceFactory    = MockDanmakuSourceFactory,
+    MockDanmakuSourceManager    = MockDanmakuSourceManager,
 }

@@ -151,7 +151,7 @@ local __BasePosCalculator =
         while area
         do
             local nextArea = area._next
-            utils.pushArrayElement(areaPool, area)
+            table.insert(areaPool, area)
             area = nextArea
         end
         self._mDanmakuAreas = nil

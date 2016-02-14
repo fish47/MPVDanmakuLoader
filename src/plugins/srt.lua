@@ -3,7 +3,6 @@ local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
-local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
 
 
@@ -106,7 +105,7 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life)
     local size = cfg.subtitleFontSize
     p:addDanmaku(start, life, color, size, src, idx, text)
 
-    line = hasMoreLine and __readLine(f) or nil
+    line = hasMoreLine and __readLine(f)
     return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx)
 end
 
@@ -124,15 +123,14 @@ local SRTDanmakusrcPlugin =
         return _SRT_PLUGIN_NAME
     end,
 
-    parse = function(self, app, filePath)
+    parseFile = function(self, app, filePath)
         local file = app:openUTF8File(filePath)
         if types.isOpenedFile(file)
         then
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            local _, fileName = unportable.splitPath(filePath)
-            local sourceID = string.format(_SRT_FMT_SOURCEID, fileName)
+            local sourceID = string.format(_SRT_FMT_SOURCEID, filePath)
             _parseSRTFile(cfg, pool, file, sourceID)
             utils.closeSafely(file)
         end

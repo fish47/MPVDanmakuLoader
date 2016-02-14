@@ -4,54 +4,45 @@ local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
+local configuration = require("src/shell/configuration")
 local srt           = require("src/plugins/srt")
+local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
 
 
-local MPVDanmakuLoaderCfg =
-{
-    bottomReservedHeight    = 0,                -- 弹幕底部预留空间
-    danmakuFontSize         = 34,               -- 弹幕默认字体大小
-    danmakuFontName         = "sans-serif",     -- 弹幕默认字体名
-    danmakuFontColor        = 0x33FFFFFF,       -- 弹幕默认颜色 BBGGRR
-    subtitleFontSize        = 34,               -- 字幕默认字体大小
-    subtitleFontName        = "mono",           -- 字幕默认字体名
-    subtitleFontColor       = 0xFFFFFFFF,       -- 字幕默认颜色 BBGGRR
-    movingDanmakuLifeTime   = 8000,             -- 滚动弹幕存活时间
-    staticDanmakuLIfeTime   = 5000,             -- 固定位置弹幕存活时间
-}
-
-classlite.declareClass(MPVDanmakuLoaderCfg)
-
-
-local _UNIQUE_PATH_FMT_FILE_NAME    = "%s%s%03d%s"
-local _UNIQUE_PATH_FMT_TIME_PREFIX  = "%y%m%d%H%M"
-
+local _APP_MD5_BYTE_COUNT   = 32 * 1024 * 1024
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration         = classlite.declareClassField(MPVDanmakuLoaderCfg),
+    _mConfiguration         = classlite.declareConstantField(nil),
     _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
     _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
     _mDanmakuSourcePlugins  = classlite.declareTableField(),
-    __mUniqueFilePathID     = classlite.declareConstantField(0),
+    _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
+
+    __mVideoFileMD5         = classlite.declareConstantField(nil),
+    __mVideoFilePath        = classlite.declareConstantField(nil),
 
 
     new = function(self)
         self:_initDanmakuSourcePlugins()
     end,
 
-    _onLoadFile = function(self)
-        --TODO
+    init = function(self, cfg, filePath)
+        self._mConfiguration = cfg
+        self.__mVideoFilePath = filePath
+        self.__mVideoFileMD5 = nil
+        self._mDanmakuPools:clear()
+        self._mNetworkConnection:reset()
     end,
 
     _initDanmakuSourcePlugins = function(self)
---        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
---        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
---        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
---        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
---        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new()))
+        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
+        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
+        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
+        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
+        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
     end,
 
     iterateDanmakuSourcePlugin = function(self)
@@ -70,8 +61,13 @@ local MPVDanmakuLoaderApp =
         return self._mNetworkConnection
     end,
 
-    setSubtitle = function(self, path)
+    setSubtitleByFilePath = function(self, path)
         mp.commandv("sub_add ", path)
+    end,
+
+    setSubtitleByData = function(self, data)
+        --TODO 不知道这个 API 对不对
+        mp.commandv("sub_add", "memory://" .. data)
     end,
 
     listFiles = function(self, dir, outList)
@@ -80,39 +76,71 @@ local MPVDanmakuLoaderApp =
         utils.appendArrayElements(outList, files)
     end,
 
-    getUniqueFilePath = function(self, dir, preffix, suffix)
-        preffix = types.isString(preffix) and preffix or constants.STR_EMPTY
-        suffix = types.isString(suffix) and suffix or constants.STR_EMPTY
+    createDir = function(self, dir)
+        return types.isString(dir) and unportable.createDir(dir)
+    end,
 
-        local time = self:getCurrentDateTime()
-        local timeStr = os.date(_UNIQUE_PATH_FMT_TIME_PREFIX, time)
-        while true
-        do
-            local pathID = self.__mUniqueFilePathID
-            self.__mUniqueFilePathID = pathID + 1
+    deleteTree = function(self, dir)
+        return types.isString(dir) and unportable.deleteTree(dir)
+    end,
 
-            local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME,
-                                           preffix, timeStr, pathID, suffix)
+    readFile = function(self, fullPath)
+        return types.isString(fullPath) and io.read(fullPath)
+    end,
 
+    readUTF8File = function(self, fullPath)
+        --TODO
+    end,
 
-            local fullPath = unportable.joinPath(dir, fileName)
-            if not self:isExistedFile(fullPath)
-            then
-                return fullPath
-            end
+    writeFile = function(self, fullPath, mode)
+        return types.isString(fullPath) and io.open(fullPath, mode)
+    end,
+
+    isExistedDir = function(self, fullPath)
+        local ret = false
+        if types.isString(fullPath)
+        then
+            local parentDir, dir = unportable.splitPath(fullPath)
+            local dirs = mp.utils.readdir(parentDir, "dirs")
+            ret = utils.linearSearchArray(dirs, dir)
         end
+        return ret
+    end,
+
+    isExistedFile = function(self, fullPath)
+        local file = nil
+        if types.iString(fullPath)
+        then
+            file = io.open(fullPath)
+            utils.closeSafely(file)
+        end
+        return types.toBoolean(file)
+    end,
+
+    getUniqueFilePath = function(self, dir, prefix, suffix)
+        local function __isExistedPath(app, fullPath)
+            return app:isExistedFile(fullPath) or app:isExistedDir(fullPath)
+        end
+
+        local generator = self._mUniquePathGenerator
+        return generator:getUniquePath(dir, prefix, suffix, __isExistedPath, self)
     end,
 
     getVideoMD5 = function(self)
-        --TODO
+        local md5 = self.__mVideoFileMD5
+        if md5
+        then
+            return md5
+        end
+
+        local fullPath = self.__mVideoFilePath
+        md5 = fullPath and unportable.calcFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
+        self.__mVideoFileMD5 = md5
+        return md5
     end,
 
     getCurrentDateTime = function(self)
         return os.time()
-    end,
-
-    getVideoFilePath = function(self)
-        return mp.get_property("path", nil)
     end,
 
     getVideoWidth = function(self)
@@ -122,24 +150,6 @@ local MPVDanmakuLoaderApp =
     getVideoHeight = function(self)
         return mp.get_property_number("height", nil)
     end,
-
-    _getPrivateDirPath = function(self)
-        local dir = unportable.splitPath(self:getVideoFilePath())
-        return unportable.joinPath(dir, ".danmakuloader")
-    end,
-
-    getLocalDanamakuSourceDirPath = function(self)
-        local dir = unportable.splitPath(self:getVideoFilePath())
-        return dir
-    end,
-
-    getDanmakuSourceRawDataDirPath = function(self)
-        return unportable.joinPath(self:_getPrivateDirPath(), "rawdata")
-    end,
-
-    getDanmakuSourceMetaFilePath = function(self)
-        return unportable.joinPath(self:_getPrivateDirPath(), "meta.lua")
-    end,
 }
 
 classlite.declareClass(MPVDanmakuLoaderApp)
@@ -147,6 +157,5 @@ classlite.declareClass(MPVDanmakuLoaderApp)
 
 return
 {
-    MPVDanmakuLoaderCfg     = MPVDanmakuLoaderCfg,
     MPVDanmakuLoaderApp     = MPVDanmakuLoaderApp,
 }

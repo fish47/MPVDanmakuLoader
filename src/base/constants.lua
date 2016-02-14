@@ -30,6 +30,7 @@ return
     EXEC_RET_SIGNAL             = "signal",
 
     STR_EMPTY                   = "",
+    STR_SPACE                   = " ",
     STR_NEWLINE                 = "\n",
     CODEPOINT_NEWLINE           = string.byte("\n"),
 

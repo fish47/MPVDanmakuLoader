@@ -8,7 +8,7 @@ local danmaku       = require("src/core/danmaku")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local _RAW_DATA_FILE_PREFFIX        = "raw_"
+local _RAW_DATA_FILE_PREFIX         = "raw_"
 local _RAW_DATA_FILE_SUFFIX_FMT     = "_%d.txt"
 
 
@@ -23,7 +23,22 @@ end
 
 local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
     local function __writeRawData(content, rawDatas)
-        utils.pushArrayElement(rawDatas, content)
+        table.insert(rawDatas, content)
+    end
+
+    -- 没有指定缓存的文件夹
+    local baseDir = app:getConfiguration().danmakuSourceRawDataDirPath
+    if not baseDir
+    then
+        return false
+    end
+
+    -- 创建文件夹失败
+    local hasCreatedDir = app:isExistedDir(baseDir)
+    hasCreatedDir = hasCreatedDir or app:createDir(baseDir)
+    if not hasCreatedDir
+    then
+        return false
     end
 
     -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
@@ -36,10 +51,6 @@ local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
     end
     conn:flushReceiveQueue()
 
-    local baseDir = app:getDanmakuSourceRawDataDirPath()
-    local hasCreatedDir = app:isExistedDir(baseDir)
-    hasCreatedDir = hasCreatedDir or app:createDir(baseDir)
-
     -- 有文件下不动的时候，数量就对不上
     if not hasCreatedDir or #rawDatas ~= #urls
     then
@@ -50,7 +61,7 @@ local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
     for i, rawData in ipairs(rawDatas)
     do
         local suffix = string.format(_RAW_DATA_FILE_SUFFIX_FMT, i)
-        local fullPath = app:getUniqueFilePath(baseDir, _RAW_DATA_FILE_PREFFIX, suffix)
+        local fullPath = app:getUniqueFilePath(baseDir, _RAW_DATA_FILE_PREFIX, suffix)
         local f = app:writeFile(fullPath)
         if not utils.writeAndCloseFile(f, rawData)
         then
@@ -95,7 +106,7 @@ local _Deserializer =
             for i = 1, count
             do
                 local elem = self:readElement()
-                utils.pushArrayElement(outArray, elem)
+                table.insert(outArray, elem)
             end
             return true
         end
@@ -130,7 +141,7 @@ local IDanmakuSource =
 {
     _mPlugin    = classlite.declareConstantField(nil),
 
-    getName = function(self)
+    getPluginName = function(self)
         local plugin = self._mPlugin
         return plugin and plugin:getName()
     end,
@@ -181,14 +192,16 @@ local CachedRemoteDanmakuSource =
     _mPlugin        = classlite.declareConstantField(nil),
     _mDate          = classlite.declareConstantField(0),
     _mDescription   = classlite.declareConstantField(nil),
+    _mSourceIDs     = classlite.declareTableField(),
     _mFilePaths     = classlite.declareTableField(),
     _mTimeOffsets   = classlite.declareTableField(),
     _mDownloadURLs  = classlite.declareTableField(),
 
-    _init = function(self, app, plugin, date, desc, paths, offsets, urls)
+    _init = function(self, app, plugin, date, desc, ids, paths, offsets, urls)
         self._mPlugin = plugin
         self._mDate = date
         self._mDescription = desc or constants.STR_EMPTY
+        utils.appendArrayElements(utils.clearTable(self._mSourceIDs), ids)
         utils.appendArrayElements(utils.clearTable(self._mFilePaths), paths)
         utils.appendArrayElements(utils.clearTable(self._mTimeOffsets), offsets)
         utils.appendArrayElements(utils.clearTable(self._mDownloadURLs), urls)
@@ -208,7 +221,7 @@ local CachedRemoteDanmakuSource =
         then
             for i, filePath in ipairs(self._mFilePaths)
             do
-                self._mPlugin:parse(app, filePath, self._mTimeOffset[i])
+                self._mPlugin:parseFile(app, filePath, self._mTimeOffset[i])
             end
         end
     end,
@@ -222,6 +235,7 @@ local CachedRemoteDanmakuSource =
             return false
         end
 
+        local ids = self._mSourceIDs
         local filePaths = self._mFilePaths
         local timeOffsets = self._mTimeOffsets
         local downloadURLs = self._mDownloadURLs
@@ -243,9 +257,10 @@ local CachedRemoteDanmakuSource =
             return not types.isString(url)
         end
 
-        if utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
-            or utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber, app)
-            or utils.linearSearchArrayIf(downloadURLs, __checkIsNotString, app)
+        if utils.linearSearchArrayIf(ids, __checkIsNotString)
+            or utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
+            or utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
+            or utils.linearSearchArrayIf(downloadURLs, __checkIsNotString)
         then
             return false
         end
@@ -258,9 +273,10 @@ local CachedRemoteDanmakuSource =
         if self:__isValid(app)
         then
             serializer:writeElement(app:getVideoMD5())
-            serializer:writeElement(self:getName())
+            serializer:writeElement(self:getPluginName())
             serializer:writeElement(self._mDate)
             serializer:writeElement(self._mDescription)
+            serializer:writeArray(self._mSourceIDs)
             serializer:writeArray(self._mFilePaths)
             serializer:writeArray(self._mTimeOffsets)
             serializer:writeArray(self._mDownloadURLs)
@@ -290,6 +306,7 @@ local CachedRemoteDanmakuSource =
         self._mPlugin = __findPluginByName(app, deserializer:readElement())
         self._mDate = deserializer:readElement()
         self._mDescription = deserializer:readElement()
+        succeed = succeed and deserializer:readArray(self._mSourceIDs)
         succeed = succeed and deserializer:readArray(self._mFilePaths)
         succeed = succeed and deserializer:readArray(self._mTimeOffsets)
         succeed = succeed and deserializer:readArray(self._mDownloadURLs)
@@ -329,7 +346,7 @@ classlite.declareClass(CachedRemoteDanmakuSource, IDanmakuSource)
 
 
 
-local DanmakuSourceFactory =
+local DanmakuSourceManager =
 {
     _mApplication               = classlite.declareConstantField(nil),
     _mSerializer                = classlite.declareClassField(_Serializer),
@@ -374,7 +391,7 @@ local DanmakuSourceFactory =
                 pool = {}
                 pools[clz] = pool
             end
-            utils.pushArrayElement(pool, source)
+            table.insert(pool, source)
         end
     end,
 
@@ -401,7 +418,7 @@ local DanmakuSourceFactory =
             do
                 if p:isMatchedRawDataFile(app, filePath) and src:_init(app, p, filePath)
                 then
-                    utils.pushArrayElement(outList, src)
+                    table.insert(outList, src)
                     src = nil
                     break
                 end
@@ -412,7 +429,8 @@ local DanmakuSourceFactory =
 
 
     _doReadMetaFile = function(self, deserializeCallback)
-        local metaFilePath = self._mApplication:getDanmakuSourceMetaFilePath()
+        local cfg = self._mApplication:getConfiguration()
+        local metaFilePath = cfg.danmakuSourceMetaDataFilePath
         serialize.deserializeTupleFromFilePath(metaFilePath, deserializeCallback)
     end,
 
@@ -423,7 +441,17 @@ local DanmakuSourceFactory =
         serializer:_init(tuple)
         if source:_serialize(app, serializer)
         then
-            local metaFilePath = app:getDanmakuSourceMetaFilePath()
+            local metaFilePath = app:getConfiguration().danmakuSourceMetaDataFilePath
+            if not app:isExistedFile(metaFilePath)
+            then
+                local dir = unportable.splitPath(metaFilePath)
+                local hasCreated = app:isExistedDir(dir) or app:createDir(dir)
+                if not hasCreated
+                then
+                    return
+                end
+            end
+
             local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
             serialize.serializeTuple(file, utils.unpackArray(tuple))
             utils.closeSafely(file)
@@ -446,7 +474,7 @@ local DanmakuSourceFactory =
                 deserializer:_init(tuple)
                 if source:_deserizlie(app, deserializer)
                 then
-                    utils.pushArrayElement(danmakuSources, source)
+                    table.insert(danmakuSources, source)
                 else
                     self:recycleDanmakuSource(source)
                 end
@@ -458,9 +486,13 @@ local DanmakuSourceFactory =
 
 
     listDanmakuSources = function(self, outList)
-        local localDir = self._mApplication:getLocalDanamakuSourceDirPath()
-        self:_listLocalDanmakuSources(localDir, outList)
-        self:_listCachedRemoteDanmakuSources(outList)
+        local cfg = self._mApplication:getConfiguration()
+        local dir = cfg.localDanmakuSourceDirPath
+        if types.isString(dir) and types.isTable(outList)
+        then
+            self:_listLocalDanmakuSources(dir, outList)
+            self:_listCachedRemoteDanmakuSources(outList)
+        end
     end,
 
 
@@ -507,11 +539,11 @@ local DanmakuSourceFactory =
     end,
 }
 
-classlite.declareClass(DanmakuSourceFactory)
+classlite.declareClass(DanmakuSourceManager)
 
 
 return
 {
     IDanmakuSource          = IDanmakuSource,
-    DanmakuSourceFactory    = DanmakuSourceFactory,
+    DanmakuSourceManager    = DanmakuSourceManager,
 }

@@ -78,20 +78,31 @@ local function toBoolean(obj)
 end
 
 
+local function getStringWithDefault(str, default)
+    return isString(str) and str or default
+end
+
+local function getNumberWithDefault(num, default)
+    return isNumber(num) and num or default
+end
+
+
 return
 {
-    isString            = isString,
-    isNumber            = isNumber,
-    isBoolean           = isBoolean,
-    isNil               = isNil,
-    isFunction          = isFunction,
-    isTable             = isTable,
-    isOpenedFile        = isOpenedFile,
-    isClosedFile        = isClosedFile,
-    isNilOrEmpty        = isNilOrEmpty,
-    isEmptyTable        = isEmptyTable,
-    isEmptyVarArgs      = isEmptyVarArgs,
-    getVarArgCount      = getVarArgCount,
-    toNumber            = toNumber,
-    toBoolean           = toBoolean,
+    isString                = isString,
+    isNumber                = isNumber,
+    isBoolean               = isBoolean,
+    isNil                   = isNil,
+    isFunction              = isFunction,
+    isTable                 = isTable,
+    isOpenedFile            = isOpenedFile,
+    isClosedFile            = isClosedFile,
+    isNilOrEmpty            = isNilOrEmpty,
+    isEmptyTable            = isEmptyTable,
+    isEmptyVarArgs          = isEmptyVarArgs,
+    getVarArgCount          = getVarArgCount,
+    toNumber                = toNumber,
+    toBoolean               = toBoolean,
+    getStringWithDefault    = getStringWithDefault,
+    getNumberWithDefault    = getNumberWithDefault,
 }
