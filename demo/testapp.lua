@@ -56,11 +56,11 @@ local MockPluginBase =
     end,
 
     parseFile = function(self, app, filePath)
-        __printLog(_TAG_PLUGIN, "parse file: %s -> %s", self:getName(), filePath)
+        __printLog(_TAG_PLUGIN, "%s -> %s", self:getName(), filePath)
     end,
 
     parseData = function(self, rawData)
-        __printLog(_TAG_PLUGIN, "parse data: %s -> %s", self:getName(), rawData)
+        __printLog(_TAG_PLUGIN, "%s => %s", self:getName(), rawData)
     end
 }
 
@@ -121,7 +121,7 @@ local MockRemoteDanmakuSourcePlugin =
         local videoIDs = self._mVideoIDsMap[keyword]
         if videoIDs
         then
-            __printLog(_TAG_PLUGIN, "search %s => %s", keyword, self:getName())
+            __printLog(_TAG_PLUGIN, "search %s -> %s", keyword, self:getName())
             result.isSplited = self._mIsSplitedFlags[keyword]
             result.preferredIDIndex = self._mPreferredIDIndexes[keyword]
             result.videoTitleColumnCount = self._mVideoTitleColCounts[keyword]
