@@ -13,53 +13,109 @@ local DanmakuPool =
     _mFontColors        = classlite.declareTableField(),    -- 字体颜色字符串，格式 BBGGRR
     _mFontSizes         = classlite.declareTableField(),    -- 字体大小，单位 pt
     _mDanmakuSources    = classlite.declareTableField(),    -- 弹幕源
-    _mDanmakuIDs        = classlite.declareTableField(),    -- 如果来自于相同弹幕源，以此去重
+    _mDanmakuIDs        = classlite.declareTableField(),    -- 在相同弹幕源前提下的唯一标识
     _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
-    _mDanmakuCount      = classlite.declareConstantField(0),
+    __mDanmakuIndexes   = classlite.declareTableField(),
 
 
-    sortDanmakusByStartTime = function(self)
-        utils.sortParallelArrays(self._mStartTimes,
-                                 self._mLifeTimes,
-                                 self._mFontColors,
-                                 self._mFontSizes,
-                                 self._mDanmakuSources,
-                                 self._mDanmakuIDs,
-                                 self._mTexts)
+    getDanmakuCount = function(self)
+        return #self.__mDanmakuIndexes
     end,
 
 
     getDanmakuAt = function(self, idx)
-        if 1 <= idx and idx <= self._mDanmakuCount
+        if 1 <= idx and idx <= self:getDanmakuCount()
         then
+            idx = self.__mDanmakuIndexes[idx]
             return self._mStartTimes[idx],
-                   self._mLifeTimes[idx],
-                   self._mFontColors[idx],
-                   self._mFontSizes[idx],
-                   self._mDanmakuSources[idx],
-                   self._mDanmakuIDs[idx],
-                   self._mTexts[idx]
+                self._mLifeTimes[idx],
+                self._mFontColors[idx],
+                self._mFontSizes[idx],
+                self._mDanmakuSources[idx],
+                self._mDanmakuIDs[idx],
+                self._mTexts[idx]
 
         end
     end,
 
 
-    getDanmakuCount = function(self)
-        return self._mDanmakuCount
+    sortAndTrim = function(self)
+        local startTimes = self._mStartTimes
+        local sources = self._mDanmakuSources
+        local danmakuIDs = self._mDanmakuIDs
+        local indexes = self.__mDanmakuIndexes
+        utils.clearTable(indexes)
+        utils.fillArrayWithAscNumbers(indexes, #sources)
+
+        local function __cmp(idx1, idx2)
+            local function __compareString(str1, str2)
+                if str1 == str2
+                then
+                    return 0
+                else
+                    return str1 < str2 and -1 or 1
+                end
+            end
+
+            local ret = 0
+            ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
+            ret = ret ~= 0 and ret or __compareString(sources[idx1], sources[idx2])
+            ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
+            return ret < 0
+        end
+
+        table.sort(indexes, __cmp)
+
+        -- 去重
+        local writeIdx = 1
+        local prevSource = nil
+        local prevDanmakuID = nil
+        for i, idx in ipairs(indexes)
+        do
+            local curSource = sources[i]
+            local curDanmakuID = danmakuIDs[i]
+            if curSource ~= prevSource or curDanmakuID ~= prevDanmakuID
+            then
+                indexes[writeIdx] = idx
+                writeIdx = writeIdx + 1
+                prevSource = curSource
+                prevDanmakuID = prevDanmakuID
+            end
+        end
+
+        -- 如果有重复数组长度会比原来的短
+        for i = writeIdx, #indexes
+        do
+            indexes[i] = nil
+        end
     end,
 
 
     addDanmaku = function(self, startTime, lifeTime, color, size, source, id, text)
-        -- 防止因为空值而数组对不齐
-        local idx = self:getDanmakuCount() + 1
-        self._mStartTimes[idx]      = startTime
-        self._mLifeTimes[idx]       = lifeTime
-        self._mFontColors[idx]      = color
-        self._mFontSizes[idx]       = size
-        self._mDanmakuSources[idx]  = source
-        self._mDanmakuIDs[idx]      = id
-        self._mTexts[idx]           = text
-        self._mDanmakuCount = self._mDanmakuCount + 1
+        local function __checkArgs(checkFunc, ...)
+            for i = 1, types.getVarArgCount(...)
+            do
+                local arg = select(i, ...)
+                if not checkFunc(arg)
+                then
+                    return false
+                end
+            end
+            return true
+        end
+
+        if __checkArgs(types.isNumber, startTime, lifeTime, color, size)
+            and __checkArgs(types.isString, source, id, text)
+        then
+            table.insert(self._mStartTimes, startTime)
+            table.insert(self._mLifeTimes, lifeTime)
+            table.insert(self._mFontColors, color)
+            table.insert(self._mFontSizes, size)
+            table.insert(self._mDanmakuSources, source)
+            table.insert(self._mDanmakuIDs, id)
+            table.insert(self._mTexts, text)
+            table.insert(self.__mDanmakuIndexes, #self.__mDanmakuIndexes + 1)
+        end
     end,
 
 
@@ -71,6 +127,7 @@ local DanmakuPool =
         utils.clearTable(self._mDanmakuSources)
         utils.clearTable(self._mDanmakuIDs)
         utils.clearTable(self._mTexts)
+        utils.clearTable(self.__mDanmakuIndexes)
     end,
 }
 
@@ -102,7 +159,9 @@ local DanmakuPools =
 
     writeDanmakus = function(self, app, f)
         local cfg = app:getConfiguration()
-        self._mWriter:writeDanmakus(self, cfg, app:getVideoWidth(), app:getVideoHeight(), f)
+        local width = app:getVideoWidth()
+        local height = app:getVideoHeight()
+        return self._mWriter:writeDanmakus(self, cfg, width, height, f)
     end,
 
     clear = function(self)

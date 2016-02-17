@@ -61,12 +61,11 @@ local MPVDanmakuLoaderApp =
         return self._mNetworkConnection
     end,
 
-    setSubtitleByFilePath = function(self, path)
+    setSubtitleFile = function(self, path)
         mp.commandv("sub_add ", path)
     end,
 
-    setSubtitleByData = function(self, data)
-        --TODO 不知道这个 API 对不对
+    setSubtitleData = function(self, data)
         mp.commandv("sub_add", "memory://" .. data)
     end,
 

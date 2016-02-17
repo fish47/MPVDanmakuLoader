@@ -367,14 +367,6 @@ local function forEachTableValue(tbl, func, arg)
 end
 
 
-local function doesStringStartWith(str1, prefix)
-    return types.isString(str1)
-           and types.isString(prefix)
-           and #str1 >= #prefix
-           and str1:sub(1, #prefix) == prefix
-end
-
-
 return
 {
     _obtainTable                = _obtainTable,
@@ -402,5 +394,4 @@ return
     forEachTableValue           = forEachTableValue,
     sortParallelArrays          = sortParallelArrays,
     fillArrayWithAscNumbers     = fillArrayWithAscNumbers,
-    doesStringStartWith         = doesStringStartWith,
 }

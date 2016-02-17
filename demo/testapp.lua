@@ -17,20 +17,58 @@ local _TAG_SHELL        = "shell"
 
 
 local function __printLog(tag, fmt, ...)
-    local tagWidth = #tag
-    local beforeSpaceCount = math.floor((_LOG_TAG_WIDTH - tagWidth) / 2)
-    local afterSpaceCount = math.max(_LOG_TAG_WIDTH - tagWidth - beforeSpaceCount, 0)
-    print(string.format("[%s%s%s]  " .. fmt,
-                        string.rep(constants.STR_SPACE, beforeSpaceCount),
-                        tag,
-                        string.rep(constants.STR_SPACE, afterSpaceCount),
-                        ...))
+    if not tag
+    then
+        print(string.format(fmt, ...))
+    else
+        local tagWidth = #tag
+        local beforeSpaceCount = math.floor((_LOG_TAG_WIDTH - tagWidth) / 2)
+        local afterSpaceCount = math.max(_LOG_TAG_WIDTH - tagWidth - beforeSpaceCount, 0)
+        print(string.format("[%s%s%s]  " .. fmt,
+                            string.rep(constants.STR_SPACE, beforeSpaceCount),
+                            tag,
+                            string.rep(constants.STR_SPACE, afterSpaceCount),
+                            ...))
+    end
 end
+
+
+local function __createFile(app, fullPath, content)
+    local dir = unportable.splitPath(fullPath)
+    app:createDir(dir)
+
+    local file = app:writeFile(fullPath)
+    file:write(content or constants.STR_EMPTY)
+    utils.closeSafely(file)
+end
+
+
+local MockPluginBase =
+{
+    _mName      = classlite.declareConstantField(nil),
+
+    new = function(self, name)
+        self._mName = name
+    end,
+
+    getName = function(self)
+        return self._mName
+    end,
+
+    parseFile = function(self, app, filePath)
+        __printLog(_TAG_PLUGIN, "parse file: %s -> %s", self:getName(), filePath)
+    end,
+
+    parseData = function(self, rawData)
+        __printLog(_TAG_PLUGIN, "parse data: %s -> %s", self:getName(), rawData)
+    end
+}
+
+classlite.declareClass(MockPluginBase, pluginbase.IDanmakuSourcePlugin)
 
 
 local MockRemoteDanmakuSourcePlugin =
 {
-    _mName                  = classlite.declareConstantField(nil),
     _mVideoIDsMap           = classlite.declareTableField(),
     _mIsSplitedFlags        = classlite.declareTableField(),
     _mDanmakuURLs           = classlite.declareTableField(),
@@ -40,9 +78,6 @@ local MockRemoteDanmakuSourcePlugin =
     _mPreferredIDIndexes    = classlite.declareTableField(),
     __mVideoIDCount         = classlite.declareConstantField(0),
 
-    new = function(self, name)
-        self._mName = name
-    end,
 
     dispose = function(self)
         utils.forEachTableValue(self._mVideoIDsMap, utils.clearTable)
@@ -82,14 +117,6 @@ local MockRemoteDanmakuSourcePlugin =
         end
     end,
 
-    getName = function(self)
-        return self._mName
-    end,
-
-    parse = function(self, app, fullPath)
-        __printLog(_TAG_PLUGIN, "parse %s: %s", self:getName(), fullPath)
-    end,
-
     search = function(self, keyword, result)
         local videoIDs = self._mVideoIDsMap[keyword]
         if videoIDs
@@ -119,25 +146,15 @@ local MockRemoteDanmakuSourcePlugin =
     end
 }
 
-classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
+classlite.declareClass(MockRemoteDanmakuSourcePlugin, MockPluginBase)
 
 
 local MockLocalDanmakuSourcePlugin =
 {
-    _mName                  = classlite.declareConstantField(nil),
     _mMatchedFilePahtSet    = classlite.declareTableField(),
 
-    new = function(self, name)
-        self._mName = name
-    end,
-
     addMatchedRawDataFile = function(self, app, fullPath)
-        local dir = unportable.splitPath(fullPath)
-        app:createDir(dir)
-
-        local file = app:writeFile(fullPath)
-        file:write(constants.STR_EMPTY)
-        utils.closeSafely(file)
+        __createFile(app, fullPath)
         self._mMatchedFilePahtSet[fullPath] = true
     end,
 
@@ -146,7 +163,7 @@ local MockLocalDanmakuSourcePlugin =
     end,
 }
 
-classlite.declareClass(MockLocalDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
+classlite.declareClass(MockLocalDanmakuSourcePlugin, MockPluginBase)
 
 
 local MockShell =
@@ -158,20 +175,6 @@ local MockShell =
         self:getParent().new(self)
 
         local app = self._mApplication
-        local orgSetSubtitleFunc = app.setSubtitle
-        app.setSubtitle = function(self, fullPath)
-            __printLog(_TAG_APPLICATION, "set subtitle %s", fullPath)
-            orgSetSubtitleFunc(self, fullPath)
-        end
-
-        app.addKeyBinding = function(self, key)
-            __printLog(_TAG_APPLICATION, "bind: %s", key)
-        end
-
-        app._doAddEventCallback = function(self, eventName)
-            __printLog(_TAG_APPLICATION, "register: %s", eventName)
-        end
-
         local conn = app:getNetworkConnection()
         local orgCreateFunc = conn._createConnection
         conn._createConnection = function(self, url)
@@ -180,27 +183,43 @@ local MockShell =
         end
 
         local plugin1 = MockRemoteDanmakuSourcePlugin:new("Remote1")
-        plugin1:addSearchResult(app, "a", { "Title1", "Subtitle1", "Title2", "Subtitle2" }, false, 2)
-        plugin1:addSearchResult(app, "b", { "Title1", "Title2", "Title3", "Title4" }, true)
-        app:addDanmakuSourcePlugin(plugin1)
-
         local plugin2 = MockRemoteDanmakuSourcePlugin:new("Remote2")
-        plugin2:addSearchResult(app, "c", { "Title1", "Title2" })
-        app:addDanmakuSourcePlugin(plugin2)
-
         local plugin3 = MockLocalDanmakuSourcePlugin:new("Local1")
-        plugin3:addMatchedRawDataFile(app, "/local_source/1")
-        plugin3:addMatchedRawDataFile(app, "/local_source/2")
-        plugin3:addMatchedRawDataFile(app, "/local_source/3")
+        app:addDanmakuSourcePlugin(plugin1)
+        app:addDanmakuSourcePlugin(plugin2)
         app:addDanmakuSourcePlugin(plugin3)
+
+        local orgInitFunc = app.init
+        app.init = function(...)
+            orgInitFunc(...)
+
+            plugin1:addSearchResult(app, "a", { "Title1", "Title2", "Title3", "Title4" }, true)
+            plugin1:addSearchResult(app,
+                                    "b",
+                                    { "Title1", "Subtitle1", "Title2", "Subtitle2" },
+                                    false,
+                                    2)
+
+            plugin2:addSearchResult(app, "c", { "Title1", "Title2" })
+
+            plugin3:addMatchedRawDataFile(app, "/local_source/1")
+            plugin3:addMatchedRawDataFile(app, "/local_source/2")
+            plugin3:addMatchedRawDataFile(app, "/local_source/3")
+        end
     end,
 
-    _commitSubtitle = function(self, assFilePath)
-        __printLog(_TAG_SHELL, "set subtitle: %s", tostring(assFilePath))
+    _commitDanmakus = function(self, assFilePath)
+        __printLog(_TAG_SHELL, "set subtitle")
     end,
 }
 
 classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 
 
-MockShell:new():_showMain()
+local shell = MockShell:new()
+local app = shell._mApplication
+local cfg = app:getConfiguration()
+local videoFilePath = "/dir/videofile.mp4"
+cfg.localDanmakuSourceDirPath = "/local_source/"
+__createFile(app, videoFilePath)
+shell:show(cfg, videoFilePath)

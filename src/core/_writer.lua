@@ -93,6 +93,25 @@ local DanmakuWriter =
 
 
     writeDanmakus = function(self, pools, cfg, screenW, screenH, f)
+        local function __defaultWriteHook(...)
+            return ...
+        end
+
+        local hasDanmaku = false
+        local calculators = self._mCalculators
+        for layer, calc in pairs(calculators)
+        do
+            local pool = pools:getDanmakuPoolByLayer(layer)
+            pool:sortAndTrim()
+            hasDanmaku = hasDanmaku or pool:getDanmakuCount() ~= 0
+        end
+
+        if not hasDanmaku
+        then
+            return false
+        end
+
+
         local stageW = screenW
         local stageH = math.max(screenH - cfg.bottomReservedHeight, 1)
 
@@ -105,25 +124,19 @@ local DanmakuWriter =
         builder:setDefaultFontColor(cfg.danmakuFontColor)
         builder:setDefaultFontSize(cfg.danmakuFontSize)
 
-        local calculators = self._mCalculators
+        local writeHook = cfg.writeDanmakuHook or __defaultWriteHook
         local writePosFuncs = self._mWritePosFunctions
         for layer, calc in pairs(calculators)
         do
             local writePosFunc = writePosFuncs[layer]
             local pool = pools:getDanmakuPoolByLayer(layer)
-            pool:sortDanmakusByStartTime()
             calc:init(screenW, screenH)
 
-            --TODO ID
-            local prevDanmakuID = nil
-            local danmakuCount = pool:getDanmakuCount()
-            for i = 1, danmakuCount
+            for i = 1, pool:getDanmakuCount()
             do
-                local start, life, color, size, danmakuID, text = pool:getSortedDanmakuAt(i)
-                if not prevDanmakuID or prevDanmakuID ~= danmakuID
+                local start, life, color, size, source, id, text = writeHook(pool:getDanmakuAt(i))
+                if start and life and color and size and source and id and text
                 then
-                    prevDanmakuID = danmakuID
-
                     local w, h = _measureDanmakuText(text, size)
                     local y = calc:calculate(w, h, start, life)
 
@@ -139,6 +152,8 @@ local DanmakuWriter =
                 end
             end
         end
+
+        return true
     end,
 }
 

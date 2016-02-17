@@ -172,18 +172,24 @@ classlite.declareClass(IDanmakuSource)
 local _LocalDanmakuSource =
 {
     _mPlugin        = classlite.declareConstantField(nil),
-    _mFilePath      = classlite.declareTableField(),
+    _mFilePath      = classlite.declareConstantField(nil),
 
     _init = function(self, app, plugin, filePath)
         self._mPlugin = plugin
         self._mFilePath = filePath
-        return self:__isValid(app)
+        if self:__isValid(app)
+        then
+            return true
+        else
+            self:reset()
+            return false
+        end
     end,
 
     parse = function(self, app)
         if self:__isValid(app)
         then
-            self._mPlugin:parse(app, self._mFilePath)
+            self._mPlugin:parseFile(app, self._mFilePath)
         end
     end,
 
@@ -191,6 +197,15 @@ local _LocalDanmakuSource =
         return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
                and app:isExistedFile(self._mFilePath)
     end,
+
+    getDescription = function(self)
+        local filePath = self._mFilePath
+        if types.isString(filePath)
+        then
+            local _, fileName = unportable.splitPath(filePath)
+            return fileName
+        end
+    end
 }
 
 classlite.declareClass(_LocalDanmakuSource, IDanmakuSource)
@@ -225,6 +240,9 @@ local _CachedRemoteDanmakuSource =
         then
             utils.sortParallelArrays(srcOffsets, srcIDs, srcPaths, srcURLs)
             return true
+        else
+            self:reset()
+            return false
         end
     end,
 

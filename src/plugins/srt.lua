@@ -103,7 +103,7 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life)
 
     local color = cfg.subtitleFontColor
     local size = cfg.subtitleFontSize
-    p:addDanmaku(start, life, color, size, src, idx, text)
+    p:addDanmaku(start, life, color, size, src, tostring(idx), text)
 
     line = hasMoreLine and __readLine(f)
     return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx)

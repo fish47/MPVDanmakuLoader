@@ -21,6 +21,8 @@ local function updateConfiguration(cfg, videoFilePath, joinPathFunc, splitPathFu
     cfg.danmakuSourceMetaDataFilePath   = _joinPath(privateDir, "sourcemeta.lua")   -- 记录弹幕源的原始信息
     cfg.generatedASSFilePath            = videoFilePath and videoFilePath .. ".ass" -- 生成的字幕文件路径，可为 nil
 
+    cfg.writeDanmakuHook    = nil
+
     return cfg
 end
 

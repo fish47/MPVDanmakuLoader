@@ -358,7 +358,10 @@ classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
 local MockConfiguration =
 {
     new = function(self)
-        configuration.updateConfiguration(self, "/1.mp4", unportable.joinPath, unportable.splitPath)
+        configuration.updateConfiguration(self,
+                                          "/1.mp4",
+                                          unportable.joinPath,
+                                          unportable.splitPath)
     end,
 }
 
@@ -400,17 +403,6 @@ local MockApplication =
 
     getVideoMD5 = function(self)
         return string.rep("1", 32)
-    end,
-
-    getVideoFilePath = function(self)
-        local videoFilePath = "/mockfile.mp4"
-        if not self:isExistedFile(videoFilePath)
-        then
-            local file = self:writeFile(videoFilePath)
-            file:write("video_file")
-            utils.closeSafely(file)
-        end
-        return videoFilePath
     end,
 
     getVideoWidth = function(self)

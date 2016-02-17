@@ -41,7 +41,7 @@ TestParseSRTFile =
         local ret = srt._parseSRTFile(self._mCfg, pool, f, "foo")
 
         f:close()
-        pool:sortDanmakusByStartTime()
+        pool:sortAndTrim()
         table.insert(self._mPools, pool)
         return ret, pool
     end,

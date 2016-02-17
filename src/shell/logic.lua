@@ -12,6 +12,7 @@ local sourcemgr     = require("src/shell/sourcemgr")
 local _SHELL_TIMEOFFSET_START       = 0
 local _SHELL_DESCRIPTION_VID_SEP    = ","
 local _SHELL_DATE_FORMAT            = "%y/%m/%d %H:%M"
+local _SHELL_DATE_UNKNOW            = "N/A"
 
 
 local MPVDanmakuLoaderShell =
@@ -152,7 +153,7 @@ local MPVDanmakuLoaderShell =
         for _, source in utils.iterateArray(sources)
         do
             local date = source:getDate()
-            local dateString = date and os.date(_SHELL_DATE_FORMAT, date) or constants.STR_EMPTY
+            local dateString = date and os.date(_SHELL_DATE_FORMAT, date) or _SHELL_DATE_UNKNOW
             table.insert(props.listBoxElements, dateString)
             table.insert(props.listBoxElements, source:getPluginName())
             table.insert(props.listBoxElements, source:getDescription())
@@ -181,12 +182,12 @@ local MPVDanmakuLoaderShell =
             local file = app:writeFile(assFilePath)
             pools:writeDanmakus(app, file)
             utils.closeSafely(file)
-            app:setSubtitleByFilePath(assFilePath)
+            app:setSubtitleFile(assFilePath)
         else
             local file = io.tmpfile()
             pools:writeDanmakus(app, file)
             file:seek(constants.SEEK_MODE_BEGIN)
-            app:setSubtitleByData(file:read(constants.READ_MODE_ALL))
+            app:setSubtitleData(file:read(constants.READ_MODE_ALL))
             utils.closeSafely(file)
         end
     end,

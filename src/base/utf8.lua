@@ -86,7 +86,6 @@ end
 
 
 
-
 local _ENCODE_CODEPOINT_RANGE_ENDS  =
 {
     0x7f,
