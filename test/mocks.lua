@@ -412,6 +412,14 @@ local MockApplication =
         end
         return videoFilePath
     end,
+
+    getVideoWidth = function(self)
+        return 800
+    end,
+
+    getVideoHeight = function(self)
+        return 600
+    end,
 }
 
 classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)

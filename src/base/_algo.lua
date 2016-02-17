@@ -234,6 +234,10 @@ local function sortParallelArrays(...)
         compareFuncArg = function(idx1, idx2)
             return compareFunc(firstArray[idx1], firstArray[idx2])
         end
+    else
+        compareFuncArg = function(idx1, idx2)
+            return firstArray[idx1] < firstArray[idx2]
+        end
     end
 
     -- 获取排序后的新位置

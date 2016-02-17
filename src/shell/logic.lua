@@ -35,6 +35,7 @@ local MPVDanmakuLoaderShell =
     __mVideoIDs             = classlite.declareTableField(),
     __mTimeOffsets          = classlite.declareTableField(),
     __mDanmakuURLs          = classlite.declareTableField(),
+    __mToBeUpdatedSources   = classlite.declareTableField(),
 
     __mSearchResult         = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
 
@@ -70,7 +71,9 @@ local MPVDanmakuLoaderShell =
             end
         end
 
-        return self:_showAddDanmakuSource()
+        -- 即使没有搜索结果也要弹一下
+        result:reset()
+        return self:__showSelectNewDanmakuSource(nil, result)
     end,
 
 
@@ -125,7 +128,7 @@ local MPVDanmakuLoaderShell =
         __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
         local sourceMgr = self._mDanmakuSourceManager
-        local source = sourceMgr:addDanmakuSource(plugin, desc, offsets, urls)
+        local source = sourceMgr:addDanmakuSource(plugin, desc, videoIDs, offsets, urls)
         table.insert(self._mDanmakuSources, source)
 
         return self:_showMain()
@@ -218,14 +221,21 @@ local MPVDanmakuLoaderShell =
 
     _showUpdateDanmakuSource = function(self)
         local function __updateSource(self, sources, idx)
-            local sourceMgr = self._mDanmakuSourceManager
-            local newSource = sourceMgr:updateDanmakuSource(sources[idx])
-            table.insert(sources, newSource)
+            table.insert(self.__mToBeUpdatedSources, sources[idx])
         end
 
+        local function __updateAndShowDanmakuSources(self)
+            local toBeUpdatedSources = self.__mToBeUpdatedSources
+            local sourceMgr = self._mDanmakuSourceManager
+            sourceMgr:updateDanmakuSources(toBeUpdatedSources, self._mDanmakuSources)
+            utils.clearTable(toBeUpdatedSources)
+            return self:_showUpdateDanmakuSource()
+        end
+
+        utils.clearTable(self.__mToBeUpdatedSources)
         return self:__doShowDanmakuSources(self._mUIStrings.title_update_danmaku_source,
                                            __updateSource,
-                                           self._showUpdateDanmakuSource,
+                                           __updateAndShowDanmakuSources,
                                            self._showMain)
     end,
 

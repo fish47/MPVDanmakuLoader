@@ -1,4 +1,5 @@
 local utf8      = require("src/base/utf8")
+local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
@@ -48,7 +49,7 @@ local function __writeStaticTopPos(cfg, screenW, screenH, b, w, y)
 end
 
 local function __writeStaticBottomPos(cfg, screenW, screenH, b, w, y)
-    local stageH = screenH - cfg.bottomReserved
+    local stageH = screenH - cfg.bottomReservedHeight
     y = stageH - y
     y = y - cfg.bottomReserved
     b:addBottomCenterAlign()
@@ -71,11 +72,11 @@ local DanmakuWriter =
 
     new = function(self)
         local calcs = self._mCalculators
-        calcs[_ass.LAYER_MOVING_L2R]    = _poscalc.Moving_poscalculator:new()
-        calcs[_ass.LAYER_MOVING_R2L]    = _poscalc.Moving_poscalculator:new()
-        calcs[_ass.LAYER_STATIC_TOP]    = _poscalc.Static_poscalculator:new()
-        calcs[_ass.LAYER_STATIC_BOTTOM] = _poscalc.Static_poscalculator:new()
-        calcs[_ass.LAYER_SUBTITLE]      = _poscalc.Static_poscalculator:new()
+        calcs[_ass.LAYER_MOVING_L2R]    = _poscalc.MovingPosCalculator:new()
+        calcs[_ass.LAYER_MOVING_R2L]    = _poscalc.MovingPosCalculator:new()
+        calcs[_ass.LAYER_STATIC_TOP]    = _poscalc.StaticPosCalculator:new()
+        calcs[_ass.LAYER_STATIC_BOTTOM] = _poscalc.StaticPosCalculator:new()
+        calcs[_ass.LAYER_SUBTITLE]      = _poscalc.StaticPosCalculator:new()
 
         local posFuncs = self._mWritePosFunctions
         posFuncs[_ass.LAYER_MOVING_L2R]     = __writeMovingL2RPos
@@ -93,7 +94,7 @@ local DanmakuWriter =
 
     writeDanmakus = function(self, pools, cfg, screenW, screenH, f)
         local stageW = screenW
-        local stageH = math.max(screenH - cfg.bottomReserved, 1)
+        local stageH = math.max(screenH - cfg.bottomReservedHeight, 1)
 
         _ass.writeScriptInfo(f, screenW, screenH)
         _ass.writeStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize)

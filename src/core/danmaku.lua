@@ -123,5 +123,5 @@ return
     LAYER_SUBTITLE          = _ass.LAYER_SUBTITLE,
 
     DanmakuPool             = DanmakuPool,
-    DanmakuPools            = DanmakuPool,
+    DanmakuPools            = DanmakuPools,
 }
