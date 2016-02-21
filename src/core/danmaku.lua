@@ -15,8 +15,12 @@ local DanmakuPool =
     _mDanmakuSources    = classlite.declareTableField(),    -- 弹幕源
     _mDanmakuIDs        = classlite.declareTableField(),    -- 在相同弹幕源前提下的唯一标识
     _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
+    _mAddDanmakuHook    = classlite.declareConstantField(nil),
     __mDanmakuIndexes   = classlite.declareTableField(),
 
+    setAddDanmakuHook = function(self, func)
+        self._mAddDanmakuHook = types.isFunction(func) and func
+    end,
 
     getDanmakuCount = function(self)
         return #self.__mDanmakuIndexes
@@ -91,7 +95,7 @@ local DanmakuPool =
     end,
 
 
-    addDanmaku = function(self, startTime, lifeTime, color, size, source, id, text)
+    addDanmaku = function(self, ...)
         local function __checkArgs(checkFunc, ...)
             for i = 1, types.getVarArgCount(...)
             do
@@ -104,11 +108,21 @@ local DanmakuPool =
             return true
         end
 
-        if __checkArgs(types.isNumber, startTime, lifeTime, color, size)
-            and __checkArgs(types.isString, source, id, text)
+        local function __checkNumbers(...)
+            return __checkArgs(types.isNumber, ...)
+        end
+
+        local function __checkStrings(...)
+            return __checkStrings(types.isString, ...)
+        end
+
+
+        local hook = self._mAddDanmakuHook
+        local start, life, color, size, source, id, text = hook and hook(...) or ...
+        if __checkNumbers(start, life, color, size) and __checkStrings(source, id, text)
         then
-            table.insert(self._mStartTimes, startTime)
-            table.insert(self._mLifeTimes, lifeTime)
+            table.insert(self._mStartTimes, start)
+            table.insert(self._mLifeTimes, life)
             table.insert(self._mFontColors, color)
             table.insert(self._mFontSizes, size)
             table.insert(self._mDanmakuSources, source)
@@ -153,8 +167,12 @@ local DanmakuPools =
         self:clear()
     end,
 
+    iteratePools = function(self)
+        return ipairs(self._mPools)
+    end,
+
     getDanmakuPoolByLayer = function(self, layer)
-        return self._mPools[layer]
+        return types.isString(layer) and self._mPools[layer]
     end,
 
     writeDanmakus = function(self, app, f)

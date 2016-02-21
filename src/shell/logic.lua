@@ -11,8 +11,6 @@ local sourcemgr     = require("src/shell/sourcemgr")
 
 local _SHELL_TIMEOFFSET_START       = 0
 local _SHELL_DESCRIPTION_VID_SEP    = ","
-local _SHELL_DATE_FORMAT            = "%y/%m/%d %H:%M"
-local _SHELL_DATE_UNKNOW            = "N/A"
 
 
 local MPVDanmakuLoaderShell =
@@ -35,7 +33,7 @@ local MPVDanmakuLoaderShell =
 
     __mVideoIDs             = classlite.declareTableField(),
     __mTimeOffsets          = classlite.declareTableField(),
-    __mDanmakuURLs          = classlite.declareTableField(),
+    __mDanmakuRawDatas      = classlite.declareTableField(),
     __mToBeUpdatedSources   = classlite.declareTableField(),
 
     __mSearchResult         = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
@@ -50,11 +48,11 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    _showAddDanmakuSource = function(self)
+    _showSearchDanmakuSource = function(self)
         local props = self._mEntryProperties
         props:reset()
         self:__initWindowProperties(props)
-        props.entryTitle = self._mUIStrings.title_add_danmaku_source
+        props.entryTitle = self._mUIStrings.title_search_danmaku_source
 
         local input = self._mGUIBuilder:showEntry(props)
         if types.isNilOrEmpty(input)
@@ -113,7 +111,7 @@ local MPVDanmakuLoaderShell =
         local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
         if not self._mGUIBuilder:showListBox(props, selectedIndexes)
         then
-            return self:_showAddDanmakuSource()
+            return self:_showSearchDanmakuSource()
         end
 
         local videoIDs = utils.clearTable(self.__mVideoIDs)
@@ -123,13 +121,11 @@ local MPVDanmakuLoaderShell =
         end
 
         local desc = table.concat(videoIDs, _SHELL_DESCRIPTION_VID_SEP)
-        local urls = utils.clearTable(self.__mDanmakuURLs)
         local offsets = utils.clearTable(self.__mTimeOffsets)
-        plugin:getDanmakuURLs(videoIDs, urls)
         __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
         local sourceMgr = self._mDanmakuSourceManager
-        local source = sourceMgr:addDanmakuSource(plugin, desc, videoIDs, offsets, urls)
+        local source = sourceMgr:addDanmakuSource(plugin, desc, videoIDs, offsets)
         table.insert(self._mDanmakuSources, source)
 
         return self:_showMain()
@@ -150,10 +146,12 @@ local MPVDanmakuLoaderShell =
         props.listBoxColumnCount = #props.listBoxHeaders
 
         local sources = self._mDanmakuSources
+        local datetimeFormat = uiStrings.fmt_danmaku_source_datetime
+        local unknownDatetimeString = uiStrings.datetime_unknown
         for _, source in utils.iterateArray(sources)
         do
             local date = source:getDate()
-            local dateString = date and os.date(_SHELL_DATE_FORMAT, date) or _SHELL_DATE_UNKNOW
+            local dateString = date and os.date(datetimeFormat, date) or unknownDatetimeString
             table.insert(props.listBoxElements, dateString)
             table.insert(props.listBoxElements, source:getPluginName())
             table.insert(props.listBoxElements, source:getDescription())
@@ -173,23 +171,29 @@ local MPVDanmakuLoaderShell =
         end
     end,
 
-    _commitDanmakus = function(self)
+
+    __doCommitDanmakus = function(self, assFilePath)
         local app = self._mApplication
         local pools = app:getDanmakuPools()
-        local assFilePath = app:getConfiguration().generatedASSFilePath
         if assFilePath
         then
             local file = app:writeFile(assFilePath)
             pools:writeDanmakus(app, file)
-            utils.closeSafely(file)
+            app:closeFile(file)
             app:setSubtitleFile(assFilePath)
         else
-            local file = io.tmpfile()
+            local file = app:createTempFile()
             pools:writeDanmakus(app, file)
             file:seek(constants.SEEK_MODE_BEGIN)
             app:setSubtitleData(file:read(constants.READ_MODE_ALL))
-            utils.closeSafely(file)
+            app:closeFile(file)
         end
+    end,
+
+    _commitDanmakus = function(self)
+        local app = self._mApplication
+        local assFilePath = app:getConfiguration().generatedASSFilePath
+        self:__doCommitDanmakus(assFilePath)
     end,
 
     _showGenerateASSFile = function(self)
@@ -268,7 +272,7 @@ local MPVDanmakuLoaderShell =
         props.isHeaderHidden = true
 
         local options = utils.clearTable(self.__mOptionStrings)
-        table.insert(options, uiStrings.option_main_add_danmaku_source)
+        table.insert(options, uiStrings.option_main_search_danmaku_source)
         table.insert(options, uiStrings.option_main_update_danmaku_source)
         table.insert(options, uiStrings.option_main_delete_danmaku_source)
         table.insert(options, uiStrings.option_main_generate_ass_file)
@@ -280,9 +284,9 @@ local MPVDanmakuLoaderShell =
 
         local idx = selectedIndexes[1]
         local optionString = idx and options[idx]
-        if optionString == uiStrings.option_main_add_danmaku_source
+        if optionString == uiStrings.option_main_search_danmaku_source
         then
-            return self:_showAddDanmakuSource()
+            return self:_showSearchDanmakuSource()
         elseif optionString == uiStrings.option_main_update_danmaku_source
         then
             return self:_showUpdateDanmakuSource()
@@ -318,7 +322,18 @@ local MPVDanmakuLoaderShell =
         do
             if plugin:search(url, result)
             then
-                --TODO
+                local ids = utils.clearTable(self.__mVideoIDs)
+                local rawDatas = utils.clearTable(self.__mDanmakuRawDatas)
+                local videoID = result.videoIDs[result.preferredIDIndex]
+                table.insert(ids, videoID)
+                plugin:downloadRawDatas(ids, rawDatas)
+
+                local data = rawDatas[1]
+                if types.isString(data)
+                then
+                    plugin:parseData(app, data, _SHELL_TIMEOFFSET_START, videoID)
+                    self:__doCommitDanmakus()
+                end
             end
         end
     end,

@@ -8,12 +8,12 @@ local logic         = require("src/shell/logic")
 local mocks         = require("test/mocks")
 
 
-local _LOG_TAG_WIDTH    = 10
+local _LOG_TAG_WIDTH    = 14
 
 local _TAG_PLUGIN       = "plugin"
 local _TAG_NETWORK      = "network"
 local _TAG_APPLICATION  = "application"
-local _TAG_SHELL        = "shell"
+local _TAG_FILESYSTEM   = "filesystem"
 
 
 local function __printLog(tag, fmt, ...)
@@ -33,13 +33,22 @@ local function __printLog(tag, fmt, ...)
 end
 
 
+local function __patchFunction(orgFunc, patchFunc)
+    local ret = function(...)
+        utils.invokeSafelly(patchFunc, ...)
+        return utils.invokeSafelly(orgFunc, ...)
+    end
+    return ret
+end
+
+
 local function __createFile(app, fullPath, content)
     local dir = unportable.splitPath(fullPath)
     app:createDir(dir)
 
     local file = app:writeFile(fullPath)
     file:write(content or constants.STR_EMPTY)
-    utils.closeSafely(file)
+    app:closeFile(file)
 end
 
 
@@ -71,7 +80,6 @@ local MockRemoteDanmakuSourcePlugin =
 {
     _mVideoIDsMap           = classlite.declareTableField(),
     _mIsSplitedFlags        = classlite.declareTableField(),
-    _mDanmakuURLs           = classlite.declareTableField(),
     _mVideoDurations        = classlite.declareTableField(),
     _mVideoTitles           = classlite.declareTableField(),
     _mVideoTitleColCounts   = classlite.declareTableField(),
@@ -82,16 +90,15 @@ local MockRemoteDanmakuSourcePlugin =
     dispose = function(self)
         utils.forEachTableValue(self._mVideoIDsMap, utils.clearTable)
         utils.forEachTableValue(self._mVideoDurations, utils.clearTable)
-        utils.forEachTableValue(self._mDanmakuURLs, utils.clearTable)
         utils.forEachTableValue(self._mVideoTitles, utils.clearTable)
     end,
 
-    addSearchResult = function(self, app, keyword, titles, isSplited, colCount)
+    addSearchResult = function(self, keyword, titles, isSplited, colCount)
+        local app = self._mApplication
         local videoIDsMap = self._mVideoIDsMap
         colCount = colCount or 1
         if not videoIDsMap[keyword]
         then
-            local conn = app:getNetworkConnection()
             local pluginName = self:getName()
             local videoIDs = {}
             local videoIDStart = self.__mVideoIDCount
@@ -101,10 +108,6 @@ local MockRemoteDanmakuSourcePlugin =
                 local videoIDNum = i + videoIDStart
                 local videoID = string.format("%s_%d", pluginName, videoIDNum)
                 table.insert(videoIDs, videoID)
-
-                local url = string.format("http://www.fish47.com/%s/%d", pluginName, videoIDNum)
-                conn:setResponse(url, pluginName)
-                self._mDanmakuURLs[videoID] = url
                 self._mVideoDurations[videoID] = math.random(1000)
             end
 
@@ -131,11 +134,8 @@ local MockRemoteDanmakuSourcePlugin =
         end
     end,
 
-    getDanmakuURLs = function(self, videoIDs, outURLs)
-        for _, videoID in utils.iterateArray(videoIDs)
-        do
-            table.insert(outURLs, self._mDanmakuURLs[videoID])
-        end
+    downloadRawDatas = function(self, videoIDs, outDatas)
+        utils.appendArrayElements(outDatas, videoIDs)
     end,
 
     getVideoDurations = function(self, videoIDs, outDurations)
@@ -153,12 +153,13 @@ local MockLocalDanmakuSourcePlugin =
 {
     _mMatchedFilePahtSet    = classlite.declareTableField(),
 
-    addMatchedRawDataFile = function(self, app, fullPath)
+    addMatchedRawDataFile = function(self, fullPath)
+        local app = self._mApplication
         __createFile(app, fullPath)
         self._mMatchedFilePahtSet[fullPath] = true
     end,
 
-    isMatchedRawDataFile = function(self, app, filePath)
+    isMatchedRawDataFile = function(self, filePath)
         return self._mMatchedFilePahtSet[filePath]
     end,
 }
@@ -176,12 +177,6 @@ local MockShell =
 
         local app = self._mApplication
         local conn = app:getNetworkConnection()
-        local orgCreateFunc = conn._createConnection
-        conn._createConnection = function(self, url)
-            __printLog(_TAG_NETWORK, "GET %s", url)
-            return orgCreateFunc(self, url)
-        end
-
         local plugin1 = MockRemoteDanmakuSourcePlugin:new("Remote1")
         local plugin2 = MockRemoteDanmakuSourcePlugin:new("Remote2")
         local plugin3 = MockLocalDanmakuSourcePlugin:new("Local1")
@@ -189,27 +184,44 @@ local MockShell =
         app:addDanmakuSourcePlugin(plugin2)
         app:addDanmakuSourcePlugin(plugin3)
 
-        local orgInitFunc = app.init
-        app.init = function(...)
-            orgInitFunc(...)
+        local function __printNetworkLog(_, url)
+            __printLog(_TAG_NETWORK, "GET %s", url)
+        end
+        conn._createConnection = __patchFunction(conn._createConnection, __printNetworkLog)
 
-            plugin1:addSearchResult(app, "a", { "Title1", "Title2", "Title3", "Title4" }, true)
-            plugin1:addSearchResult(app,
-                                    "b",
+        local function __initPluginResults()
+            plugin1:addSearchResult("a", { "Title1", "Title2", "Title3", "Title4" }, true)
+            plugin1:addSearchResult("b",
                                     { "Title1", "Subtitle1", "Title2", "Subtitle2" },
                                     false,
                                     2)
 
-            plugin2:addSearchResult(app, "c", { "Title1", "Title2" })
+            plugin2:addSearchResult("c", { "Title1", "Title2" })
 
-            plugin3:addMatchedRawDataFile(app, "/local_source/1")
-            plugin3:addMatchedRawDataFile(app, "/local_source/2")
-            plugin3:addMatchedRawDataFile(app, "/local_source/3")
+            plugin3:addMatchedRawDataFile("/local_source/1")
+            plugin3:addMatchedRawDataFile("/local_source/2")
+            plugin3:addMatchedRawDataFile("/local_source/3")
         end
+        app.init = __patchFunction(__initPluginResults, app.init)
+
+
+        local function __createPatchedFSFunction(orgFunc, tag)
+            local function logFunc(_, fullPath)
+                __printLog(_TAG_FILESYSTEM, "%s: %s", tag, fullPath or constants.STR_EMPTY)
+            end
+            return __patchFunction(orgFunc, logFunc)
+        end
+        app.readFile = __createPatchedFSFunction(app.readFile, "read")
+        app.readUTF8File = __createPatchedFSFunction(app.readUTF8File, "readUTF8")
+        app.writeFile = __createPatchedFSFunction(app.writeFile, "writeFile")
+        app.closeFile = __createPatchedFSFunction(app.closeFile, "closeFile")
+        app.createDir = __createPatchedFSFunction(app.createDir, "createDir")
+        app.deleteTree = __createPatchedFSFunction(app.deleteTree, "deleteTree")
+        app.createTempFile = __createPatchedFSFunction(app.createTempFile, "createTempFile")
     end,
 
     _commitDanmakus = function(self, assFilePath)
-        __printLog(_TAG_SHELL, "set subtitle")
+        __printLog(_TAG_APPLICATION, "set subtitle")
     end,
 }
 

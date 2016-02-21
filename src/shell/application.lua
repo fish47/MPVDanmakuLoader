@@ -35,14 +35,24 @@ local MPVDanmakuLoaderApp =
         self.__mVideoFileMD5 = nil
         self._mDanmakuPools:clear()
         self._mNetworkConnection:reset()
+
+        for _, pool in self._mDanmakuPools:iteratePools()
+        do
+            pool:setAddDanmakuHook(cfg.addDanmakuHook)
+        end
     end,
 
     _initDanmakuSourcePlugins = function(self)
         local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
-        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
-        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
-        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
-        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+--        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
+--        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
+--        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
+--        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+
+        local function __setApplication(plugin, app)
+            plugin:setApplication(app)
+        end
+        utils.forEachArrayElement(plugins, __setApplication, self)
     end,
 
     iterateDanmakuSourcePlugin = function(self)
@@ -83,6 +93,10 @@ local MPVDanmakuLoaderApp =
         return types.isString(dir) and unportable.deleteTree(dir)
     end,
 
+    createTempFile = function(self)
+        return io.tmpfile()
+    end,
+
     readFile = function(self, fullPath)
         return types.isString(fullPath) and io.read(fullPath)
     end,
@@ -93,6 +107,10 @@ local MPVDanmakuLoaderApp =
 
     writeFile = function(self, fullPath, mode)
         return types.isString(fullPath) and io.open(fullPath, mode)
+    end,
+
+    closeFile = function(self, file)
+        utils.closeSafely(file)
     end,
 
     isExistedDir = function(self, fullPath)

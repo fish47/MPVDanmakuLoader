@@ -364,9 +364,12 @@ local _NetworkConnectionBase =
     end,
 
     receive = function(self, url)
-        local succeed, conn = types.isString(url) and self:_createConnection(url)
-        local content = succeed and self:_readConnection(conn)
-        return content
+        if types.isString(url)
+        then
+            local succeed, conn = self:_createConnection(url)
+            local content = succeed and self:_readConnection(conn)
+            return content
+        end
     end,
 
     receiveLater = function(self, url, callback, arg)
@@ -445,7 +448,7 @@ local CURLNetworkConnection =
     end,
 
     _readConnection = function(self, conn)
-        return conn:read(constants.FILE_MODE_READ)
+        return conn:read(constants.READ_MODE_ALL)
     end,
 }
 

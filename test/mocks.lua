@@ -166,7 +166,7 @@ local MockFileSystem =
         return ret and ret or _MockFileSystemTreeNode:new()
     end,
 
-    _doCreateBridgedFile = function(self)
+    _doCreateBridgedFile = function(self, fullPath)
         local f = _BridgedFile:new(io.tmpfile())
         local orgCloseFunc = f.close
         local pendingFiles = self._mPendingFileSet
@@ -213,7 +213,7 @@ local MockFileSystem =
             end
 
             local fs = self
-            local f = self:_doCreateBridgedFile()
+            local f = self:_doCreateBridgedFile(fullPath)
             local orgCloseFunc = f.close
             f.close = function(self)
                 if types.isOpenedFile(self:getFile())
@@ -244,7 +244,7 @@ local MockFileSystem =
         local _, fileNode = self:_seekToNode(fullPath)
         if fileNode and fileNode:isFile()
         then
-            local f = self:_doCreateBridgedFile()
+            local f = self:_doCreateBridgedFile(fullPath)
             f:write(fileNode.content)
             f:seek(constants.SEEK_MODE_BEGIN)
             return f
@@ -383,7 +383,10 @@ local MockApplication =
         self._mMockFileSystem:unsetup()
     end,
 
-    clearCallbacks = constants.FUNC_EMPTY,
+    getMockFileSystem = function(self)
+        return self._mMockFileSystem
+    end,
+
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
     addDanmakuSourcePlugin = function(self, plugin)
@@ -398,6 +401,7 @@ local MockApplication =
             return
         end
 
+        plugin:setApplication(self)
         table.insert(plugins, plugin)
     end,
 

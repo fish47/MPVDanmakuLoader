@@ -22,9 +22,9 @@ local function __deleteDownloadedFiles(app, filePaths)
 end
 
 
-local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
+local function __downloadDanmakuRawDataFiles(app, plugin, ids, outFilePaths)
     if not classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
-        or not types.isTable(urls)
+        or types.isNilOrEmpty(ids)
         or not types.isTable(outFilePaths)
     then
         return false
@@ -51,16 +51,10 @@ local function __downloadDanmakuRawDataFiles(app, urls, outFilePaths)
 
     -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
     local rawDatas = utils.clearTable(outFilePaths)
-    local conn = app:getNetworkConnection()
-    conn:resetParams()
-    for _, url in utils.iterateArray(urls)
-    do
-        conn:receiveLater(url, __writeRawData, rawDatas)
-    end
-    conn:flushReceiveQueue()
+    plugin:downloadRawDatas(ids, rawDatas)
 
     -- 有文件下不动的时候，数量就对不上
-    if not hasCreatedDir or #rawDatas ~= #urls
+    if not hasCreatedDir or #rawDatas ~= #ids
     then
         utils.clearTable(rawDatas)
         return false
@@ -219,9 +213,8 @@ local _CachedRemoteDanmakuSource =
     _mSourceIDs     = classlite.declareTableField(),
     _mFilePaths     = classlite.declareTableField(),
     _mTimeOffsets   = classlite.declareTableField(),
-    _mDownloadURLs  = classlite.declareTableField(),
 
-    _init = function(self, app, plugin, date, desc, ids, paths, offsets, urls)
+    _init = function(self, app, plugin, date, desc, ids, paths, offsets)
         self._mPlugin = plugin
         self._mDate = date
         self._mDescription = desc or constants.STR_EMPTY
@@ -229,16 +222,14 @@ local _CachedRemoteDanmakuSource =
         local srcIDs = utils.clearTable(self._mSourceIDs)
         local srcPaths = utils.clearTable(self._mFilePaths)
         local srcOffsets = utils.clearTable(self._mTimeOffsets)
-        local srcURLs = utils.clearTable(self._mDownloadURLs)
         utils.appendArrayElements(srcIDs, ids)
         utils.appendArrayElements(srcPaths, paths)
         utils.appendArrayElements(srcOffsets, offsets)
-        utils.appendArrayElements(srcURLs, urls)
 
         -- 对字段排序方便后来更新时比较
         if self:__isValid(app)
         then
-            utils.sortParallelArrays(srcOffsets, srcIDs, srcPaths, srcURLs)
+            utils.sortParallelArrays(srcOffsets, srcIDs, srcPaths)
             return true
         else
             self:reset()
@@ -266,23 +257,6 @@ local _CachedRemoteDanmakuSource =
 
 
     __isValid = function(self, app)
-        if not classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
-            or not types.isNumber(self._mDate)
-            or not types.isString(self._mDescription)
-        then
-            return false
-        end
-
-        local ids = self._mSourceIDs
-        local filePaths = self._mFilePaths
-        local timeOffsets = self._mTimeOffsets
-        local downloadURLs = self._mDownloadURLs
-        local count = #filePaths
-        if count <= 0 or #timeOffsets ~= count or #downloadURLs ~= count
-        then
-            return false
-        end
-
         local function __checkNonExistedFilePath(path, app)
             return not app:isExistedFile(path)
         end
@@ -295,15 +269,18 @@ local _CachedRemoteDanmakuSource =
             return not types.isString(url)
         end
 
-        if utils.linearSearchArrayIf(ids, __checkIsNotString)
-            or utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
-            or utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
-            or utils.linearSearchArrayIf(downloadURLs, __checkIsNotString)
-        then
-            return false
-        end
-
-        return true
+        local ids = self._mSourceIDs
+        local filePaths = self._mFilePaths
+        local timeOffsets = self._mTimeOffsets
+        return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
+            and types.isNumber(self._mDate)
+            and types.isString(self._mDescription)
+            and #ids > 0
+            and #ids == #filePaths
+            and #ids == #timeOffsets
+            and not utils.linearSearchArrayIf(ids, __checkIsNotString)
+            and not utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
+            and not utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
     end,
 
 
@@ -317,7 +294,6 @@ local _CachedRemoteDanmakuSource =
             serializer:writeArray(self._mSourceIDs)
             serializer:writeArray(self._mFilePaths)
             serializer:writeArray(self._mTimeOffsets)
-            serializer:writeArray(self._mDownloadURLs)
             return true
         end
     end,
@@ -347,8 +323,14 @@ local _CachedRemoteDanmakuSource =
         succeed = succeed and deserializer:readArray(self._mSourceIDs)
         succeed = succeed and deserializer:readArray(self._mFilePaths)
         succeed = succeed and deserializer:readArray(self._mTimeOffsets)
-        succeed = succeed and deserializer:readArray(self._mDownloadURLs)
-        return types.toBoolean(succeed and self:__isValid(app))
+
+        if succeed and self:__isValid(app)
+        then
+            return true
+        else
+            self:reset()
+            return false
+        end
     end,
 
 
@@ -363,19 +345,22 @@ local _CachedRemoteDanmakuSource =
 
 
     _update = function(self, app, source2)
-        local datetime = app:getCurrentDateTime()
-        self:clone(source2)
-        source2._mDate = datetime
-
-        local filePaths = source2._mFilePaths
-        if __downloadDanmakuRawDataFiles(app, source2._mDownloadURLs, filePaths)
+        if self:__isValid(app)
         then
-            if source2:__isValid(app)
+            self:clone(source2)
+            source2._mDate = app:getCurrentDateTime()
+
+            local ids = self._mSourceIDs
+            local plugin = self._mPlugin
+            local filePaths = utils.clearTable(source2._mFilePaths)
+            local succeed = __downloadDanmakuRawDataFiles(app, plugin, ids, filePaths)
+            if succeed and source2:__isValid(app)
             then
                 return true
             end
 
             __deleteDownloadedFiles(app, filePaths)
+            source2:reset()
         end
     end,
 
@@ -399,7 +384,6 @@ local _CachedRemoteDanmakuSource =
             and source2:__isValid(app)
             and __hasSameArrayContent(self._mSourceIDs, source2._mSourceIDs)
             and __hasSameArrayContent(self._mTimeOffsets, source2._mTimeOffsets)
-            and __hasSameArrayContent(self._mDownloadURLs, source2._mDownloadURLs)
     end,
 }
 
@@ -477,7 +461,7 @@ local DanmakuSourceManager =
             src = src or self:_obtainDanmakuSource(_LocalDanmakuSource)
             for _, p in app:iterateDanmakuSourcePlugin()
             do
-                if p:isMatchedRawDataFile(app, filePath) and src:_init(app, p, filePath)
+                if p:isMatchedRawDataFile(filePath) and src:_init(app, p, filePath)
                 then
                     table.insert(outList, src)
                     src = nil
@@ -515,7 +499,7 @@ local DanmakuSourceManager =
 
             local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
             serialize.serializeTuple(file, utils.unpackArray(tuple))
-            utils.closeSafely(file)
+            app:closeFile(file)
         end
     end,
 
@@ -557,20 +541,20 @@ local DanmakuSourceManager =
     end,
 
 
-    addDanmakuSource = function(self, plugin, desc, ids, offsets, urls)
+    addDanmakuSource = function(self, plugin, desc, ids, offsets)
         local app = self._mApplication
         local datetime = app:getCurrentDateTime()
         local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
-        if __downloadDanmakuRawDataFiles(app, urls, filePaths)
+        if __downloadDanmakuRawDataFiles(app, plugin, ids, filePaths)
         then
             local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
-            if source and source:_init(app, plugin, datetime, desc, ids, filePaths, offsets, urls)
+            if source and source:_init(app, plugin, datetime, desc, ids, filePaths, offsets)
             then
                 self:_doAppendMetaFile(source)
                 return source
-            else
-                self:recycleDanmakuSource(source)
             end
+
+            self:recycleDanmakuSource(source)
         end
     end,
 
@@ -578,7 +562,7 @@ local DanmakuSourceManager =
         local app = self._mApplication
         if classlite.isInstanceOf(source, IDanmakuSource) and source:_delete(app)
         then
-            -- 调用者不要再持有这个对象
+            -- 外部不要再持有这个对象了
             self:recycleDanmakuSource(source)
             return true
         end

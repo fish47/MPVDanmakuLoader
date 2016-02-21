@@ -25,7 +25,11 @@ local MockPlugin =
         return self._mName
     end,
 
-    isMatchedRawDataFile = function(self, app, fullPath)
+    downloadRawDatas = function(self, ids, outDatas)
+        utils.appendArrayElements(outDatas, ids)
+    end,
+
+    isMatchedRawDataFile = function(self, fullPath)
         local pattern = self._mPathPattern
         lu.assertTrue(types.isString(fullPath))
         return types.isString(pattern) and fullPath:match(pattern)
@@ -38,14 +42,12 @@ TestDanmakuSourceManager =
 {
     _mApplication           = nil,
     _mDanmakuSourceManager  = nil,
-    _mRandomURLCount        = nil,
     _mRandomSourceIDCount   = nil,
 
     setUp = function(self)
         self._mApplication = mocks.MockApplication:new()
         self._mDanmakuSourceManager = mocks.MockDanmakuSourceManager:new()
         self._mDanmakuSourceManager:setApplication(self._mApplication)
-        self._mRandomURLCount = 0
         self._mRandomSourceIDCount = 0
     end,
 
@@ -54,32 +56,22 @@ TestDanmakuSourceManager =
         self._mDanmakuSourceManager:dispose()
     end,
 
-    _getRandomURL = function(self, content)
-        local conn = self._mApplication:getNetworkConnection()
-        local url = string.format("http://www.xxx.com/%d", self._mRandomURLCount)
-        conn:setResponse(url, types.isString(content) or constants.STR_EMPTY)
-        self._mRandomURLCount = self._mRandomURLCount + 1
-        return url
-    end,
-
     _getRandomSourceID = function(self)
         local id = self._mRandomSourceIDCount
         self._mRandomSourceIDCount = id + 1
         return string.format("SourceID_%d", id)
     end,
 
-    _getRandomDanmakuSourceParams = function(self, ids, urls, offsets, count)
+    _getRandomDanmakuSourceParams = function(self, ids, offsets, count)
         ids = utils.clearTable(ids) or {}
-        urls = utils.clearTable(urls) or {}
         offsets = utils.clearTable(offsets) or {}
         count = count or math.random(10)
         for i = 1, count
         do
             table.insert(ids, self:_getRandomSourceID())
-            table.insert(urls, self:_getRandomURL())
             table.insert(offsets, math.random(1000))
         end
-        return ids, urls, offsets
+        return ids, offsets
     end,
 
 
@@ -161,39 +153,35 @@ TestDanmakuSourceManager =
         end
 
         local srcIDs = {}
-        local srcURLs = {}
         local srcOffsets = {}
         local srcPlugins = {}
         local sourceCount = math.random(100)
         for i = 1, sourceCount
         do
-            local ids, urls, offsets = self:_getRandomDanmakuSourceParams()
+            local ids, offsets = self:_getRandomDanmakuSourceParams()
             local plugin = plugins[math.random(pluginCount)]
             table.insert(srcPlugins, plugin)
             table.insert(srcIDs, ids)
             table.insert(srcOffsets, offsets)
-            table.insert(srcURLs, urls)
 
             -- 每次添加都会写一次序列化文件
-            local source = manager:addDanmakuSource(plugin, tostring(i), ids, offsets, urls)
+            local source = manager:addDanmakuSource(plugin, tostring(i), ids, offsets)
             lu.assertNotNil(source)
             manager:recycleDanmakuSource(source)
         end
 
-        local function __assertDanmakuSources(sources, plugins, ids, offsets, urls)
+        local function __assertDanmakuSources(sources, plugins, ids, offsets)
             for _, source in ipairs(sources)
             do
                 local idx = tonumber(source:getDescription())
                 lu.assertNotNil(idx)
-                lu.assertEquals(source._mPlugin, plugins[idx])
+                lu.assertIs(source._mPlugin, plugins[idx])
 
                 local ids1, ids2 = source._mSourceIDs, ids[idx]
-                local urls1, urls2 = source._mDownloadURLs, urls[idx]
                 local offsets1, offsets2 = source._mTimeOffsets, offsets[idx]
                 lu.assertEquals(#ids1, #ids2)
-                lu.assertEquals(#urls1, #urls2)
                 lu.assertEquals(#offsets1, #offsets2)
-                lu.assertTrue(#ids1 == #urls1 and #ids1 == #offsets1)
+                lu.assertTrue(#ids1 == #offsets1)
 
                 -- 顺序不一定相同，但保证是平行对应的
                 for i = 1, #ids1
@@ -202,7 +190,6 @@ TestDanmakuSourceManager =
                     local found, searchIdx = utils.linearSearchArray(ids2, id1)
                     lu.assertTrue(found)
                     lu.assertEquals(ids1[i], ids2[searchIdx])
-                    lu.assertEquals(urls1[i], urls2[searchIdx])
                     lu.assertEquals(offsets1[i], offsets2[searchIdx])
                 end
             end
@@ -211,7 +198,7 @@ TestDanmakuSourceManager =
         -- 看一下反序列化正不正确
         local sources = {}
         manager:listDanmakuSources(sources)
-        __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets, srcURLs)
+        __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets)
 
         -- 测一下删除弹幕源
         local filePaths = {}
@@ -233,7 +220,7 @@ TestDanmakuSourceManager =
             end
 
             manager:listDanmakuSources(utils.clearTable(sources))
-            __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets, srcURLs)
+            __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets)
             lu.assertEquals(#sources, count - 1)
         end
     end,
@@ -241,39 +228,32 @@ TestDanmakuSourceManager =
 
     testUpdateSource = function(self)
         local app = self._mApplication
-        local conn = app:getNetworkConnection()
         local manager = self._mDanmakuSourceManager
         local plugin = MockPlugin:new("mock_plugin")
         app:addDanmakuSourcePlugin(plugin)
 
         local ids = {}
-        local urls = {}
         local offsets = {}
         local filePaths = {}
         local sources = {}
         for i = 1, 10
         do
             local urlCount = 5
-            self:_getRandomDanmakuSourceParams(ids, urls, offsets, urlCount)
+            self:_getRandomDanmakuSourceParams(ids, offsets, urlCount)
 
-            local source = manager:addDanmakuSource(plugin, nil, ids, offsets, urls)
+            local source = manager:addDanmakuSource(plugin, nil, ids, offsets)
             lu.assertNotNil(source)
 
             -- 因为某些文件下载不来，应该是更新失败的
-            for j = 1, math.random(urlCount)
-            do
-                conn:setResponse(urls[math.random(urlCount)], nil)
-            end
+            local orgDownloadFunc = plugin.downloadRawDatas
+            plugin.downloadRawDatas = constants.FUNC_EMPTY
             utils.clearTable(sources)
             table.insert(sources, source)
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 1)
 
-            -- 更改下载的内容，应该可以更新成功了
-            for j = 1, urlCount
-            do
-                conn:setResponse(urls[j], urls[j])
-            end
+            -- 更改回来应该可以更新成功了
+            plugin.downloadRawDatas = orgDownloadFunc
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 2)
 
@@ -282,7 +262,7 @@ TestDanmakuSourceManager =
             do
                 local content = utils.readAndCloseFile(app:readFile(filePath))
                 lu.assertNotNil(content)
-                lu.assertEquals(content, source2._mDownloadURLs[j])
+                lu.assertEquals(content, source2._mSourceIDs[j])
             end
 
             -- 更新失败的临时文件应该被删除
@@ -293,8 +273,6 @@ TestDanmakuSourceManager =
             utils.clearTable(filePaths)
             app:listFiles(cfg.danmakuSourceRawDataDirPath, filePaths)
             lu.assertTrue(types.isEmptyTable(filePaths))
-
-            conn:clearAllResponses()
         end
     end,
 
@@ -305,8 +283,8 @@ TestDanmakuSourceManager =
         local plugin = MockPlugin:new("mock_plugin")
         app:addDanmakuSourcePlugin(plugin)
 
-        local ids, urls, offsets = self:_getRandomDanmakuSourceParams({}, {}, {}, 5)
-        local source1 = manager:addDanmakuSource(plugin, nil, ids, offsets, urls)
+        local ids, offsets = self:_getRandomDanmakuSourceParams({}, {}, 5)
+        local source1 = manager:addDanmakuSource(plugin, nil, ids, offsets)
         lu.assertNotNil(source1)
 
         local function __swapArraysElement(idx1, idx2, ...)
@@ -319,10 +297,10 @@ TestDanmakuSourceManager =
             end
         end
 
-        __swapArraysElement(1, 5, ids, urls, offsets)
+        __swapArraysElement(1, 5, ids, offsets)
 
         -- 不阻止重复添加，因为下载的内容可能有变化，但来源确定是相同的
-        local source2 = manager:addDanmakuSource(plugin, "clone", ids, offsets, urls)
+        local source2 = manager:addDanmakuSource(plugin, "clone", ids, offsets)
         lu.assertNotNil(source2)
         lu.assertTrue(source1:_isFromSameUpdateSource(app, source2))
 

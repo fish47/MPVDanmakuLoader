@@ -93,10 +93,6 @@ local DanmakuWriter =
 
 
     writeDanmakus = function(self, pools, cfg, screenW, screenH, f)
-        local function __defaultWriteHook(...)
-            return ...
-        end
-
         local hasDanmaku = false
         local calculators = self._mCalculators
         for layer, calc in pairs(calculators)
@@ -124,7 +120,6 @@ local DanmakuWriter =
         builder:setDefaultFontColor(cfg.danmakuFontColor)
         builder:setDefaultFontSize(cfg.danmakuFontSize)
 
-        local writeHook = cfg.writeDanmakuHook or __defaultWriteHook
         local writePosFuncs = self._mWritePosFunctions
         for layer, calc in pairs(calculators)
         do
@@ -134,22 +129,19 @@ local DanmakuWriter =
 
             for i = 1, pool:getDanmakuCount()
             do
-                local start, life, color, size, source, id, text = writeHook(pool:getDanmakuAt(i))
-                if start and life and color and size and source and id and text
-                then
-                    local w, h = _measureDanmakuText(text, size)
-                    local y = calc:calculate(w, h, start, life)
+                local start, life, color, size, source, id, text = pool:getDanmakuAt(i)
+                local w, h = _measureDanmakuText(text, size)
+                local y = calc:calculate(w, h, start, life)
 
-                    builder:startDialogue(layer, start, start + life)
-                    builder:startStyle()
-                    builder:addFontColor(color)
-                    builder:addFontSize(size)
-                    writePosFunc(cfg, builder, screenW, screenH, w, y)
-                    builder:endStyle()
-                    builder:addText(text)
-                    builder:endDialogue()
-                    builder:flushContent(f)
-                end
+                builder:startDialogue(layer, start, start + life)
+                builder:startStyle()
+                builder:addFontColor(color)
+                builder:addFontSize(size)
+                writePosFunc(cfg, builder, screenW, screenH, w, y)
+                builder:endStyle()
+                builder:addText(text)
+                builder:endDialogue()
+                builder:flushContent(f)
             end
         end
 

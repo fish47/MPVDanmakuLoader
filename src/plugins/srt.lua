@@ -117,14 +117,14 @@ local function _parseSRTFile(cfg, pool, file, srcID)
 end
 
 
-local SRTDanmakusrcPlugin =
+local SRTDanmakuSourcePlugin =
 {
     getName = function(self)
         return _SRT_PLUGIN_NAME
     end,
 
     parseFile = function(self, app, filePath)
-        local file = app:openUTF8File(filePath)
+        local file = app:readUTF8File(filePath)
         if types.isOpenedFile(file)
         then
             local cfg = app:getConfiguration()
@@ -132,20 +132,20 @@ local SRTDanmakusrcPlugin =
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
             local sourceID = string.format(_SRT_FMT_SOURCEID, filePath)
             _parseSRTFile(cfg, pool, file, sourceID)
-            utils.closeSafely(file)
+            app:closeFile(file)
         end
     end,
 
-    isMatchedRawDataFile = function(self, app, filePath)
+    isMatchedRawDataFile = function(self, filePath)
         return filePath:match(_SRT_PATTERN_FILE_NAME)
     end,
 }
 
-classlite.declareClass(SRTDanmakusrcPlugin, pluginbase.IRemoteDanmakusrcPlugin)
+classlite.declareClass(SRTDanmakuSourcePlugin, pluginbase.IRemoteDanmakuSourcePlugin)
 
 
 return
 {
     _parseSRTFile           = _parseSRTFile,
-    SRTDanmakusrcPlugin  = SRTDanmakusrcPlugin,
+    SRTDanmakuSourcePlugin  = SRTDanmakuSourcePlugin,
 }
