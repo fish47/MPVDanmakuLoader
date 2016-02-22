@@ -15,28 +15,31 @@ local _SHELL_DESCRIPTION_VID_SEP    = ","
 
 local MPVDanmakuLoaderShell =
 {
-    _mApplication           = classlite.declareClassField(application.MPVDanmakuLoaderApp),
-    _mDanmakuSourceManager  = classlite.declareClassField(sourcemgr.DanmakuSourceManager),
+    _mApplication               = classlite.declareClassField(application.MPVDanmakuLoaderApp),
+    _mDanmakuSourceManager      = classlite.declareClassField(sourcemgr.DanmakuSourceManager),
 
-    _mUIStrings             = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
-    _mUISizes               = classlite.declareConstantField(uiconstants.UI_SIZES_ZENITY),
+    _mUIStrings                 = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
+    _mUISizes                   = classlite.declareConstantField(uiconstants.UI_SIZES_ZENITY),
 
-    _mGUIBuilder            = classlite.declareClassField(unportable.ZenityGUIBuilder),
-    _mTextInfoProperties    = classlite.declareClassField(unportable.TextInfoProperties),
-    _mListBoxProperties     = classlite.declareClassField(unportable.ListBoxProperties),
-    _mEntryProperties       = classlite.declareClassField(unportable.EntryProperties),
+    _mGUIBuilder                = classlite.declareClassField(unportable.ZenityGUIBuilder),
+    _mTextInfoProperties        = classlite.declareClassField(unportable.TextInfoProperties),
+    _mListBoxProperties         = classlite.declareClassField(unportable.ListBoxProperties),
+    _mEntryProperties           = classlite.declareClassField(unportable.EntryProperties),
+    _mFileSelectionProperties   = classlite.declareClassField(unportable.FileSelectionProperties),
 
-    _mDanmakuSources        = classlite.declareTableField(),
+    _mDanmakuSources            = classlite.declareTableField(),
 
-    __mSelectedIndexes      = classlite.declareTableField(),
-    __mOptionStrings        = classlite.declareTableField(),
+    __mSelectedIndexes          = classlite.declareTableField(),
+    __mSelectedFilePaths        = classlite.declareTableField(),
+    __mOptionStrings            = classlite.declareTableField(),
 
-    __mVideoIDs             = classlite.declareTableField(),
-    __mTimeOffsets          = classlite.declareTableField(),
-    __mDanmakuRawDatas      = classlite.declareTableField(),
-    __mToBeUpdatedSources   = classlite.declareTableField(),
+    __mVideoIDs                 = classlite.declareTableField(),
+    __mTimeOffsets              = classlite.declareTableField(),
+    __mDanmakuRawDatas          = classlite.declareTableField(),
+    __mToBeUpdatedSources       = classlite.declareTableField(),
+    __mPlugins                  = classlite.declareTableField(),
 
-    __mSearchResult         = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
+    __mSearchResult             = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
 
 
     new = function(self)
@@ -45,6 +48,53 @@ local MPVDanmakuLoaderShell =
 
     dispose = function(self)
         utils.forEachArrayElement(self._mDanmakuSources, utils.disposeSafely)
+    end,
+
+
+    _showAddLocalDanmakuSource = function(self)
+        local function __showSelectPlugins(self)
+            local plugins = utils.clearTable(self.__mPlugins)
+            local props = self._mListBoxProperties
+            props:reset()
+            self:__initWindowProperties(props, self._mUISizes.select_plugin)
+            props.listBoxTitle = self._mUIStrings.title_select_plugin
+            props.listBoxColumnCount = 1
+            props.isHeaderHidden = true
+            for _, plugin in self._mApplication:iterateDanmakuSourcePlugin()
+            do
+                table.insert(plugins, plugin)
+                table.insert(props.listBoxElements, plugin:getName())
+            end
+
+            local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
+            if self._mGUIBuilder:showListBox(props, selectedIndexes)
+            then
+                return plugins[selectedIndexes[1]]
+            end
+        end
+
+
+        local function __showSelectFiles(self, outPaths)
+            local props = self._mFileSelectionProperties
+            props:reset()
+            self:__initWindowProperties(props)
+            props.isMultiSelectable = true
+            self._mGUIBuilder:showFileSelection(props, outPaths)
+            for _, path in ipairs(outPaths)
+            do
+                --TODO
+            end
+        end
+
+
+        local paths = utils.clearTable(self.__mSelectedFilePaths)
+        local plugin = __showSelectPlugins(self)
+        if plugin and __showSelectFiles(self, plugin, paths)
+        then
+            --TODO 添加本地弹幕
+        end
+
+        return self:_showMain()
     end,
 
 
@@ -190,7 +240,7 @@ local MPVDanmakuLoaderShell =
         end
     end,
 
-    _commitDanmakus = function(self)
+    __commitDanmakus = function(self)
         local app = self._mApplication
         local assFilePath = app:getConfiguration().generatedASSFilePath
         self:__doCommitDanmakus(assFilePath)
@@ -204,7 +254,7 @@ local MPVDanmakuLoaderShell =
         self._mApplication:getDanmakuPools():clear()
         return self:__doShowDanmakuSources(self._mUIStrings.title_generate_ass_file,
                                            __parseSource,
-                                           self._commitDanmakus,
+                                           self.__commitDanmakus,
                                            self._showMain)
     end,
 
@@ -272,6 +322,7 @@ local MPVDanmakuLoaderShell =
         props.isHeaderHidden = true
 
         local options = utils.clearTable(self.__mOptionStrings)
+        table.insert(options, uiStrings.option_main_add_local_danmaku_source)
         table.insert(options, uiStrings.option_main_search_danmaku_source)
         table.insert(options, uiStrings.option_main_update_danmaku_source)
         table.insert(options, uiStrings.option_main_delete_danmaku_source)
@@ -284,7 +335,10 @@ local MPVDanmakuLoaderShell =
 
         local idx = selectedIndexes[1]
         local optionString = idx and options[idx]
-        if optionString == uiStrings.option_main_search_danmaku_source
+        if optionString == uiStrings.option_main_add_local_danmaku_source
+        then
+            return self:_showAddLocalDanmakuSource()
+        elseif optionString == uiStrings.option_main_search_danmaku_source
         then
             return self:_showSearchDanmakuSource()
         elseif optionString == uiStrings.option_main_update_danmaku_source

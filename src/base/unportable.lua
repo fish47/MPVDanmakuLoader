@@ -231,9 +231,19 @@ local ListBoxProperties =
 classlite.declareClass(ListBoxProperties, _WidgetPropertiesBase)
 
 
+local FileSelectionProperties =
+{
+    isMultiSelectable   = classlite.declareConstantField(false),
+    isDirectoryOnly     = classlite.declareConstantField(false),
+}
+
+classlite.declareClass(FileSelectionProperties, _WidgetPropertiesBase)
+
+
 local _ZENITY_RESULT_RSTRIP_COUNT   = 2
 local _ZENITY_DEFAULT_OUTPUT        = constants.STR_EMPTY
-local _ZENITY_OUTPUT_SEP            = "|"
+local _ZENITY_SEP_LISTBOX_INDEX     = "|"
+local _ZENITY_SEP_FILE_SELECTION    = "//.//"
 local _ZENITY_PATTERN_SPLIT_INDEXES = "(%d+)"
 
 local ZenityGUIBuilder =
@@ -263,6 +273,8 @@ local ZenityGUIBuilder =
         return self:_getZenityCommandResult(arguments)
     end,
 
+
+
     showEntry = function(self, props)
         local arguments = self.__mArguments
         self:__prepareZenityCommand(arguments, props)
@@ -284,7 +296,7 @@ local ZenityGUIBuilder =
         if props.isMultiSelectable
         then
             _addOption(arguments, "--checklist")
-            _addOptionAndValue(arguments, "--separator", _ZENITY_OUTPUT_SEP)
+            _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_LISTBOX_INDEX)
 
             -- 第一列被用作 CheckList 了囧
             _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
@@ -341,6 +353,39 @@ local ZenityGUIBuilder =
         end
 
         return not types.isEmptyTable(outIndexes)
+    end,
+
+
+    showFileSelection = function(self, props, outPaths)
+        local arguments = self.__mArguments
+        self:__prepareZenityCommand(arguments, props)
+        _addOption(arguments, "--file-selection")
+        _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_FILE_SELECTION)
+        _addOption(arguments, props.isMultiSelectable and "--multiple")
+        _addOption(arguments, props.isDirectoryOnly and "--directory")
+
+        utils.clearTable(outPaths)
+        local resultStr = self:_getZenityCommandResult(arguments)
+        if types.isNilOrEmpty(resultStr)
+        then
+            return
+        end
+
+        local startIdx = 1
+        local endIdx = resultStr:len()
+        while startIdx <= endIdx
+        do
+            local sepIdx = resultStr:find(_ZENITY_SEP_FILE_SELECTION, startIdx, true)
+            local pathEndIdx = sepIdx and sepIdx - 1 or endIdx
+            if startIdx <= pathEndIdx
+            then
+                table.insert(outPaths, resultStr:sub(startIdx, pathEndIdx))
+            end
+
+            startIdx = pathEndIdx + #_ZENITY_SEP_FILE_SELECTION + 1
+        end
+
+        return types.isEmptyTable(outPaths)
     end,
 }
 
@@ -543,20 +588,21 @@ end
 
 return
 {
-    _NetworkConnectionBase  = _NetworkConnectionBase,
+    _NetworkConnectionBase      = _NetworkConnectionBase,
 
-    TextInfoProperties      = TextInfoProperties,
-    EntryProperties         = EntryProperties,
-    ListBoxProperties       = ListBoxProperties,
-    ZenityGUIBuilder        = ZenityGUIBuilder,
-    CURLNetworkConnection   = CURLNetworkConnection,
-    UniquePathGenerator     = UniquePathGenerator,
+    TextInfoProperties          = TextInfoProperties,
+    EntryProperties             = EntryProperties,
+    ListBoxProperties           = ListBoxProperties,
+    FileSelectionProperties     = FileSelectionProperties,
+    ZenityGUIBuilder            = ZenityGUIBuilder,
+    CURLNetworkConnection       = CURLNetworkConnection,
+    UniquePathGenerator         = UniquePathGenerator,
 
-    calcFileMD5             = calcFileMD5,
-    createDir               = createDir,
+    calcFileMD5                 = calcFileMD5,
+    createDir                   = createDir,
 
-    iteratePathElements     = iteratePathElements,
-    normalizePath           = normalizePath,
-    joinPath                = joinPath,
-    splitPath               = splitPath,
+    iteratePathElements         = iteratePathElements,
+    normalizePath               = normalizePath,
+    joinPath                    = joinPath,
+    splitPath                   = splitPath,
 }

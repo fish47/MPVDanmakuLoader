@@ -40,7 +40,7 @@ local _PatternBasedDanmakuSourcePlugin =
     end,
 
     parseData = function(self, app, rawData, timeOffset, sourceID)
-        local function __addDanmaku(pools, offset, layer, start, ..)
+        local function __addDanmaku(pools, offset, layer, start, ...)
             if not layer
             then
                 return false

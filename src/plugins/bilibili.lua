@@ -156,7 +156,7 @@ local BiliBiliDanmakuSourcePlugin =
         -- 单P视频
         if partIdx == 1
         then
-            local title = data:match(_BILI_PATTERN_TITLE_1P))
+            local title = data:match(_BILI_PATTERN_TITLE_1P)
             title = __sanitizeString(title)
             table.insert(result.videoTitles, title)
             __parseCID(data, result.videoIDs)
