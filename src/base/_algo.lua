@@ -149,22 +149,21 @@ local function binarySearchArrayIf(list, func, arg)
 end
 
 
-local function __doIteratePairsArray(array, idx)
-    local nextIdx = idx and idx + 2 or 1
-    if nextIdx > #array
-    then
-        return nil
+local function iteratePairsArray(array, startIdx)
+    local function __doIteratePairsArray(array, idx)
+        local nextIdx = idx and idx + 2 or 1
+        if nextIdx > #array
+        then
+            return nil
+        end
+
+        return nextIdx, array[nextIdx], array[nextIdx + 1]
     end
 
-    return nextIdx, array[nextIdx], array[nextIdx + 1]
-end
-
-local function iteratePairsArray(array, startIdx)
     if not types.isTable(array)
     then
         return constants.FUNC_EMPTY
     end
-
     return __doIteratePairsArray, array, startIdx
 end
 
@@ -196,20 +195,20 @@ local function reverseArray(array, startIdx, lastIdx)
 end
 
 
-local function __reorderArray(indexes, array, arrayBak)
-    for i = 1, #indexes
-    do
-        arrayBak[i] = array[i]
-    end
-
-    for i = 1, #indexes
-    do
-        array[i] = arrayBak[indexes[i]]
-    end
-end
-
-
 local function sortParallelArrays(...)
+    local function __reorderArray(indexes, array, arrayBak)
+        for i = 1, #indexes
+        do
+            arrayBak[i] = array[i]
+        end
+
+        for i = 1, #indexes
+        do
+            array[i] = arrayBak[indexes[i]]
+        end
+    end
+
+
     if types.isEmptyVarArgs(...)
     then
         return
@@ -262,22 +261,21 @@ local function sortParallelArrays(...)
     compareFuncArg = nil
 end
 
+--TODO Index
+local function reverseIterateArray(array)
+    local function __doReverseIterateArrayImpl(array, idx)
+        if idx < 1
+        then
+            return nil
+        end
 
-local function __doReverseIterateArrayImpl(array, idx)
-    if idx < 1
-    then
-        return nil
+        return idx - 1, array[idx]
     end
 
-    return idx - 1, array[idx]
-end
-
-local function reverseIterateArray(array)
     if not types.isTable(array)
     then
         return constants.FUNC_EMPTY
     end
-
     return __doReverseIterateArrayImpl, array, #array
 end
 
@@ -294,7 +292,6 @@ local function iterateArray(array)
     then
         return constants.FUNC_EMPTY
     end
-
     return ipairs(array)
 end
 
