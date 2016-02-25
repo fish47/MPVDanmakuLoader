@@ -28,7 +28,7 @@ local DanmakuPool =
 
 
     getDanmakuAt = function(self, idx)
-        if 1 <= idx and idx <= self:getDanmakuCount()
+        if types.isNumber(idx)
         then
             idx = self.__mDanmakuIndexes[idx]
             return self._mStartTimes[idx],

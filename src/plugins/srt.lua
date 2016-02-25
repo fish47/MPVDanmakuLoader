@@ -9,7 +9,6 @@ local danmaku       = require("src/core/danmaku")
 local _SRT_PLUGIN_NAME              = "srt"
 local _SRT_SUBTITLE_IDX_START       = 0
 local _SRT_SEP_SUBTITLE             = constants.STR_EMPTY
-local _SRT_FMT_SOURCEID             = "srt:%s"
 local _SRT_PATTERN_FILE_NAME        = ".*%.[sS][rR][tT]$"
 local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
 local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
@@ -123,14 +122,13 @@ local SRTDanmakuSourcePlugin =
         return _SRT_PLUGIN_NAME
     end,
 
-    parseFile = function(self, app, filePath)
+    parseFile = function(self, app, filePath, sourceID)
         local file = app:readUTF8File(filePath)
         if types.isOpenedFile(file)
         then
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            local sourceID = string.format(_SRT_FMT_SOURCEID, filePath)
             _parseSRTFile(cfg, pool, file, sourceID)
             app:closeFile(file)
         end

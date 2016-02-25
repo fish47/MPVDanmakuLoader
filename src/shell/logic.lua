@@ -175,7 +175,7 @@ local MPVDanmakuLoaderShell =
         __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
         local sourceMgr = self._mDanmakuSourceManager
-        local source = sourceMgr:addDanmakuSource(plugin, desc, videoIDs, offsets)
+        local source = sourceMgr:addCachedDanmakuSource(plugin, desc, videoIDs, offsets)
         table.insert(self._mDanmakuSources, source)
 
         return self:_showMain()

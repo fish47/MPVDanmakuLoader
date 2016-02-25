@@ -75,7 +75,7 @@ local BiliBiliDanmakuSourcePlugin =
         return _BILI_PATTERN_DANMAKU
     end,
 
-    _iterateAddDanmakuParams = function(self, iterFunc, cfg)
+    _extractDanmaku = function(self, iterFunc, cfg)
         local function __getLifeTime(cfg, pos)
             if pos == _BILI_POS_MOVING_L2R or pos == _BILI_POS_MOVING_R2L
             then
@@ -117,7 +117,6 @@ local BiliBiliDanmakuSourcePlugin =
             cid = cid or data:match(_BILI_PATTERN_CID_2)
             utils.pushArrayElement(outCIDs, cid)
         end
-
 
         local avID, index = __getVideoIDAndIndex(keyword)
         if not avID
@@ -168,23 +167,14 @@ local BiliBiliDanmakuSourcePlugin =
         return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
     end,
 
-
-    downloadRawDatas = function(self, videoIDs, outDatas)
-        local function __addRawData(rawData, outDatas)
-            utils.pushArrayElement(outDatas, rawData)
-        end
-
-        local conn = self._mApplication:getNetworkConnection()
-        conn:resetParams()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
+    _prepareToDownloadDanmakuRawDatas = function(self, conn)
+        self:getParent():_prepareToDownloadDanmakuRawDatas(conn)
         conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
         conn:setCompressed(true)
-        for _, videoID in utils.iterateArray(videoIDs)
-        do
-            local url = string.format(_BILI_FMT_URL_DAMAKU, videoID)
-            conn:receiveLater(url, __addRawData, outDatas)
-        end
-        conn:flushReceiveQueue()
+    end,
+
+    _getDanmakuRawDataDownloadURL = function(self, videoID)
+        return string.format(_BILI_FMT_URL_DAMAKU, videoID)
     end,
 
 

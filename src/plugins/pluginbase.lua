@@ -21,8 +21,7 @@ local IDanmakuSourcePlugin =
     parseData = constants.FUNC_EMPTY,
     search = constants.FUNC_EMPTY,
     getVideoDurations = constants.FUNC_EMPTY,
-    downloadRawDatas = constants.FUNC_EMPTY,
-    isMatchedRawDataFile = constants.FUNC_EMPTY,
+    downloadDanmakuRawDatas = constants.FUNC_EMPTY,
 }
 
 classlite.declareClass(IDanmakuSourcePlugin)
@@ -31,7 +30,8 @@ classlite.declareClass(IDanmakuSourcePlugin)
 local _PatternBasedDanmakuSourcePlugin =
 {
     _getGMatchPattern = constants.FUNC_EMPTY,
-    _iterateAddDanmakuParams = constants.FUNC_EMPTY,
+    _extractDanmaku = constants.FUNC_EMPTY,
+    _getDanmakuRawDataDownloadURL = constants.FUNC_EMPTY,
 
     parseFile = function(self, app, filePath, ...)
         local file = app:readUTF8File(filePath)
@@ -65,16 +65,35 @@ local _PatternBasedDanmakuSourcePlugin =
         local cfg = app:getConfiguration()
         local iterFunc = rawData:gmatch(pattern)
         timeOffset = timeOffset or 0
-        while true
+
+        local hasMore = true
+        while hasMore
         do
-            if not __addDanmaku(pools, timeOffset, self:_iterateAddDanmakuParams(iterFunc, cfg))
-            then
-                break
-            end
+            hasMore = __addDanmaku(pools, timeOffset, self:_extractDanmaku(iterFunc, cfg))
         end
     end,
 
 
+    _prepareToDownloadDanmakuRawDatas = function(self, conn)
+        conn:resetParams()
+        conn:addHeader(_HEADER_USER_AGENT)
+    end,
+
+
+    downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
+        local function __addRawData(rawData, outDatas)
+            utils.pushArrayElement(outDatas, rawData)
+        end
+
+        local conn = self._mApplication:getNetworkConnection()
+        self:_prepareToDownloadDanmakuRawDatas(conn)
+        for _, videoID in utils.iterateArray(videoIDs)
+        do
+            local url = self:_getDanmakuRawDataDownloadURL(videoID)
+            conn:receiveLater(url, __addRawData, outDatas)
+        end
+        conn:flushReceiveQueue()
+    end,
 }
 
 classlite.declareClass(_PatternBasedDanmakuSourcePlugin, IDanmakuSourcePlugin)

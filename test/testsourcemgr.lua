@@ -165,7 +165,7 @@ TestDanmakuSourceManager =
             table.insert(srcOffsets, offsets)
 
             -- 每次添加都会写一次序列化文件
-            local source = manager:addDanmakuSource(plugin, tostring(i), ids, offsets)
+            local source = manager:addCachedDanmakuSource(plugin, tostring(i), ids, offsets)
             lu.assertNotNil(source)
             manager:recycleDanmakuSource(source)
         end
@@ -241,7 +241,7 @@ TestDanmakuSourceManager =
             local urlCount = 5
             self:_getRandomDanmakuSourceParams(ids, offsets, urlCount)
 
-            local source = manager:addDanmakuSource(plugin, nil, ids, offsets)
+            local source = manager:addCachedDanmakuSource(plugin, nil, ids, offsets)
             lu.assertNotNil(source)
 
             -- 因为某些文件下载不来，应该是更新失败的
@@ -284,7 +284,7 @@ TestDanmakuSourceManager =
         app:addDanmakuSourcePlugin(plugin)
 
         local ids, offsets = self:_getRandomDanmakuSourceParams({}, {}, 5)
-        local source1 = manager:addDanmakuSource(plugin, nil, ids, offsets)
+        local source1 = manager:addCachedDanmakuSource(plugin, nil, ids, offsets)
         lu.assertNotNil(source1)
 
         local function __swapArraysElement(idx1, idx2, ...)
@@ -300,7 +300,7 @@ TestDanmakuSourceManager =
         __swapArraysElement(1, 5, ids, offsets)
 
         -- 不阻止重复添加，因为下载的内容可能有变化，但来源确定是相同的
-        local source2 = manager:addDanmakuSource(plugin, "clone", ids, offsets)
+        local source2 = manager:addCachedDanmakuSource(plugin, "clone", ids, offsets)
         lu.assertNotNil(source2)
         lu.assertTrue(source1:_isFromSameUpdateSource(app, source2))
 

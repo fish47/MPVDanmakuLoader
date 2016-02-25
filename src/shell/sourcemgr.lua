@@ -10,7 +10,9 @@ local application   = require("src/shell/application")
 
 
 local _RAW_DATA_FILE_PREFIX         = "raw_"
-local _RAW_DATA_FILE_SUFFIX_FMT     = "_%d.txt"
+local _RAW_DATA_FILE_FMT_SUFFIX     = "_%d.txt"
+
+local _FMT_SOURCEID                 = "%s:%s"
 
 
 local function __deleteDownloadedFiles(app, filePaths)
@@ -62,7 +64,7 @@ local function __downloadDanmakuRawDataFiles(app, plugin, ids, outFilePaths)
 
     for i, rawData in utils.iterateArray(rawDatas)
     do
-        local suffix = string.format(_RAW_DATA_FILE_SUFFIX_FMT, i)
+        local suffix = string.format(_RAW_DATA_FILE_FMT_SUFFIX, i)
         local fullPath = app:getUniqueFilePath(baseDir, _RAW_DATA_FILE_PREFIX, suffix)
         local f = app:writeFile(fullPath)
         if not utils.writeAndCloseFile(f, rawData)
@@ -183,13 +185,16 @@ local _LocalDanmakuSource =
     parse = function(self, app)
         if self:__isValid(app)
         then
-            self._mPlugin:parseFile(app, self._mFilePath)
+            local plugin = self._mPlugin
+            local filePath = self._mFilePath
+            local sourceID = string.format(_FMT_SOURCEID, plugin:getName(), filePath)
+            plugin:parseFile(app, filePath, sourceID)
         end
     end,
 
     __isValid = function(self, app)
         return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
-               and app:isExistedFile(self._mFilePath)
+            and app:isExistedFile(self._mFilePath)
     end,
 
     getDescription = function(self)
@@ -248,9 +253,11 @@ local _CachedRemoteDanmakuSource =
     parse = function(self, app)
         if self:__isValid(app)
         then
+            local pluginName = self:getPluginName()
             for i, filePath in utils.iterateArray(self._mFilePaths)
             do
-                self._mPlugin:parseFile(app, filePath, self._mTimeOffsets[i])
+                local sourceID = string.format(_FMT_SOURCEID, pluginName, filePath)
+                self._mPlugin:parseFile(app, filePath, self._mTimeOffsets[i], sourceID)
             end
         end
     end,
@@ -449,30 +456,6 @@ local DanmakuSourceManager =
     end,
 
 
-    _listLocalDanmakuSources = function(self, localDir, outList)
-        local app = self._mApplication
-        local filePaths = utils.clearTable(self.__mListFilePaths)
-        app:listFiles(localDir, filePaths)
-        table.sort(filePaths)
-
-        local src = nil
-        for _, filePath in utils.iterateArray(filePaths)
-        do
-            src = src or self:_obtainDanmakuSource(_LocalDanmakuSource)
-            for _, p in app:iterateDanmakuSourcePlugin()
-            do
-                if p:isMatchedRawDataFile(filePath) and src:_init(app, p, filePath)
-                then
-                    table.insert(outList, src)
-                    src = nil
-                    break
-                end
-            end
-        end
-        self:recycleDanmakuSource(src)
-    end,
-
-
     _doReadMetaFile = function(self, deserializeCallback)
         local cfg = self._mApplication:getConfiguration()
         local metaFilePath = cfg.danmakuSourceMetaDataFilePath
@@ -504,10 +487,17 @@ local DanmakuSourceManager =
     end,
 
 
-    _listCachedRemoteDanmakuSources = function(self, outList)
-        -- 读取下载过的弹幕源
+    listDanmakuSources = function(self, outList)
+        if not types.isTable(outList)
+        then
+            return
+        end
+
+
         local app = self._mApplication
         local danmakuSources = utils.clearTable(self.__mDanmakuSources)
+
+        -- 读取下载过的弹幕源
         local function __callback(md5, ...)
             -- 用 MD5 来区分不同视频文件的弹幕源，提前判可以过滤大部分记录
             if md5 == app:getVideoMD5()
@@ -525,23 +515,13 @@ local DanmakuSourceManager =
                 end
             end
         end
+
         self:_doReadMetaFile(__callback)
         utils.appendArrayElements(outList, danmakuSources)
     end,
 
 
-    listDanmakuSources = function(self, outList)
-        local cfg = self._mApplication:getConfiguration()
-        local dir = cfg.localDanmakuSourceDirPath
-        if types.isString(dir) and types.isTable(outList)
-        then
-            self:_listLocalDanmakuSources(dir, outList)
-            self:_listCachedRemoteDanmakuSources(outList)
-        end
-    end,
-
-
-    addDanmakuSource = function(self, plugin, desc, ids, offsets)
+    addCachedDanmakuSource = function(self, plugin, desc, ids, offsets)
         local app = self._mApplication
         local datetime = app:getCurrentDateTime()
         local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
@@ -556,6 +536,16 @@ local DanmakuSourceManager =
 
             self:recycleDanmakuSource(source)
         end
+    end,
+
+    addLocalDanmakuSource = function(self, plugin, filePath)
+        local source = self._obtainDanmakuArea(_LocalDanmakuSource)
+        if source._init(self._mApplication, plugin, filePath)
+        then
+            return source
+        end
+
+        self:recycleDanmakuSource(source)
     end,
 
     deleteDanmakuSource = function(self, source)

@@ -451,6 +451,7 @@ local _NetworkConnectionBase =
     resetParams = function(self)
         self._mIsCompressed = false
         utils.clearTable(self._mHeaders)
+        return self
     end,
 
     setCompressed = function(self, val)

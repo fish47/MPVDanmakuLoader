@@ -11,7 +11,7 @@ local _DDP_PLUGIN_NAME              = "DanDanPlay"
 local _DDP_FMT_URL_DANMAKU          = "http://acplay.net/api/v1/comment/%s"
 local _DDP_FMT_URL_SEARCH           = "http://acplay.net/api/v1/searchall/%s"
 
-
+local _DDP_PATTERN_SEARCH_KEYWORD   = "ddp:%s*(.-)%s*"
 local _DDP_PATTERN_DANMAKU_ID       = "ddp_%d_%d"
 local _DDP_PATTERN_COMMENT          = "<Comment"
                                       .. '%s+Time="([%d.]+)"'
@@ -52,7 +52,7 @@ local DanDanPlayDanmakuSourcePlugin =
         return _DDP_PATTERN_COMMENT
     end,
 
-    _iterateDanmakuParams = function(self, iterFunc, cfg)
+    _extractDanmaku = function(self, iterFunc, cfg)
         local function __getLifeTime(cfg, pos)
             if pos == _DDP_POS_MOVING_L2R or pos == _DDP_POS_MOVING_R2L
             then
@@ -80,17 +80,29 @@ local DanDanPlayDanmakuSourcePlugin =
     end,
 
 
-    search = function(self, keyword, result)
-        --TODO
+    search = function(self, input, result)
+        local keyword = input:match(_DDP_PATTERN_SEARCH_KEYWORD)
+        if not keyword
+        then
+            return false
+        end
+
+        local conn = self._mApplication:getNetworkConnection():resetParams()
+        local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword)
+        local searchResult = conn:receive(url)
 
         result.isSplited = false
         result.videoTitleColumnCount = 2
         return true
     end,
 
+    _prepareToDownloadDanmakuRawDatas = function(self, conn)
+        self:getParent():_prepareToDownloadDanmakuRawDatas(conn)
+        conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
+    end,
 
-    downloadRawDatas = function(self, videoIDs, outDatas)
-        --TODO
+    _getDanmakuRawDataDownloadURL = function(self, videoID)
+        return string.format(_DDP_FMT_URL_DANMAKU, videoID)
     end,
 }
 
