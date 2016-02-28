@@ -27,17 +27,41 @@ local IDanmakuSourcePlugin =
 classlite.declareClass(IDanmakuSourcePlugin)
 
 
-local _PatternBasedDanmakuSourcePlugin =
+local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
+    local function __appendResult(outList, ret)
+        table.insert(outList, ret)
+    end
+
+    if types.isTable(videoIDs) and types.isTable(outList)
+    then
+        local conn = self._mApplication:getNetworkConnection()
+        for _, videoID in ipairs(videoIDs)
+        do
+            local ret = iterFunc(self, conn, videoID, outList)
+            if types.isString(ret)
+            then
+                conn:receiveLater(ret, __appendResult, outList)
+            end
+        end
+        conn:flushReceiveQueue()
+    end
+end
+
+
+local _RemoteDanmakuSourcePlugin =
 {
     _getGMatchPattern = constants.FUNC_EMPTY,
     _extractDanmaku = constants.FUNC_EMPTY,
-    _getDanmakuRawDataDownloadURL = constants.FUNC_EMPTY,
+    _doDownloadDanmakuRawData = constants.FUNC_EMPTY,
+    _doGetVideoDuration = constants.FUNC_EMPTY,
+
 
     parseFile = function(self, app, filePath, ...)
         local file = app:readUTF8File(filePath)
         local rawData = utils.readAndCloseFile(file)
         return rawData and self:parseData(app, rawData, ...)
     end,
+
 
     parseData = function(self, app, rawData, timeOffset, sourceID)
         local function __addDanmaku(pools, offset, layer, start, ...)
@@ -65,38 +89,29 @@ local _PatternBasedDanmakuSourcePlugin =
         local cfg = app:getConfiguration()
         local iterFunc = rawData:gmatch(pattern)
         timeOffset = timeOffset or 0
-
-        local hasMore = true
-        while hasMore
+        while true
         do
-            hasMore = __addDanmaku(pools, timeOffset, self:_extractDanmaku(iterFunc, cfg))
+            local hasMore = __addDanmaku(pools, timeOffset, self:_extractDanmaku(iterFunc, cfg))
+            if not hasMore
+            then
+                break
+            end
         end
-    end,
-
-
-    _prepareToDownloadDanmakuRawDatas = function(self, conn)
-        conn:resetParams()
-        conn:addHeader(_HEADER_USER_AGENT)
     end,
 
 
     downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
-        local function __addRawData(rawData, outDatas)
-            utils.pushArrayElement(outDatas, rawData)
-        end
+        local iterFunc = self._doDownloadDanmakuRawData
+        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
+    end,
 
-        local conn = self._mApplication:getNetworkConnection()
-        self:_prepareToDownloadDanmakuRawDatas(conn)
-        for _, videoID in utils.iterateArray(videoIDs)
-        do
-            local url = self:_getDanmakuRawDataDownloadURL(videoID)
-            conn:receiveLater(url, __addRawData, outDatas)
-        end
-        conn:flushReceiveQueue()
+    getVideoDurations = function(self, videoIDs, outDurations)
+        local iterFunc = self._doGetVideoDuration
+        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDurations, iterFunc)
     end,
 }
 
-classlite.declareClass(_PatternBasedDanmakuSourcePlugin, IDanmakuSourcePlugin)
+classlite.declareClass(_RemoteDanmakuSourcePlugin, IDanmakuSourcePlugin)
 
 
 local DanmakuSourceSearchResult =
@@ -117,6 +132,6 @@ return
     _HEADER_ACCEPT_XML                  = _HEADER_ACCEPT_XML,
 
     IDanmakuSourcePlugin                = IDanmakuSourcePlugin,
-    _PatternBasedDanmakuSourcePlugin    = _PatternBasedDanmakuSourcePlugin,
+    _RemoteDanmakuSourcePlugin    = _RemoteDanmakuSourcePlugin,
     DanmakuSourceSearchResult           = DanmakuSourceSearchResult,
 }

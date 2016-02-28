@@ -25,7 +25,7 @@ local MockPlugin =
         return self._mName
     end,
 
-    downloadRawDatas = function(self, ids, outDatas)
+    downloadDanmakuRawDatas = function(self, ids, outDatas)
         utils.appendArrayElements(outDatas, ids)
     end,
 
@@ -89,55 +89,6 @@ TestDanmakuSourceManager =
     end,
 
 
-    testMatchLocalSource = function(self)
-
-        local function __assertPluginMatchedFilePaths(app, manager, plugin, assertPaths)
-            local localSources = {}
-            local sourcePaths = {}
-            manager:listDanmakuSources(localSources)
-            lu.assertFalse(types.isEmptyTable(localSources))
-
-            for _, source in ipairs(localSources)
-            do
-                if source._mPlugin == plugin
-                then
-                    table.insert(sourcePaths, source._mFilePath)
-                end
-            end
-
-            local assertPathsBak = utils.appendArrayElements({}, assertPaths)
-            table.sort(sourcePaths)
-            table.sort(assertPathsBak)
-            lu.assertEquals(sourcePaths, assertPathsBak)
-        end
-
-        local app = self._mApplication
-        local manager = self._mDanmakuSourceManager
-        local dir = app:getConfiguration().localDanmakuSourceDirPath
-        lu.assertNotNil(dir)
-
-        local filePaths1 = {}
-        local filePaths2 = {}
-        self:_writeEmptyFiles(dir, { "1.p1", "2.p1", "3.p1" }, filePaths1)
-        self:_writeEmptyFiles(dir, { "1.p2", "2.p2", "3.p2" }, filePaths2)
-
-        local plugin1 = MockPlugin:new("1", ".*%.p1$")
-        local plugin2 = MockPlugin:new("2", ".*%.p2$")
-        app:addDanmakuSourcePlugin(plugin1)
-        app:addDanmakuSourcePlugin(plugin2)
-        __assertPluginMatchedFilePaths(app, manager, plugin1, filePaths1)
-        __assertPluginMatchedFilePaths(app, manager, plugin2, filePaths2)
-
-        -- 匹配插件有优先级
-        local filePaths3 = {}
-        self:_writeEmptyFiles(dir, { "1.p3", "2.p4", "3.p5" }, filePaths3)
-
-        local plugin3 = MockPlugin:new("3", ".*%.p[0-9]$")
-        app:addDanmakuSourcePlugin(plugin3)
-        __assertPluginMatchedFilePaths(app, manager, plugin3, filePaths3)
-    end,
-
-
     testAddAndRemoveSource = function(self)
         local app = self._mApplication
         local manager = self._mDanmakuSourceManager
@@ -149,7 +100,7 @@ TestDanmakuSourceManager =
         do
             local plugin = MockPlugin:new(string.format("Plugin_%d", i))
             table.insert(plugins, plugin)
-            app:addDanmakuSourcePlugin(plugin)
+            app:_addDanmakuSourcePlugin(plugin)
         end
 
         local srcIDs = {}
@@ -230,7 +181,7 @@ TestDanmakuSourceManager =
         local app = self._mApplication
         local manager = self._mDanmakuSourceManager
         local plugin = MockPlugin:new("mock_plugin")
-        app:addDanmakuSourcePlugin(plugin)
+        app:_addDanmakuSourcePlugin(plugin)
 
         local ids = {}
         local offsets = {}
@@ -245,15 +196,15 @@ TestDanmakuSourceManager =
             lu.assertNotNil(source)
 
             -- 因为某些文件下载不来，应该是更新失败的
-            local orgDownloadFunc = plugin.downloadRawDatas
-            plugin.downloadRawDatas = constants.FUNC_EMPTY
+            local orgDownloadFunc = plugin.downloadDanmakuRawDatas
+            plugin.downloadDanmakuRawDatas = constants.FUNC_EMPTY
             utils.clearTable(sources)
             table.insert(sources, source)
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 1)
 
             -- 更改回来应该可以更新成功了
-            plugin.downloadRawDatas = orgDownloadFunc
+            plugin.downloadDanmakuRawDatas = orgDownloadFunc
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 2)
 
@@ -281,7 +232,7 @@ TestDanmakuSourceManager =
         local app = self._mApplication
         local manager = self._mDanmakuSourceManager
         local plugin = MockPlugin:new("mock_plugin")
-        app:addDanmakuSourcePlugin(plugin)
+        app:_addDanmakuSourcePlugin(plugin)
 
         local ids, offsets = self:_getRandomDanmakuSourceParams({}, {}, 5)
         local source1 = manager:addCachedDanmakuSource(plugin, nil, ids, offsets)

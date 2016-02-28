@@ -370,13 +370,15 @@ classlite.declareClass(MockConfiguration)
 
 local MockApplication =
 {
+    _mIsLogEnabled      = classlite.declareConstantField(false),
     _mConfiguration     = classlite.declareClassField(MockConfiguration),
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
     new = function(self, ...)
-        self:getParent().new(self, ...)
+        application.LoggedMPVDanmakuLoaderApp.new(self, ...)
         self._mMockFileSystem:setup(self)
+        self:_attachFileSystemMethodLogs()
     end,
 
     dispose = function(self)
@@ -389,22 +391,6 @@ local MockApplication =
 
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
-    addDanmakuSourcePlugin = function(self, plugin)
-        local function __isNameMatched(p1, p2)
-            return p1:getName() == p2:getName()
-        end
-
-        local plugins = self._mDanmakuSourcePlugins
-        if not classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
-           or utils.linearSearchArrayIf(plugins, __isNameMatched, plugin)
-        then
-            return
-        end
-
-        plugin:setApplication(self)
-        table.insert(plugins, plugin)
-    end,
-
     getVideoMD5 = function(self)
         return string.rep("1", 32)
     end,
@@ -416,9 +402,20 @@ local MockApplication =
     getVideoHeight = function(self)
         return 600
     end,
+
+    setIsLogEnabled = function(self, val)
+        self._mIsLogEnabled = types.toBoolean(val)
+    end,
+
+    _printLog = function(self, ...)
+        if self._mIsLogEnabled
+        then
+            self:getParent():_printLog(...)
+        end
+    end,
 }
 
-classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)
+classlite.declareClass(MockApplication, application.LoggedMPVDanmakuLoaderApp)
 
 
 local MockDanmakuSourceManager =

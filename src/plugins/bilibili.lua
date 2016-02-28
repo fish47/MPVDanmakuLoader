@@ -167,18 +167,21 @@ local BiliBiliDanmakuSourcePlugin =
         return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
     end,
 
-    _prepareToDownloadDanmakuRawDatas = function(self, conn)
-        self:getParent():_prepareToDownloadDanmakuRawDatas(conn)
+    __initNetworkConnection = function(self, conn)
+        conn:resetParams()
+        conn:addHeader(pluginbase._HEADER_USER_AGENT)
         conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
         conn:setCompressed(true)
     end,
 
-    _getDanmakuRawDataDownloadURL = function(self, videoID)
+
+    _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
+        self:__initNetworkConnection(conn)
         return string.format(_BILI_FMT_URL_DAMAKU, videoID)
     end,
 
 
-    getVideoDurations = function(self, videoIDs, outDurations)
+    _doGetVideoDuration = function(self, conn, videoID, outDurations)
         local function __parseDuration(rawData, outDurations)
             local duration = _BILI_DEFAULT_DURATION
             if types.isString(rawData)
@@ -195,18 +198,12 @@ local BiliBiliDanmakuSourcePlugin =
                     duration = utils.convertHHMMSSToTime(0, minutes, seconds, 0)
                 end
             end
-            utils.pushArrayElement(outDurations, duration)
+            table.insert(outDurations, duration)
         end
 
-        local conn = self._mApplication:getNetworkConnection()
-        conn:resetParams()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
-        for _, videoID in utils.iterateArray(videoIDs)
-        do
-            local url = string.format(_BILI_FMT_URL_VIDEO_INFO, videoID)
-            conn:receiveLater(url, __parseDuration, outDurations)
-        end
-        conn:flushReceiveQueue()
+        local url = string.format(_BILI_FMT_URL_VIDEO_INFO, videoID)
+        self:__initNetworkConnection(conn)
+        conn:receiveLater(url, __parseDuration, outDurations)
     end,
 }
 

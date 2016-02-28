@@ -88,7 +88,7 @@ local DanDanPlayDanmakuSourcePlugin =
         end
 
         local conn = self._mApplication:getNetworkConnection():resetParams()
-        local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword)
+        local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
         local searchResult = conn:receive(url)
 
         result.isSplited = false
@@ -96,12 +96,10 @@ local DanDanPlayDanmakuSourcePlugin =
         return true
     end,
 
-    _prepareToDownloadDanmakuRawDatas = function(self, conn)
-        self:getParent():_prepareToDownloadDanmakuRawDatas(conn)
+    _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
+        conn:resetParams()
+        conn:addHeader(pluginbase._HEADER_USER_AGENT)
         conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
-    end,
-
-    _getDanmakuRawDataDownloadURL = function(self, videoID)
         return string.format(_DDP_FMT_URL_DANMAKU, videoID)
     end,
 }

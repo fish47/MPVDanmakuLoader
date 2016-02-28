@@ -18,7 +18,7 @@ plugin:setApplication(app)
 --print(result.preferredIDIndex)
 
 local out = {}
-plugin:downloadRawDatas({3433820}, out)
+plugin:downloadDanmakuRawDatas({3433820}, out)
 local f = io.open("/tmp/1.txt", "w")
 f:write(out[1])
 f:close()

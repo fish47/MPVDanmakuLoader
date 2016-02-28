@@ -15,7 +15,7 @@ local _SHELL_DESCRIPTION_VID_SEP    = ","
 
 local MPVDanmakuLoaderShell =
 {
-    _mApplication               = classlite.declareClassField(application.MPVDanmakuLoaderApp),
+    _mApplication               = classlite.declareConstantField(nil),
     _mDanmakuSourceManager      = classlite.declareClassField(sourcemgr.DanmakuSourceManager),
 
     _mUIStrings                 = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
@@ -50,6 +50,11 @@ local MPVDanmakuLoaderShell =
         utils.forEachArrayElement(self._mDanmakuSources, utils.disposeSafely)
     end,
 
+    setApplication = function(self, app)
+        self._mApplication = app
+        self._mDanmakuSourceManager:setApplication(app)
+    end,
+
 
     _showAddLocalDanmakuSource = function(self)
         local function __showSelectPlugins(self)
@@ -79,19 +84,22 @@ local MPVDanmakuLoaderShell =
             props:reset()
             self:__initWindowProperties(props)
             props.isMultiSelectable = true
-            self._mGUIBuilder:showFileSelection(props, outPaths)
-            for _, path in ipairs(outPaths)
-            do
-                --TODO
-            end
+            return self._mGUIBuilder:showFileSelection(props, outPaths)
         end
 
 
         local paths = utils.clearTable(self.__mSelectedFilePaths)
         local plugin = __showSelectPlugins(self)
-        if plugin and __showSelectFiles(self, plugin, paths)
+        local hasSelectedFile = plugin and __showSelectFiles(self, plugin, paths)
+        if hasSelectedFile
         then
-            --TODO 添加本地弹幕
+            local sources = self._mDanmakuSources
+            local sourceMgr = self._mDanmakuSourceManager
+            for _, path in ipairs(paths)
+            do
+                local source = sourceMgr:addLocalDanmakuSource(plugin, path)
+                table.insert(sources, source)
+            end
         end
 
         return self:_showMain()
@@ -380,7 +388,7 @@ local MPVDanmakuLoaderShell =
                 local rawDatas = utils.clearTable(self.__mDanmakuRawDatas)
                 local videoID = result.videoIDs[result.preferredIDIndex]
                 table.insert(ids, videoID)
-                plugin:downloadRawDatas(ids, rawDatas)
+                plugin:downloadDanmakuRawDatas(ids, rawDatas)
 
                 local data = rawDatas[1]
                 if types.isString(data)

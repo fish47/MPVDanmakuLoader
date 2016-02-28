@@ -53,7 +53,7 @@ local function __downloadDanmakuRawDataFiles(app, plugin, ids, outFilePaths)
 
     -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
     local rawDatas = utils.clearTable(outFilePaths)
-    plugin:downloadRawDatas(ids, rawDatas)
+    plugin:downloadDanmakuRawDatas(ids, rawDatas)
 
     -- 有文件下不动的时候，数量就对不上
     if not hasCreatedDir or #rawDatas ~= #ids
