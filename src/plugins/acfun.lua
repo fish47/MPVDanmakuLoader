@@ -12,7 +12,54 @@ local pluginbase    = require("src/plugins/pluginbase")
 -- http://danmu.aixifan.com/V2/3201855
 -- http://www.acfun.tv/video/getVideo.aspx?id=3201855
 
+local _ACFUN_PLUGIN_NAME            = "Acfun"
+
+local _ACFUN_DEFAULT_DURATION       = 0
+
+local _ACFUN_PATTERN_VID            = '<a%s*data-vid="([%d]+)"'
+local _ACFUN_PATTERN_DURATION       = '"time"%s*:%s*([%d]+)%s*,'
+local _ACFUN_PATTERN_DANMAKU        = ''
+
+local _ACFUN_FMT_URL_DANMAKU        = "http://danmu.aixifan.com/V2/%s"
+local _ACFUN_FMT_URL_VIDEO_INFO     = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
+
+
 local AcfunDanmakuSourcePlugin =
-{}
+{
+    getName = function(self)
+        return _ACFUN_PLUGIN_NAME
+    end,
+
+
+    __initNetworkConnection = function(self, conn)
+        conn:resetParams()
+        conn:addHeader(pluginbase._HEADER_USER_AGENT)
+        conn:setCompressed(true)
+    end,
+
+
+    _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
+        self:__initNetworkConnection(conn)
+        return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
+    end,
+
+
+    _doGetVideoDuration = function(self, conn, videoID, outDurations)
+        local function __parseDuration(data, outDurations)
+            local duration = nil
+            if types.isString(data)
+            then
+                local seconds = data:match(_ACFUN_PATTERN_DURATION)
+                duration = seconds and utils.convertHHMMSSToTime(0, 0, tonumber(seconds), 0)
+            end
+            duration = duration or _ACFUN_DEFAULT_DURATION
+            table.insert(outDurations, duration)
+        end
+
+        local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
+        self:__initNetworkConnection(conn)
+        conn:receiveLater(url, __parseDuration, outDurations)
+    end,
+}
 
 classlite.declareClass(AcfunDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
