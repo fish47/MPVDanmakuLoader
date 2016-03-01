@@ -48,19 +48,35 @@ local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
 end
 
 
-local _RemoteDanmakuSourcePlugin =
+local _AbstractDanmakuSourcePlugin =
 {
-    _getGMatchPattern = constants.FUNC_EMPTY,
-    _extractDanmaku = constants.FUNC_EMPTY,
     _doDownloadDanmakuRawData = constants.FUNC_EMPTY,
     _doGetVideoDuration = constants.FUNC_EMPTY,
-
 
     parseFile = function(self, app, filePath, ...)
         local file = app:readUTF8File(filePath)
         local rawData = utils.readAndCloseFile(file)
         return rawData and self:parseData(app, rawData, ...)
     end,
+
+    downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
+        local iterFunc = self._doDownloadDanmakuRawData
+        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
+    end,
+
+    getVideoDurations = function(self, videoIDs, outDurations)
+        local iterFunc = self._doGetVideoDuration
+        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDurations, iterFunc)
+    end,
+}
+
+classlite.declareClass(_AbstractDanmakuSourcePlugin, IDanmakuSourcePlugin)
+
+
+local _PatternBasedDanmakuSourcePlugin =
+{
+    _getGMatchPattern = constants.FUNC_EMPTY,
+    _extractDanmaku = constants.FUNC_EMPTY,
 
 
     parseData = function(self, app, rawData, timeOffset, sourceID)
@@ -98,20 +114,9 @@ local _RemoteDanmakuSourcePlugin =
             end
         end
     end,
-
-
-    downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
-        local iterFunc = self._doDownloadDanmakuRawData
-        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
-    end,
-
-    getVideoDurations = function(self, videoIDs, outDurations)
-        local iterFunc = self._doGetVideoDuration
-        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDurations, iterFunc)
-    end,
 }
 
-classlite.declareClass(_RemoteDanmakuSourcePlugin, IDanmakuSourcePlugin)
+classlite.declareClass(_PatternBasedDanmakuSourcePlugin, _AbstractDanmakuSourcePlugin)
 
 
 local DanmakuSourceSearchResult =
@@ -132,6 +137,7 @@ return
     _HEADER_ACCEPT_XML                  = _HEADER_ACCEPT_XML,
 
     IDanmakuSourcePlugin                = IDanmakuSourcePlugin,
-    _RemoteDanmakuSourcePlugin    = _RemoteDanmakuSourcePlugin,
+    _AbstractDanmakuSourcePlugin        = _AbstractDanmakuSourcePlugin,
+    _PatternBasedDanmakuSourcePlugin    = _PatternBasedDanmakuSourcePlugin,
     DanmakuSourceSearchResult           = DanmakuSourceSearchResult,
 }

@@ -8,16 +8,15 @@ local pluginbase    = require("src/plugins/pluginbase")
 
 local _BILI_PLUGIN_NAME         = "BiliBili"
 
-local _BILI_PATTERN_DANMAKU_ID  = "bili_%s_%s"
 local _BILI_PATTERN_DANMAKU     = '<d%s+p="'
                                   .. "([%d%.]+),"       -- 起始时间
                                   .. "(%d+),"           -- 移动类型
                                   .. "(%d+),"           -- 字体大小
                                   .. "(%d+),"           -- 字体颜色
                                   .. "[^>]+,"
-                                  .. "(%d+),"           -- ??
+                                  .. "[^>]+,"           -- 据说是 弹幕池 ID ，但一股都是 0
                                   .. "[^>]+,"
-                                  .. "(%d+)"            -- ??
+                                  .. "(%d+)"            -- 弹幕 ID
                                   .. '">([^<]+)</d>'
 
 local _BILI_PATTERN_URL_1P      = "www%.bilibili%.[^/]*/video/av(%d+)"
@@ -85,7 +84,7 @@ local BiliBiliDanmakuSourcePlugin =
             end
         end
 
-        local start, typeStr, size, color, id1, id2, txt = iterFunc()
+        local start, typeStr, size, color, id, txt = iterFunc()
         if not start
         then
             return
@@ -97,7 +96,7 @@ local BiliBiliDanmakuSourcePlugin =
         local lifeTime = __getLifeTime(cfg, pos)
         local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
         local fontSize = math.floor(tonumber(size) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
-        local danmakuID = string.format(_BILI_PATTERN_DANMAKU_ID, id1, id2)
+        local danmakuID = tonumber(id)
         local text = utils.unescapeXMLString(__sanitizeString(txt))
         return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
     end,
@@ -207,7 +206,7 @@ local BiliBiliDanmakuSourcePlugin =
     end,
 }
 
-classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase.StringBasedDanmakuSourcePlugin)
+classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
 
 
 return
