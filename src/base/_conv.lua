@@ -1,4 +1,5 @@
 local utf8      = require("src/base/utf8")
+local types     = require("src/base/types")
 local constants = require("src/base/constants")
 
 
@@ -101,9 +102,86 @@ local _ASS_ESCAPABLE_CHAR_MAP       =
     [" "]       = "\\h",
 }
 
-local function escapeASSString(text, outList)
+local function escapeASSString(text)
     local str = text:gsub(_ASS_ESCAPABLE_CHARS_PATTERN, _ASS_ESCAPABLE_CHAR_MAP)
     return str
+end
+
+
+
+
+local _JSON_PATTERN_ESCAPABLE_CHARS     = '\\([\\\"/bfnrt])'
+local _JSON_PATTERN_ESCAPABLE_UNICODE   = '\\u(%x%x%x%x)'
+local _JSON_UNICODE_NUMBER_BASE         = 16
+local _JSON_SPECIAL_CHAR_MAP            =
+{
+    ["\""]      = "\"",
+    ["\\"]      = "\\",
+    ["/"]       = "/",
+    ["f"]       = "\f",
+    ["b"]       = "",       -- 暂时忽略退格
+    ["n"]       = "\n",
+    ["t"]       = "\t",
+    ["r"]       = "\r",
+}
+
+local function unescapeJSONString(text)
+    -- 特殊字符转义
+    local function __unescapeSpecialChars(captured)
+        return _JSON_SPECIAL_CHAR_MAP[captured]
+    end
+
+    -- unicode 转义
+    local function __unescapeJSONUnicode(captured)
+        local hex = tonumber(captured, _JSON_UNICODE_NUMBER_BASE)
+        local ret = constants.STR_EMPTY
+        for _, utf8Byte in utf8.iterateUTF8EncodedBytes(hex)
+        do
+            ret = ret .. string.char(utf8Byte)
+        end
+        return ret
+    end
+
+    local ret = text:gsub(_JSON_PATTERN_ESCAPABLE_CHARS, __unescapeSpecialChars)
+    ret = ret:gsub(_JSON_PATTERN_ESCAPABLE_UNICODE, __unescapeJSONUnicode)
+    return ret
+end
+
+
+local _JSON_TOKEN_QUOTE         = "\""
+local _JSON_TOKEN_BACKSLASH     = "\\"
+
+local function findNextJSONString(text, findStartIdx)
+    local firstQuoteIdx = text:find(_JSON_TOKEN_QUOTE, findStartIdx, true)
+    if firstQuoteIdx
+    then
+        local lastQuoteIdx = nil
+        local quoteLen = #_JSON_TOKEN_QUOTE
+        local backSlashLen = #_JSON_TOKEN_BACKSLASH
+        local lastQuoteFindStartIdx = firstQuoteIdx + quoteLen
+        while true
+        do
+            lastQuoteIdx = text:find(_JSON_TOKEN_QUOTE, lastQuoteFindStartIdx, true)
+            if not lastQuoteIdx
+            then
+                return
+            end
+
+            -- 向前看是不是被转义字符
+            if text:sub(lastQuoteIdx - backSlashLen, lastQuoteIdx - 1) ~= _JSON_TOKEN_BACKSLASH
+            then
+                break
+            end
+
+            lastQuoteFindStartIdx = lastQuoteIdx + quoteLen
+        end
+
+        if firstQuoteIdx and lastQuoteIdx
+        then
+            local substring = text:sub(firstQuoteIdx + quoteLen, lastQuoteIdx - quoteLen)
+            return unescapeJSONString(substring), lastQuoteIdx + quoteLen
+        end
+    end
 end
 
 
@@ -111,11 +189,10 @@ end
 local _URL_ESCAPED_CHAR_FORMAT      = "%%%02X"
 local _URL_PATTERN_SPECIAL_CHARS    = "[^A-Za-z0-9%-_%.~]"
 
-local function __replaceURLSpecialChars(text)
-    return string.format(_URL_ESCAPED_CHAR_FORMAT, text:byte(1))
-end
-
 local function escapeURLString(text)
+    local function __replaceURLSpecialChars(text)
+        return string.format(_URL_ESCAPED_CHAR_FORMAT, text:byte(1))
+    end
     return text:gsub(_URL_PATTERN_SPECIAL_CHARS, __replaceURLSpecialChars)
 end
 
@@ -125,6 +202,8 @@ return
     escapeASSString             = escapeASSString,
     unescapeXMLString           = unescapeXMLString,
     escapeURLString             = escapeURLString,
+    unescapeJSONString          = unescapeJSONString,
+    findNextJSONString          = findNextJSONString,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
     convertRGBHexToBGRString    = convertRGBHexToBGRString,

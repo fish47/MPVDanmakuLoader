@@ -39,6 +39,19 @@ TestEscape =
                       "!#$&'()*+,/:;=?@[]",
                       "%21%23%24%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D")
     end,
+
+    testUnesapeJSONString = function(self)
+        local func = utils.unescapeJSONString
+        self:__doTest(func, [[\" \\ \/ \f \n \t \r]], "\" \\ / \f \n \t \r")
+        self:__doTest(func, "\\u8981", "要")
+    end,
+}
+
+
+local TestFindJSONString =
+{
+    testFindEmptyString = function(self)
+    end,
 }
 
 
