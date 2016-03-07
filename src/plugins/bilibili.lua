@@ -70,8 +70,8 @@ local BiliBiliDanmakuSourcePlugin =
         return _BILI_PLUGIN_NAME
     end,
 
-    _getGMatchPattern = function(self)
-        return _BILI_PATTERN_DANMAKU
+    _startExtractDanmakus = function(self, rawData)
+        return rawData:gmatch(_BILI_PATTERN_DANMAKU)
     end,
 
     _extractDanmaku = function(self, iterFunc, cfg)

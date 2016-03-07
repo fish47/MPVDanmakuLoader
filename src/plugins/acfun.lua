@@ -18,10 +18,14 @@ local _ACFUN_DEFAULT_DURATION       = 0
 
 local _ACFUN_PATTERN_VID            = '<a%s*data-vid="([%d]+)"'
 local _ACFUN_PATTERN_DURATION       = '"time"%s*:%s*([%d]+)%s*,'
-local _ACFUN_PATTERN_DANMAKU        = ''
+local _ACFUN_PATTERN_DANMAKU_INFO   = '"c"%s*:%s*'
+local _ACFUN_PATTERN_DANMAKU_TEXT   = '"m"%s*:%s*'
 
 local _ACFUN_FMT_URL_DANMAKU        = "http://danmu.aixifan.com/V2/%s"
 local _ACFUN_FMT_URL_VIDEO_INFO     = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
+
+
+local _ACFUN_PATTERN_
 
 
 local AcfunDanmakuSourcePlugin =
@@ -30,6 +34,13 @@ local AcfunDanmakuSourcePlugin =
         return _ACFUN_PLUGIN_NAME
     end,
 
+    _startExtractDanmakus = function(self, rawData)
+        --TODO
+    end,
+
+    _extractDanmaku = function(self, pos, text, cfg)
+        --TODO
+    end,
 
     __initNetworkConnection = function(self, conn)
         conn:resetParams()

@@ -56,7 +56,9 @@ TestFindJSONString =
         lu.assertEquals(ret2, nextFindStart)
     end,
 
+
     testFindEmptyString = function(self)
+        --              12345678
         self:__doTest([[""345]], nil, "", 3)
         self:__doTest([[12345""]], nil, "", 8)
         self:__doTest([[12345678]], nil, nil, nil)

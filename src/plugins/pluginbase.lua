@@ -75,8 +75,8 @@ classlite.declareClass(_AbstractDanmakuSourcePlugin, IDanmakuSourcePlugin)
 
 local _PatternBasedDanmakuSourcePlugin =
 {
-    _getGMatchPattern = constants.FUNC_EMPTY,
     _extractDanmaku = constants.FUNC_EMPTY,
+    _startExtractDanmakus = constants.FUNC_EMPTY,
 
 
     parseData = function(self, app, rawData, timeOffset, sourceID)
@@ -103,7 +103,7 @@ local _PatternBasedDanmakuSourcePlugin =
 
         local pools = app:getDanmakuPools()
         local cfg = app:getConfiguration()
-        local iterFunc = rawData:gmatch(pattern)
+        local iterFunc = self:_startExtractDanmakus(rawData)
         timeOffset = timeOffset or 0
         while true
         do

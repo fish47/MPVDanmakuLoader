@@ -56,8 +56,8 @@ local DanDanPlayDanmakuSourcePlugin =
         return _DDP_PLUGIN_NAME
     end,
 
-    _getGMatchPattern = function(self)
-        return _DDP_PATTERN_COMMENT
+    _startExtractDanmakus = function(self, rawData)
+        return rawData:gmatch(_DDP_PATTERN_COMMENT)
     end,
 
     _extractDanmaku = function(self, iterFunc, cfg)
