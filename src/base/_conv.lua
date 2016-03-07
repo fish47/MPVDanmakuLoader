@@ -112,6 +112,9 @@ end
 
 local _JSON_PATTERN_ESCAPABLE_CHARS     = '\\([\\\"/bfnrt])'
 local _JSON_PATTERN_ESCAPABLE_UNICODE   = '\\u(%x%x%x%x)'
+local _JOSN_PATTERN_NONEMPTY_STRING     = '"(.-[^\\])"'
+local _JSON_CONST_STRING_START          = '\"'
+local _JSON_CONST_EMPTY_STRING          = '""'
 local _JSON_UNICODE_NUMBER_BASE         = 16
 local _JSON_SPECIAL_CHAR_MAP            =
 {
@@ -148,38 +151,22 @@ local function unescapeJSONString(text)
 end
 
 
-local _JSON_TOKEN_QUOTE         = "\""
-local _JSON_TOKEN_BACKSLASH     = "\\"
-
-local function findNextJSONString(text, findStartIdx)
-    local firstQuoteIdx = text:find(_JSON_TOKEN_QUOTE, findStartIdx, true)
-    if firstQuoteIdx
+local function findJSONString(text, findStartIdx)
+    findStartIdx = types.isNumber(findStartIdx) and findStartIdx or 1
+    local pos = text:find(_JSON_CONST_STRING_START, findStartIdx, true)
+    if pos
     then
-        local lastQuoteIdx = nil
-        local quoteLen = #_JSON_TOKEN_QUOTE
-        local backSlashLen = #_JSON_TOKEN_BACKSLASH
-        local lastQuoteFindStartIdx = firstQuoteIdx + quoteLen
-        while true
-        do
-            lastQuoteIdx = text:find(_JSON_TOKEN_QUOTE, lastQuoteFindStartIdx, true)
-            if not lastQuoteIdx
-            then
-                return
-            end
-
-            -- 向前看是不是被转义字符
-            if text:sub(lastQuoteIdx - backSlashLen, lastQuoteIdx - 1) ~= _JSON_TOKEN_BACKSLASH
-            then
-                break
-            end
-
-            lastQuoteFindStartIdx = lastQuoteIdx + quoteLen
+        -- 特判空字符串，暂时找不到一个同时匹配空字符串正则表达式囧
+        local lastIdx = pos + #_JSON_CONST_EMPTY_STRING - 1
+        if text:sub(pos, lastIdx) == _JSON_CONST_EMPTY_STRING
+        then
+            return constants.STR_EMPTY, lastIdx + 1
         end
 
-        if firstQuoteIdx and lastQuoteIdx
+        local startIdx, endIdx, captured = text:find(_JOSN_PATTERN_NONEMPTY_STRING, pos)
+        if captured
         then
-            local substring = text:sub(firstQuoteIdx + quoteLen, lastQuoteIdx - quoteLen)
-            return unescapeJSONString(substring), lastQuoteIdx + quoteLen
+            return unescapeJSONString(captured), endIdx + 1
         end
     end
 end
@@ -203,7 +190,7 @@ return
     unescapeXMLString           = unescapeXMLString,
     escapeURLString             = escapeURLString,
     unescapeJSONString          = unescapeJSONString,
-    findNextJSONString          = findNextJSONString,
+    findJSONString              = findJSONString,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
     convertRGBHexToBGRString    = convertRGBHexToBGRString,

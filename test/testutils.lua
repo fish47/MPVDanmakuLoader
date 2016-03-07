@@ -48,9 +48,36 @@ TestEscape =
 }
 
 
-local TestFindJSONString =
+TestFindJSONString =
 {
+    __doTest = function(self, text, findStart, captured, nextFindStart)
+        local ret1, ret2 = utils.findJSONString(text, findStart)
+        lu.assertEquals(ret1, captured)
+        lu.assertEquals(ret2, nextFindStart)
+    end,
+
     testFindEmptyString = function(self)
+        self:__doTest([[""345]], nil, "", 3)
+        self:__doTest([[12345""]], nil, "", 8)
+        self:__doTest([[12345678]], nil, nil, nil)
+    end,
+
+
+    testFindString = function(self)
+        local function __doTest(text, findStart, captured, nextFindStart)
+            local ret1, ret2 = utils.findJSONString(text, findStart)
+            lu.assertEquals(ret1, captured)
+            lu.assertEquals(ret2, nextFindStart)
+        end
+
+        --         123456789
+        __doTest([[123"AA"89]], 1, "AA", 8)
+        __doTest([["AA"56789]], 1, "AA", 5)
+        __doTest([["AA"56789]], 2, nil)
+        __doTest([["AA"56789]], 5, nil)
+        __doTest([[12345"AA"]], 1, "AA", 10)
+        __doTest([[123"AA\""]], 1, "AA\"", 10)
+        __doTest([[1"AA\"1"9]], 1, "AA\"1", 9)
     end,
 }
 
