@@ -12,20 +12,29 @@ local pluginbase    = require("src/plugins/pluginbase")
 -- http://danmu.aixifan.com/V2/3201855
 -- http://www.acfun.tv/video/getVideo.aspx?id=3201855
 
-local _ACFUN_PLUGIN_NAME            = "Acfun"
+local _ACFUN_PLUGIN_NAME                = "Acfun"
 
-local _ACFUN_DEFAULT_DURATION       = 0
+local _ACFUN_DEFAULT_DURATION           = 0
 
-local _ACFUN_PATTERN_VID            = '<a%s*data-vid="([%d]+)"'
-local _ACFUN_PATTERN_DURATION       = '"time"%s*:%s*([%d]+)%s*,'
-local _ACFUN_PATTERN_DANMAKU_INFO   = '"c"%s*:%s*'
-local _ACFUN_PATTERN_DANMAKU_TEXT   = '"m"%s*:%s*'
+local _ACFUN_PATTERN_VID                = '<a%s*data-vid="([%d]+)"'
+local _ACFUN_PATTERN_DURATION           = '"time"%s*:%s*([%d]+)%s*,'
+local _ACFUN_PATTERN_DANMAKU_INFO_KEY   = '"c"%s*:%s*'
+local _ACFUN_PATTERN_DANMAKU_TEXT_KEY   = '"m"%s*:%s*'
+local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+)-,"     -- 出现时间
+                                          .. "(%d+)-,"      -- 颜色
+                                          .. "(%d+)-,"      -- 弹幕类型
+                                          .. "(%d+)-,"      -- 字体大小
+                                          .. "[^,]-,"       -- 用户 ID ？
+                                          .. "(%d+)-,"      -- 弹幕 ID ？
 
-local _ACFUN_FMT_URL_DANMAKU        = "http://danmu.aixifan.com/V2/%s"
-local _ACFUN_FMT_URL_VIDEO_INFO     = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
+local _ACFUN_FMT_URL_DANMAKU            = "http://danmu.aixifan.com/V2/%s"
+local _ACFUN_FMT_URL_VIDEO_INFO         = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
 
+local _ACFUN_POS_MOVING_L2R     = 6
+local _ACFUN_POS_MOVING_R2L     = 1
+local _ACFUN_POS_STATIC_TOP     = 4
+local _ACFUN_POS_STATIC_BOTTOM  = 5
 
-local _ACFUN_PATTERN_
 
 
 local AcfunDanmakuSourcePlugin =
