@@ -28,9 +28,9 @@ local DanmakuPool =
 
 
     getDanmakuAt = function(self, idx)
-        if types.isNumber(idx)
+        idx = types.isNumber(idx) and self.__mDanmakuIndexes[idx]
+        if idx
         then
-            idx = self.__mDanmakuIndexes[idx]
             return self._mStartTimes[idx],
                 self._mLifeTimes[idx],
                 self._mFontColors[idx],

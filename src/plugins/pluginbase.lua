@@ -2,6 +2,7 @@ local utils         = require("src/base/utils")
 local types         = require("src/base/types")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
+local danmaku       = require("src/core/danmaku")
 
 
 local _HEADER_USER_AGENT    = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:44.0) Gecko/20100101 Firefox/44.0"
@@ -77,6 +78,18 @@ local _PatternBasedDanmakuSourcePlugin =
 {
     _extractDanmaku = constants.FUNC_EMPTY,
     _startExtractDanmakus = constants.FUNC_EMPTY,
+
+    _getLifeTimeByLayer = function(self, cfg, pos)
+        if pos == danmaku.LAYER_MOVING_L2R or pos == danmaku.LAYER_MOVING_L2R
+        then
+            return cfg.movingDanmakuLifeTime
+        elseif pos == danmaku.LAYER_STATIC_TOP or pos == danmaku.LAYER_STATIC_BOTTOM
+        then
+            return cfg.staticDanmakuLIfeTime
+        else
+            -- 依靠弹幕池的参数检查来过滤
+        end
+    end,
 
 
     parseData = function(self, app, rawData, timeOffset, sourceID)

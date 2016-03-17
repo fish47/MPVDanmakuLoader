@@ -42,20 +42,13 @@ local _BILI_FACTOR_FONT_SIZE    = 25
 local _BILI_DEFAULT_DURATION    = 0
 local _BILI_DEFAULT_VIDEO_INDEX = 1
 
-local _BILI_POS_MOVING_L2R      = 6
-local _BILI_POS_MOVING_R2L      = 1
-local _BILI_POS_STATIC_TOP      = 5
-local _BILI_POS_STATIC_BOTTOM   = 4
-local _BILI_POS_ADVANCED        = 7
-
-
 -- 暂时不处理神弹幕
 local _BILI_POS_TO_LAYER_MAP =
 {
-    [_BILI_POS_MOVING_L2R]      = danmaku.LAYER_MOVING_L2R,
-    [_BILI_POS_MOVING_R2L]      = danmaku.LAYER_MOVING_R2L,
-    [_BILI_POS_STATIC_TOP]      = danmaku.LAYER_STATIC_TOP,
-    [_BILI_POS_STATIC_BOTTOM]   = danmaku.LAYER_STATIC_BOTTOM,
+    [6] = danmaku.LAYER_MOVING_L2R,
+    [1] = danmaku.LAYER_MOVING_R2L,
+    [5] = danmaku.LAYER_STATIC_TOP,
+    [4] = danmaku.LAYER_STATIC_BOTTOM,
 }
 
 
@@ -75,29 +68,20 @@ local BiliBiliDanmakuSourcePlugin =
     end,
 
     _extractDanmaku = function(self, iterFunc, cfg)
-        local function __getLifeTime(cfg, pos)
-            if pos == _BILI_POS_MOVING_L2R or pos == _BILI_POS_MOVING_R2L
-            then
-                return cfg.movingDanmakuLifeTime
-            else
-                return cfg.staticDanmakuLIfeTime
-            end
-        end
-
-        local start, typeStr, size, color, id, txt = iterFunc()
-        if not start
+        local startTime, layer, fontSize, fontColor, danmakuID, text = iterFunc()
+        if not startTime
         then
             return
         end
 
-        local pos = tonumber(typeStr)
-        local layer = _BILI_POS_TO_LAYER_MAP[pos] or danmaku.LAYER_MOVING_L2R
-        local startTime = tonumber(start) * _BILI_FACTOR_TIME_STAMP
-        local lifeTime = __getLifeTime(cfg, pos)
-        local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
-        local fontSize = math.floor(tonumber(size) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
-        local danmakuID = tonumber(id)
-        local text = utils.unescapeXMLString(__sanitizeString(txt))
+        layer = _BILI_POS_TO_LAYER_MAP[tonumber(layer)]
+        startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
+        fontColor = utils.convertRGBHexToBGRString(tonumber(fontColor))
+        fontSize = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
+        danmakuID = tonumber(danmakuID)
+        text = utils.unescapeXMLString(__sanitizeString(text))
+
+        local lifeTime = self:_getLifeTimeByLayer(cfg, layer)
         return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
     end,
 

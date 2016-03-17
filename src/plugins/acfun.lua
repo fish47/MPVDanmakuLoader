@@ -30,11 +30,13 @@ local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+)-,"     -- 出现时间
 local _ACFUN_FMT_URL_DANMAKU            = "http://danmu.aixifan.com/V2/%s"
 local _ACFUN_FMT_URL_VIDEO_INFO         = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
 
-local _ACFUN_POS_MOVING_L2R     = 6
-local _ACFUN_POS_MOVING_R2L     = 1
-local _ACFUN_POS_STATIC_TOP     = 4
-local _ACFUN_POS_STATIC_BOTTOM  = 5
-
+local _ACFUN_POS_TO_LAYER_MAP   =
+{
+    [6] = danmaku.LAYER_MOVING_L2R,
+    [1] = danmaku.LAYER_MOVING_R2L,
+    [4] = danmaku.LAYER_STATIC_TOP,
+    [5] = danmaku.LAYER_STATIC_BOTTOM,
+}
 
 
 local AcfunDanmakuSourcePlugin =
@@ -44,11 +46,60 @@ local AcfunDanmakuSourcePlugin =
     end,
 
     _startExtractDanmakus = function(self, rawData)
-        --TODO
+        -- 用闭包函数模仿 string.gmatch() 的行为
+        local startIdx = 1
+        local ret = function()
+            local findIdx = startIdx
+            local _, endIdx1 = rawData:find(_ACFUN_PATTERN_DANMAKU_INFO_KEY, findIdx, false)
+            if not endIdx1
+            then
+                return
+            end
+
+            findIdx = endIdx1 + 1
+            local _, endIdx2, s, c, l, size, id = rawData:find(_ACFUN_PATTERN_DANMAKU_INFO_VALUE, findIdx, false)
+            if not endIdx2
+            then
+                return
+            end
+
+            findIdx = endIdx2 + 1
+            local _, endIdx3 = rawData:find(_ACFUN_PATTERN_DANMAKU_TEXT_KEY, findIdx, false)
+            if not endIdx3
+            then
+                return
+            end
+
+            findIdx = endIdx3 + 1
+            local text, nextFindIdx = utils.findJSONString(rawData, findIdx)
+            if not nextFindIdx
+            then
+                return
+            end
+
+            startIdx = nextFindIdx
+            return text, s, c, l, size, id
+        end
+        return ret
     end,
 
-    _extractDanmaku = function(self, pos, text, cfg)
-        --TODO
+    _extractDanmaku = function(self, iterFunc, cfg)
+        local function __getLifeTime(la)
+
+        local text, startTime, fontColor, layer, fontSize, danmakuID = iterFunc()
+        if not startTime
+        then
+            return
+        end
+
+        startTime = tonumber(startTime)
+        fontColor = utils.convertRGBHexToBGRString(tonumber(fontColor))
+        layer = _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)]
+        fontSize = tonumber(fontSize)
+        danmakuID = tonumber(danmakuID)
+
+        local lifeTime = self:_getLifeTimeByLayer(layer)
+        return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
     end,
 
     __initNetworkConnection = function(self, conn)

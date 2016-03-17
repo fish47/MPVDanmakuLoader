@@ -29,17 +29,12 @@ local _DDP_PATTERN_COMMENT          = "<Comment"
 
 local _DDP_FACTOR_TIME_STAMP        = 1000
 
-local _DDP_POS_MOVING_L2R           = 6
-local _DDP_POS_MOVING_R2L           = 1
-local _DDP_POS_STATIC_TOP           = 5
-local _DDP_POS_STATIC_BOTTOM        = 4
-
 local _DDP_POS_TO_LAYER_MAP =
 {
-    [_DDP_POS_MOVING_L2R]       = danmaku.LAYER_MOVING_L2R,
-    [_DDP_POS_MOVING_R2L]       = danmaku.LAYER_MOVING_R2L,
-    [_DDP_POS_STATIC_TOP]       = danmaku.LAYER_STATIC_TOP,
-    [_DDP_POS_STATIC_BOTTOM]    = danmaku.LAYER_STATIC_BOTTOM,
+    [6] = danmaku.LAYER_MOVING_L2R,
+    [1] = danmaku.LAYER_MOVING_R2L,
+    [5] = danmaku.LAYER_STATIC_TOP,
+    [4] = danmaku.LAYER_STATIC_BOTTOM,
 }
 
 
@@ -61,29 +56,20 @@ local DanDanPlayDanmakuSourcePlugin =
     end,
 
     _extractDanmaku = function(self, iterFunc, cfg)
-        local function __getLifeTime(cfg, pos)
-            if pos == _DDP_POS_MOVING_L2R or pos == _DDP_POS_MOVING_R2L
-            then
-                return cfg.movingDanmakuLifeTime
-            else
-                return cfg.staticDanmakuLIfeTime
-            end
-        end
-
-        local start, typeStr, color, id, txt = iterFunc()
-        if not start
+        local startTime, layer, fontColor, danmakuID, text = iterFunc()
+        if not startTime
         then
             return
         end
 
-        local pos = tonumber(typeStr)
-        local layer = _DDP_POS_TO_LAYER_MAP[pos] or danmaku.LAYER_MOVING_L2R
-        local startTime = tonumber(start) * _DDP_FACTOR_TIME_STAMP
-        local lifeTime = __getLifeTime(cfg, pos)
-        local fontColor = utils.convertRGBHexToBGRString(tonumber(color))
+        layer = _DDP_POS_TO_LAYER_MAP[tonumber(layer)]
+        startTime = tonumber(startTime) * _DDP_FACTOR_TIME_STAMP
+        fontColor = utils.convertRGBHexToBGRString(tonumber(fontColor))
+        danmakuID = tonumber(danmakuID)
+        text = utils.unescapeXMLString(text)
+
         local fontSize = cfg.danmakuFontSize
-        local danmakuID = tonumber(id)
-        local text = utils.unescapeXMLString(txt)
+        local lifeTime = self:_getLifeTimeByLayer(cfg, layer)
         return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
     end,
 
