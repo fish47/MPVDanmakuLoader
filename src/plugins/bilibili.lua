@@ -76,7 +76,7 @@ local BiliBiliDanmakuSourcePlugin =
 
         layer = _BILI_POS_TO_LAYER_MAP[tonumber(layer)]
         startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
-        fontColor = utils.convertRGBHexToBGRString(tonumber(fontColor))
+        fontColor = tonumber(fontColor)
         fontSize = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
         danmakuID = tonumber(danmakuID)
         text = utils.unescapeXMLString(__sanitizeString(text))

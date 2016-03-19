@@ -4,12 +4,13 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local LAYER_MOVING_L2R      = 6
-local LAYER_MOVING_R2L      = 5
-local LAYER_STATIC_TOP      = 4
-local LAYER_STATIC_BOTTOM   = 3
-local LAYER_ADVANCED        = 2
-local LAYER_SUBTITLE        = 1
+local LAYER_MOVING_L2R      = 1
+local LAYER_MOVING_R2L      = 2
+local LAYER_STATIC_TOP      = 3
+local LAYER_STATIC_BOTTOM   = 4
+local LAYER_ADVANCED        = 5
+local LAYER_SUBTITLE        = 6
+local LAYER_SKIPPED         = 7
 
 
 local _ASS_SEP_FIELD            = ", "
@@ -297,16 +298,17 @@ classlite.declareClass(DialogueBuilder)
 
 return
 {
-    LAYER_MOVING_L2R    = LAYER_MOVING_L2R,
-    LAYER_MOVING_R2L    = LAYER_MOVING_R2L,
-    LAYER_STATIC_TOP    = LAYER_STATIC_TOP,
-    LAYER_STATIC_BOTTOM = LAYER_STATIC_BOTTOM,
-    LAYER_ADVANCED      = LAYER_ADVANCED,
-    LAYER_SUBTITLE      = LAYER_SUBTITLE,
+    LAYER_MOVING_L2R        = LAYER_MOVING_L2R,
+    LAYER_MOVING_R2L        = LAYER_MOVING_R2L,
+    LAYER_STATIC_TOP        = LAYER_STATIC_TOP,
+    LAYER_STATIC_BOTTOM     = LAYER_STATIC_BOTTOM,
+    LAYER_ADVANCED          = LAYER_ADVANCED,
+    LAYER_SUBTITLE          = LAYER_SUBTITLE,
+    LAYER_SKIPPED           = LAYER_SKIPPED,
 
-    writeScriptInfo     = writeScriptInfo,
-    writeStyle          = writeStyle,
-    writeEvents         = writeEvents,
+    writeScriptInfo         = writeScriptInfo,
+    writeStyle              = writeStyle,
+    writeEvents             = writeEvents,
 
-    DialogueBuilder     = DialogueBuilder,
+    DialogueBuilder         = DialogueBuilder,
 }

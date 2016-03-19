@@ -143,7 +143,12 @@ classlite.declareClass(_Serializer, __TupleAndCursorMixin)
 
 local IDanmakuSource =
 {
-    _mPlugin    = classlite.declareConstantField(nil),
+    _mApplication   = classlite.declareConstantField(nil),
+    _mPlugin        = classlite.declareConstantField(nil),
+
+    new = function(self, app)
+        self._mApplication = app
+    end,
 
     getPluginName = function(self)
         local plugin = self._mPlugin
@@ -170,10 +175,10 @@ local _LocalDanmakuSource =
     _mPlugin        = classlite.declareConstantField(nil),
     _mFilePath      = classlite.declareConstantField(nil),
 
-    _init = function(self, app, plugin, filePath)
+    _init = function(self, plugin, filePath)
         self._mPlugin = plugin
         self._mFilePath = filePath
-        if self:__isValid(app)
+        if self:__isValid()
         then
             return true
         else
@@ -182,19 +187,19 @@ local _LocalDanmakuSource =
         end
     end,
 
-    parse = function(self, app)
-        if self:__isValid(app)
+    parse = function(self)
+        if self:__isValid()
         then
             local plugin = self._mPlugin
             local filePath = self._mFilePath
             local sourceID = string.format(_FMT_SOURCEID, plugin:getName(), filePath)
-            plugin:parseFile(app, filePath, sourceID)
+            plugin:parseFile(filePath, sourceID)
         end
     end,
 
-    __isValid = function(self, app)
+    __isValid = function(self)
         return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
-            and app:isExistedFile(self._mFilePath)
+            and self._mApplication:isExistedFile(self._mFilePath)
     end,
 
     getDescription = function(self)
@@ -219,7 +224,7 @@ local _CachedRemoteDanmakuSource =
     _mFilePaths     = classlite.declareTableField(),
     _mTimeOffsets   = classlite.declareTableField(),
 
-    _init = function(self, app, plugin, date, desc, ids, paths, offsets)
+    _init = function(self, plugin, date, desc, ids, paths, offsets)
         self._mPlugin = plugin
         self._mDate = date
         self._mDescription = desc or constants.STR_EMPTY
@@ -232,7 +237,7 @@ local _CachedRemoteDanmakuSource =
         utils.appendArrayElements(srcOffsets, offsets)
 
         -- 对字段排序方便后来更新时比较
-        if self:__isValid(app)
+        if self:__isValid()
         then
             utils.sortParallelArrays(srcOffsets, srcIDs, srcPaths)
             return true
@@ -250,20 +255,20 @@ local _CachedRemoteDanmakuSource =
         return self._mDescription
     end,
 
-    parse = function(self, app)
-        if self:__isValid(app)
+    parse = function(self)
+        if self:__isValid()
         then
             local pluginName = self:getPluginName()
             for i, filePath in utils.iterateArray(self._mFilePaths)
             do
                 local sourceID = string.format(_FMT_SOURCEID, pluginName, filePath)
-                self._mPlugin:parseFile(app, filePath, self._mTimeOffsets[i], sourceID)
+                self._mPlugin:parseFile(filePath, self._mTimeOffsets[i], sourceID)
             end
         end
     end,
 
 
-    __isValid = function(self, app)
+    __isValid = function(self)
         local function __checkNonExistedFilePath(path, app)
             return not app:isExistedFile(path)
         end
@@ -276,6 +281,7 @@ local _CachedRemoteDanmakuSource =
             return not types.isString(url)
         end
 
+        local app = self._mApplication
         local ids = self._mSourceIDs
         local filePaths = self._mFilePaths
         local timeOffsets = self._mTimeOffsets
@@ -291,10 +297,10 @@ local _CachedRemoteDanmakuSource =
     end,
 
 
-    _serialize = function(self, app, serializer)
-        if self:__isValid(app)
+    _serialize = function(self, serializer)
+        if self:__isValid()
         then
-            serializer:writeElement(app:getVideoMD5())
+            serializer:writeElement(self._mApplication:getVideoMD5())
             serializer:writeElement(self:getPluginName())
             serializer:writeElement(self._mDate)
             serializer:writeElement(self._mDescription)
@@ -306,7 +312,8 @@ local _CachedRemoteDanmakuSource =
     end,
 
 
-    _deserizlie = function(self, app, deserializer)
+    _deserizlie = function(self, deserializer)
+        local app = self._mApplication
         local videoMD5 = deserializer:readElement()
         if videoMD5 ~= app:getVideoMD5()
         then
@@ -331,7 +338,7 @@ local _CachedRemoteDanmakuSource =
         succeed = succeed and deserializer:readArray(self._mFilePaths)
         succeed = succeed and deserializer:readArray(self._mTimeOffsets)
 
-        if succeed and self:__isValid(app)
+        if succeed and self:__isValid()
         then
             return true
         else
@@ -341,8 +348,9 @@ local _CachedRemoteDanmakuSource =
     end,
 
 
-    _delete = function(self, app)
+    _delete = function(self)
         -- 只要删除原始文件，反序列化的时候就被认为是无效的弹幕源
+        local app = self._mApplication
         for _, path in utils.iterateArray(self._mFilePaths)
         do
             app:deleteTree(path)
@@ -351,9 +359,10 @@ local _CachedRemoteDanmakuSource =
     end,
 
 
-    _update = function(self, app, source2)
-        if self:__isValid(app)
+    _update = function(self, source2)
+        if self:__isValid()
         then
+            local app = self._mApplication
             self:clone(source2)
             source2._mDate = app:getCurrentDateTime()
 
@@ -361,7 +370,7 @@ local _CachedRemoteDanmakuSource =
             local plugin = self._mPlugin
             local filePaths = utils.clearTable(source2._mFilePaths)
             local succeed = __downloadDanmakuRawDataFiles(app, plugin, ids, filePaths)
-            if succeed and source2:__isValid(app)
+            if succeed and source2:__isValid()
             then
                 return true
             end
@@ -371,7 +380,7 @@ local _CachedRemoteDanmakuSource =
         end
     end,
 
-    _isFromSameUpdateSource = function(self, app, source2)
+    _isFromSameUpdateSource = function(self, source2)
         local function __hasSameArrayContent(array1, array2)
             if types.isTable(array1) and types.isTable(array2) and #array1 == #array2
             then
@@ -387,8 +396,8 @@ local _CachedRemoteDanmakuSource =
         end
 
         return classlite.isInstanceOf(source2, self:getClass())
-            and self:__isValid(app)
-            and source2:__isValid(app)
+            and self:__isValid()
+            and source2:__isValid()
             and __hasSameArrayContent(self._mSourceIDs, source2._mSourceIDs)
             and __hasSameArrayContent(self._mTimeOffsets, source2._mTimeOffsets)
     end,
@@ -429,7 +438,7 @@ local DanmakuSourceManager =
 
     _obtainDanmakuSource = function(self, srcClz)
         local pool = self._mDanmakuSourcePools[srcClz]
-        return pool and utils.popArrayElement(pool) or srcClz:new()
+        return pool and utils.popArrayElement(pool) or srcClz:new(self._mApplication)
     end,
 
     recycleDanmakuSource = function(self, source)
@@ -467,7 +476,7 @@ local DanmakuSourceManager =
         local tuple = utils.clearTable(self.__mSerializeTuple)
         local serializer = self._mSerializer
         serializer:_init(tuple)
-        if source:_serialize(app, serializer)
+        if source:_serialize(serializer)
         then
             local metaFilePath = app:getConfiguration().danmakuSourceMetaDataFilePath
             if not app:isExistedFile(metaFilePath)
@@ -507,7 +516,7 @@ local DanmakuSourceManager =
                 local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
                 utils.packArray(tuple, md5, ...)
                 deserializer:_init(tuple)
-                if source:_deserizlie(app, deserializer)
+                if source:_deserizlie(deserializer)
                 then
                     table.insert(danmakuSources, source)
                 else
@@ -528,7 +537,7 @@ local DanmakuSourceManager =
         if __downloadDanmakuRawDataFiles(app, plugin, ids, filePaths)
         then
             local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
-            if source and source:_init(app, plugin, datetime, desc, ids, filePaths, offsets)
+            if source and source:_init(plugin, datetime, desc, ids, filePaths, offsets)
             then
                 self:_doAppendMetaFile(source)
                 return source
@@ -550,7 +559,7 @@ local DanmakuSourceManager =
 
     deleteDanmakuSource = function(self, source)
         local app = self._mApplication
-        if classlite.isInstanceOf(source, IDanmakuSource) and source:_delete(app)
+        if classlite.isInstanceOf(source, IDanmakuSource) and source:_delete()
         then
             -- 外部不要再持有这个对象了
             self:recycleDanmakuSource(source)
@@ -578,14 +587,14 @@ local DanmakuSourceManager =
                 local found = false
                 for j = 1, i - 1
                 do
-                    if source:_isFromSameUpdateSource(app, inSources[j])
+                    if source:_isFromSameUpdateSource(inSources[j])
                     then
                         found = true
                         break
                     end
                 end
 
-                if not found and source:_update(app, tmpSource)
+                if not found and source:_update(tmpSource)
                 then
                     self:_doAppendMetaFile(tmpSource)
                     table.insert(outSources, tmpSource)

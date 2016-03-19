@@ -64,7 +64,7 @@ local DanDanPlayDanmakuSourcePlugin =
 
         layer = _DDP_POS_TO_LAYER_MAP[tonumber(layer)]
         startTime = tonumber(startTime) * _DDP_FACTOR_TIME_STAMP
-        fontColor = utils.convertRGBHexToBGRString(tonumber(fontColor))
+        fontColor = tonumber(fontColor)
         danmakuID = tonumber(danmakuID)
         text = utils.unescapeXMLString(text)
 

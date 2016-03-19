@@ -393,7 +393,7 @@ local MPVDanmakuLoaderShell =
                 local data = rawDatas[1]
                 if types.isString(data)
                 then
-                    plugin:parseData(app, data, _SHELL_TIMEOFFSET_START, videoID)
+                    plugin:parseData(data, _SHELL_TIMEOFFSET_START, videoID)
                     self:__doCommitDanmakus()
                 end
             end

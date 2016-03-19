@@ -54,10 +54,10 @@ local _AbstractDanmakuSourcePlugin =
     _doDownloadDanmakuRawData = constants.FUNC_EMPTY,
     _doGetVideoDuration = constants.FUNC_EMPTY,
 
-    parseFile = function(self, app, filePath, ...)
-        local file = app:readUTF8File(filePath)
+    parseFile = function(self, filePath, ...)
+        local file = self._mApplication:readUTF8File(filePath)
         local rawData = utils.readAndCloseFile(file)
-        return rawData and self:parseData(app, rawData, ...)
+        return rawData and self:parseData(rawData, ...)
     end,
 
     downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
@@ -92,8 +92,8 @@ local _PatternBasedDanmakuSourcePlugin =
     end,
 
 
-    parseData = function(self, app, rawData, timeOffset, sourceID)
-        local function __addDanmaku(pools, offset, layer, start, ...)
+    parseData = function(self, rawData, sourceID, timeOffset)
+        local function __addDanmaku(pools, sourceID, offset, layer, start, ...)
             if not layer
             then
                 return false
@@ -102,25 +102,20 @@ local _PatternBasedDanmakuSourcePlugin =
             local pool = pools:getDanmakuPoolByLayer(layer)
             if pool
             then
-                pool:addDanmaku(start + offset, ...)
+                pool:addDanmaku(sourceID, start + offset, ...)
             end
             return true
         end
 
-
-        local pattern = self:_getGMatchPattern()
-        if not types.isString(rawData) or not types.isString(pattern)
-        then
-            return
-        end
-
+        local app = self._mApplication
         local pools = app:getDanmakuPools()
         local cfg = app:getConfiguration()
         local iterFunc = self:_startExtractDanmakus(rawData)
         timeOffset = timeOffset or 0
         while true
         do
-            local hasMore = __addDanmaku(pools, timeOffset, self:_extractDanmaku(iterFunc, cfg))
+            local hasMore = __addDanmaku(pools, sourceID, timeOffset,
+                                         self:_extractDanmaku(iterFunc, cfg))
             if not hasMore
             then
                 break

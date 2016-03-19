@@ -12,7 +12,7 @@ local DanmakuPool =
     _mLifeTimes         = classlite.declareTableField(),    -- 弹幕存活时间，单位 ms
     _mFontColors        = classlite.declareTableField(),    -- 字体颜色字符串，格式 BBGGRR
     _mFontSizes         = classlite.declareTableField(),    -- 字体大小，单位 pt
-    _mDanmakuSources    = classlite.declareTableField(),    -- 弹幕源
+    _mDanmakuSourceIDs  = classlite.declareTableField(),    -- 弹幕源
     _mDanmakuIDs        = classlite.declareTableField(),    -- 在相同弹幕源前提下的唯一标识
     _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
     _mAddDanmakuHook    = classlite.declareConstantField(nil),
@@ -27,7 +27,7 @@ local DanmakuPool =
     end,
 
 
-    getDanmakuAt = function(self, idx)
+    getDanmakuByIndex = function(self, idx)
         idx = types.isNumber(idx) and self.__mDanmakuIndexes[idx]
         if idx
         then
@@ -35,7 +35,7 @@ local DanmakuPool =
                 self._mLifeTimes[idx],
                 self._mFontColors[idx],
                 self._mFontSizes[idx],
-                self._mDanmakuSources[idx],
+                self._mDanmakuSourceIDs[idx],
                 self._mDanmakuIDs[idx],
                 self._mTexts[idx]
 
@@ -45,7 +45,7 @@ local DanmakuPool =
 
     sortAndTrim = function(self)
         local startTimes = self._mStartTimes
-        local sources = self._mDanmakuSources
+        local sources = self._mDanmakuSourceIDs
         local danmakuIDs = self._mDanmakuIDs
         local indexes = self.__mDanmakuIndexes
         utils.clearTable(indexes)
@@ -108,25 +108,23 @@ local DanmakuPool =
             return true
         end
 
-        local function __checkNumbers(...)
-            return __checkArgs(types.isNumber, ...)
+        local function __unpackAll(...)
+            return ...
         end
 
-        local function __checkStrings(...)
-            return __checkStrings(types.isString, ...)
-        end
-
-
-        local hook = self._mAddDanmakuHook
-        local start, life, color, size, source, id, text = hook and hook(...) or ...
-        if __checkNumbers(start, life, color, size) and __checkStrings(source, id, text)
+        local hook = self._mAddDanmakuHook or __unpackAll
+        local sourceID, start, life, color, size, danmakuID, text = hook(...)
+        if sourceID
+            and danmakuID
+            and types.isString(text)
+            and __checkArgs(types.isNumber, start, life, color, size)
         then
             table.insert(self._mStartTimes, start)
             table.insert(self._mLifeTimes, life)
             table.insert(self._mFontColors, color)
             table.insert(self._mFontSizes, size)
-            table.insert(self._mDanmakuSources, source)
-            table.insert(self._mDanmakuIDs, id)
+            table.insert(self._mDanmakuSourceIDs, sourceID)
+            table.insert(self._mDanmakuIDs, danmakuID)
             table.insert(self._mTexts, text)
             table.insert(self.__mDanmakuIndexes, #self.__mDanmakuIndexes + 1)
         end
@@ -138,7 +136,7 @@ local DanmakuPool =
         utils.clearTable(self._mLifeTimes)
         utils.clearTable(self._mFontColors)
         utils.clearTable(self._mFontSizes)
-        utils.clearTable(self._mDanmakuSources)
+        utils.clearTable(self._mDanmakuSourceIDs)
         utils.clearTable(self._mDanmakuIDs)
         utils.clearTable(self._mTexts)
         utils.clearTable(self.__mDanmakuIndexes)
@@ -172,7 +170,7 @@ local DanmakuPools =
     end,
 
     getDanmakuPoolByLayer = function(self, layer)
-        return types.isString(layer) and self._mPools[layer]
+        return layer and self._mPools[layer]
     end,
 
     writeDanmakus = function(self, app, f)
@@ -198,6 +196,7 @@ return
     LAYER_STATIC_BOTTOM     = _ass.LAYER_STATIC_BOTTOM,
     LAYER_ADVANCED          = _ass.LAYER_ADVANCED,
     LAYER_SUBTITLE          = _ass.LAYER_SUBTITLE,
+    LAYER_SKIPPED           = _ass.LAYER_SKIPPED,
 
     DanmakuPool             = DanmakuPool,
     DanmakuPools            = DanmakuPools,
