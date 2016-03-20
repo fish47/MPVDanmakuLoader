@@ -6,10 +6,9 @@ local classlite     = require("src/base/classlite")
 local danmaku       = require("src/core/danmaku")
 
 
-local _SRT_PLUGIN_NAME              = "srt"
+local _SRT_PLUGIN_NAME              = "SRT"
 local _SRT_SUBTITLE_IDX_START       = 0
 local _SRT_SEP_SUBTITLE             = constants.STR_EMPTY
-local _SRT_PATTERN_FILE_NAME        = ".*%.[sS][rR][tT]$"
 local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
 local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
 local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME
@@ -102,7 +101,7 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life)
 
     local color = cfg.subtitleFontColor
     local size = cfg.subtitleFontSize
-    p:addDanmaku(start, life, color, size, src, tostring(idx), text)
+    p:addDanmaku(src, start, life, color, size, tostring(idx), text)
 
     line = hasMoreLine and __readLine(f)
     return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx)
@@ -122,7 +121,8 @@ local SRTDanmakuSourcePlugin =
         return _SRT_PLUGIN_NAME
     end,
 
-    parseFile = function(self, app, filePath, sourceID)
+    parseFile = function(self, filePath, sourceID)
+        local app = self._mApplication
         local file = app:readUTF8File(filePath)
         if types.isOpenedFile(file)
         then
@@ -132,10 +132,6 @@ local SRTDanmakuSourcePlugin =
             _parseSRTFile(cfg, pool, file, sourceID)
             app:closeFile(file)
         end
-    end,
-
-    isMatchedRawDataFile = function(self, filePath)
-        return filePath:match(_SRT_PATTERN_FILE_NAME)
     end,
 }
 

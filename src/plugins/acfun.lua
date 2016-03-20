@@ -59,7 +59,7 @@ local AcfunDanmakuSourcePlugin =
 
             findIdx = endIdx1 + 1
             local posText, endIdx2 = utils.findJSONString(rawData, findIdx)
-            local startTime, fontColor, layer, fontSize, id = posText:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUE)
+            local start, color, layer, size, id = posText:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUE)
             if not endIdx2
             then
                 return
@@ -80,7 +80,7 @@ local AcfunDanmakuSourcePlugin =
             end
 
             startIdx = nextFindIdx
-            return text, startTime, fontColor, layer, fontSize, id
+            return text, start, color, layer, size, id
         end
         return ret
     end,

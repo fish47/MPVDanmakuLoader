@@ -48,7 +48,7 @@ TestParseSRTFile =
 
 
     __doGetDanmakuText = function(self, pool, idx)
-        local _, _, _, _, _, _, text = pool:getDanmakuAt(idx)
+        local _, _, _, _, _, _, text = pool:getDanmakuByIndex(idx)
         return text
     end,
 
@@ -87,7 +87,7 @@ TestParseSRTFile =
 
         lu.assertEquals(pool:getDanmakuCount(), 5)
 
-        local startTime4, lifeTime4 = pool:getDanmakuAt(4)
+        local startTime4, lifeTime4 = pool:getDanmakuByIndex(4)
         lu.assertEquals(startTime4, 28700)
         lu.assertEquals(lifeTime4, 4790)
 

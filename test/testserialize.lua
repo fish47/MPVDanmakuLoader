@@ -47,7 +47,7 @@ TestSerialize =
 
 
     testSerialize = function(self)
-        local origin = { { 1, 'A', "b" }, { "C", 1, false, nil, 0 }, { false }, {} }
+        local origin = { { 1, 'A', "b" }, { "C", 1, false, nil, 0 }, { false }, { {} } }
         local tmpFile = io.tmpfile()
         self:__serializeTuplesToStream(origin, tmpFile)
 
