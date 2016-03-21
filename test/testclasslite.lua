@@ -34,53 +34,6 @@ TestClassLite =
     end,
 
 
-    testPlainClassConstructor = function(self)
-        local Base =
-        {
-            a   = classlite.declareConstantField(1),
-            b   = classlite.declareConstantField(2),
-        }
-        classlite.declareClass(Base)
-
-        local Derived =
-        {
-            c   = classlite.declareConstantField(3)
-        }
-        classlite.declareClass(Derived, Base)
-
-        local derived = Derived:new("a", "b", "c")
-        lu.assertEquals(derived.a, "a")
-        lu.assertEquals(derived.b, "b")
-        lu.assertEquals(derived.c, "c")
-    end,
-
-
-    testAutoFields = function(self)
-        local Triple =
-        {
-            a   = classlite.declareConstantField(true),
-            b   = classlite.declareConstantField(true),
-            c   = classlite.declareConstantField(true),
-        }
-        classlite.declareClass(Triple)
-
-        local Foo =
-        {
-            triple = classlite.declareClassField(Triple, 1, 2, 3),
-        }
-        classlite.declareClass(Foo)
-
-        local foo = Foo:new()
-        lu.assertNotNil(foo.triple)
-        lu.assertEquals(foo.triple.a, 1)
-        lu.assertEquals(foo.triple.b, 2)
-        lu.assertEquals(foo.triple.c, 3)
-
-        foo:dispose()
-        self:__assertIsDisposed(foo)
-    end,
-
-
     testDisposeAutoFields = function(self)
         local fooDisposeCount = 0
         local barDisposeCount = 0

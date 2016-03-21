@@ -14,6 +14,10 @@ local _BridgedFile =
 {
     _mFile      = classlite.declareConstantField(nil),
 
+    new = function(self, f)
+        self._mFile = f
+    end,
+
     getFile = function(self)
         return self._mFile
     end,
@@ -84,8 +88,12 @@ end
 local MockFileSystem =
 {
     _mFreeNodes         = classlite.declareTableField(),
-    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
+    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode),
     _mPendingFileSet    = classlite.declareTableField(),
+
+    new = function(self)
+        self._mRootNode.name = "/"
+    end,
 
     setup = function(self, app)
         types.isOpenedFile = __isOpenedFilePatched
@@ -425,7 +433,7 @@ local MockDanmakuSourceManager =
         local cfg = app:getConfiguration()
         local f = app:readFile(cfg.danmakuSourceMetaDataFilePath)
         local content = utils.readAndCloseFile(f)
-        serialize.deserializeTupleFromString(content, callback)
+        serialize.deserializeFromString(content, callback)
     end,
 }
 

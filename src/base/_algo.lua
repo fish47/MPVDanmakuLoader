@@ -91,8 +91,8 @@ local function packArray(array, ...)
     then
         for i = 1, types.getVarArgCount(...)
         do
-            local val = select(i, ...)
-            table.insert(array, val)
+            -- 不要用 table.insert() 因为可能有空洞
+            array[i] = select(i, ...)
         end
     end
     return array

@@ -253,13 +253,13 @@ TestDanmakuSourceManager =
         -- 不阻止重复添加，因为下载的内容可能有变化，但来源确定是相同的
         local source2 = manager:addCachedDanmakuSource(plugin, "clone", ids, offsets)
         lu.assertNotNil(source2)
-        lu.assertTrue(source1:_isFromSameUpdateSource(app, source2))
+        lu.assertTrue(source1:_isDuplicated(source2))
 
         -- 既然有 2 个来源相同，那么只更新一次
         local sources = { source1, source2 }
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 3)
-        lu.assertTrue(source1:_isFromSameUpdateSource(app, sources[3]))
+        lu.assertTrue(source1:_isDuplicated(sources[3]))
 
         manager:recycleDanmakuSources(sources)
     end,

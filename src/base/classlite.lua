@@ -26,7 +26,6 @@ local _FIELD_DECL_KEY_CLASS_ARGS_START  = 3
 local _CLASS_INHERIT_LEVEL_START        = 1
 
 
-local __gIsPlainClass           = {}
 local __gMetatables             = {}
 local __gParentClasses          = {}
 local __gClassInheritLevels     = {}
@@ -41,6 +40,7 @@ end
 
 
 local function isInstanceOf(obj, clz)
+    -- 空指针总会返回 false
     if not types.isTable(obj) or not types.isTable(clz)
     then
         return false
@@ -133,34 +133,6 @@ local _FUNCS_DECONSTRUCT =
     [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl)
         utils.disposeSafely(obj[name])
         obj[name] = nil
-    end,
-}
-
-
-local _FUNCS_ASSIGN =
-{
-    [_FIELD_DECL_TYPE_CONSTANT] = function(obj, name, decl, arg)
-        -- 优先初始化为非空值
-        if types.isNil(arg)
-        then
-            __constructConstantField(obj, name, decl)
-        else
-            obj[name] = arg
-        end
-    end,
-
-    [_FIELD_DECL_TYPE_TABLE]    = function(obj, name, decl, arg)
-        local field = __constructTableField(obj, name, decl)
-        utils.appendArrayElements(field, arg)
-    end,
-
-    [_FIELD_DECL_TYPE_CLASS]    = function(obj, name, decl, arg)
-        local field = __constructClassField(obj, name, decl)
-        local fieldClz = __invokeInstanceMethod(field, _METHOD_NAME_GET_CLASS)
-        if isInstanceOf(arg, fieldClz)
-        then
-            __invokeInstanceMethod(arg, _METHOD_NAME_CLONE, field)
-        end
     end,
 }
 
@@ -265,7 +237,7 @@ local function _disposeInstance(obj)
 end
 
 
-local function __createFielesFunction(names, decls, needToPassVarags, functionMap)
+local function __createFielesFunction(names, decls, functionMap)
     if not names or not decls
     then
         return nil
@@ -276,8 +248,7 @@ local function __createFielesFunction(names, decls, needToPassVarags, functionMa
         do
             local decl = decls[i]
             local declType = decl[_FIELD_DECL_KEY_TYPE]
-            local arg = needToPassVarags and select(i, ...)
-            functionMap[declType](self, name, decl, arg)
+            functionMap[declType](self, name, decl)
         end
     end
 
@@ -290,10 +261,7 @@ local function _createFieldsConstructor(clzDef)
     local decls = __gFieldDeclarations[clzDef]
     if names and decls
     then
-        -- 简单的结构体允许用构造参数初始化所有字段
-        local isPlainClass = __gIsPlainClass[clzDef]
-        local funcMap = isPlainClass and _FUNCS_ASSIGN or _FUNCS_CONSTRUCT
-        return __createFielesFunction(names, decls, isPlainClass, funcMap)
+        return __createFielesFunction(names, decls, _FUNCS_CONSTRUCT)
     else
         return constants.FUNC_EMPTY
     end
@@ -305,7 +273,7 @@ local function _createFieldsDeconstructor(clzDef)
     local decls = __gFieldDeclarations[clzDef]
     if names and decls
     then
-        return __createFielesFunction(names, decls, false, _FUNCS_DECONSTRUCT)
+        return __createFielesFunction(names, decls, _FUNCS_DECONSTRUCT)
     else
         return constants.FUNC_EMPTY
     end
@@ -313,7 +281,6 @@ end
 
 
 local function _createConstructor(clzDef, names, decls)
-    local isPlainClass = __gIsPlainClass[clzDef]
     local baseClz = __gParentClasses[clzDef]
     local baseConstructor = baseClz and baseClz[_METHOD_NAME_CONSTRUCT]
     local constructor = clzDef[_METHOD_NAME_CONSTRUCT] or baseConstructor
@@ -327,8 +294,7 @@ local function _createConstructor(clzDef, names, decls)
             __invokeInstanceMethod(obj, _METHOD_NAME_INIT_FIELDS, ...)
         end
 
-        -- 如果没有明确构造方法，允许用参数按顺序初始化字段
-        if not isPlainClass and constructor
+        if constructor
         then
             constructor(obj, ...)
         end
@@ -434,7 +400,7 @@ local function _createFieldsResetMethod(clzDef)
     local decls = __gFieldDeclarations[clzDef]
     if names and decls
     then
-        return __createFielesFunction(names, decls, false, _FUNCS_RESET)
+        return __createFielesFunction(names, decls, _FUNCS_RESET)
     else
         return constants.FUNC_EMPTY
     end
@@ -492,18 +458,8 @@ local function _initClassMetaData(clzDef, baseClz)
     __gParentClasses[clzDef] = baseClz
 
     -- 继承深度
-    local parentLevel = baseClz
-                        and __gClassInheritLevels[baseClz]
-                        or _CLASS_INHERIT_LEVEL_START
+    local parentLevel = baseClz and __gClassInheritLevels[baseClz] or _CLASS_INHERIT_LEVEL_START
     __gClassInheritLevels[clzDef] = 1 + parentLevel
-
-    -- 是否需要合成构造方法
-    local isPlainClass = (not clzDef[_METHOD_NAME_CONSTRUCT])
-    if baseClz
-    then
-        isPlainClass = isPlainClass and __gIsPlainClass[baseClz]
-    end
-    __gIsPlainClass[clzDef] = isPlainClass
 
     -- 所有声明的字段
     local names, decls = __collectAutoFields(clzDef)

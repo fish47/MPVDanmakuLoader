@@ -11,10 +11,17 @@ local _SERIALiZE_TABLE_END                  = "}"
 local _SERIALIZE_SEP_ARG                    = ","
 local _SERIALIZE_SEP_LINE                   = "\n"
 local _SERIALIZE_QUOTE_STRING_FORMAT        = "%q"
+local _SERIALIZE_CONST_NIL                  = "nil"
 
 
-local function serializeTuple(file, ...)
-    if not types.isOpenedFile(file) or types.getVarArgCount(...) == 0
+local function _doSerialize(isArray, file, ...)
+    if not types.isOpenedFile(file)
+    then
+        return
+    end
+
+    local array = isArray and select(1, ...)
+    if isArray and not types.isTable(array)
     then
         return
     end
@@ -22,10 +29,18 @@ local function serializeTuple(file, ...)
     file:write(_SERIALIZE_FUNC_NAME)
     file:write(_SERIALIZE_FUNC_START)
 
-    local elementCount = types.getVarArgCount(...)
-    for i = 1, elementCount
+    local n = isArray and #array or types.getVarArgCount(...) + 1
+    for i = 1, n
     do
-        local elem = select(i, ...)
+        -- 不要用三目运算，迭代值可能是 false / nil
+        local elem = nil
+        if isArray
+        then
+            elem = array[i]
+        else
+            elem = select(i, ...)
+        end
+
         if types.isString(elem)
         then
             file:write(string.format(_SERIALIZE_QUOTE_STRING_FORMAT, elem))
@@ -36,7 +51,7 @@ local function serializeTuple(file, ...)
             -- 暂时不支持复杂的数据类型
         end
 
-        if i ~= elementCount
+        if i ~= n
         then
             file:write(_SERIALIZE_SEP_ARG)
         end
@@ -44,6 +59,15 @@ local function serializeTuple(file, ...)
 
     file:write(_SERIALIZE_FUNC_END)
     file:write(_SERIALIZE_SEP_LINE)
+end
+
+
+local function serializeArray(file, array)
+    return _doSerialize(true, file, array)
+end
+
+local function serializeVarArgs(file, ...)
+    return _doSerialize(false, file, ...)
 end
 
 
@@ -63,18 +87,19 @@ local function __doDeserialize(input, isFilePath, callback)
 end
 
 
-local function deserializeTupleFromFilePath(filePath, callback)
+local function deserializeFromFilePath(filePath, callback)
     return types.isString(filePath) and __doDeserialize(filePath, true, callback)
 end
 
-local function deserializeTupleFromString(chunks, callback)
+local function deserializeFromString(chunks, callback)
     return types.isString(chunks) and __doDeserialize(chunks, false, callback)
 end
 
 
 return
 {
-    serializeTuple                  = serializeTuple,
-    deserializeTupleFromFilePath    = deserializeTupleFromFilePath,
-    deserializeTupleFromString      = deserializeTupleFromString,
+    serializeVarArgs            = serializeVarArgs,
+    serializeArray              = serializeArray,
+    deserializeFromFilePath     = deserializeFromFilePath,
+    deserializeFromString       = deserializeFromString,
 }

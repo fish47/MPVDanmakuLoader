@@ -47,12 +47,28 @@ TestSerialize =
 
 
     testSerialize = function(self)
-        local origin = { { 1, 'A', "b" }, { "C", 1, false, nil, 0 }, { false }, { {} } }
-        local tmpFile = io.tmpfile()
-        self:__serializeTuplesToStream(origin, tmpFile)
+        local function __doTest(input)
+            local results = {}
+            local __callback = function(...)
+                utils.clearTable(results)
+                utils.packArray(results, ...)
+            end
 
-        local results = self:__deserializeTuples(tmpFile)
-        lu.assertEquals(origin, results)
+            local tmpFile = io.tmpfile()
+            serialize.serializeArray(tmpFile, input)
+            tmpFile:seek(constants.SEEK_MODE_BEGIN)
+
+            local dataString = tmpFile:read(constants.READ_MODE_ALL)
+            serialize.deserializeFromString(dataString, __callback)
+            lu.assertEquals(results, input)
+
+            tmpFile:close()
+            utils.clearTable(results)
+        end
+
+        __doTest({ 1, "A", "b" })
+        __doTest({ false })
+        __doTest({})
     end,
 
 
@@ -68,7 +84,7 @@ TestSerialize =
             _(4, 5, 6)
             table.insert(outsideTable, 1)
         ]]
-        serialize.deserializeTupleFromString(rawData, __onReadTuple)
+        serialize.deserializeFromString(rawData, __onReadTuple)
 
         lu.assertTrue(types.isEmptyTable(outsideTable))
         lu.assertEquals(#referred, 2)

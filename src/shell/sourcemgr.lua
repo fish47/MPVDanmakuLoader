@@ -80,24 +80,24 @@ end
 
 
 
-local __TupleAndCursorMixin =
+local __ArrayAndCursorMixin =
 {
-    _mTuple     = classlite.declareConstantField(nil),
+    _mArray     = classlite.declareConstantField(nil),
     _mCursor    = classlite.declareConstantField(nil),
 
-    _init = function(self, tuple)
-        self._mTuple = tuple
+    _init = function(self, array)
+        self._mArray = array
         self._mCursor = 1
     end,
 }
 
-classlite.declareClass(__TupleAndCursorMixin)
+classlite.declareClass(__ArrayAndCursorMixin)
 
 
 local _Deserializer =
 {
     readElement = function(self)
-        local ret = self._mTuple[self._mCursor]
+        local ret = self._mArray[self._mCursor]
         self._mCursor = self._mCursor + 1
         return ret
     end,
@@ -117,13 +117,13 @@ local _Deserializer =
     end,
 }
 
-classlite.declareClass(_Deserializer, __TupleAndCursorMixin)
+classlite.declareClass(_Deserializer, __ArrayAndCursorMixin)
 
 
 local _Serializer =
 {
     writeElement = function(self, elem)
-        self._mTuple[self._mCursor] = elem
+        self._mArray[self._mCursor] = elem
         self._mCursor = self._mCursor + 1
     end,
 
@@ -137,7 +137,7 @@ local _Serializer =
     end,
 }
 
-classlite.declareClass(_Serializer, __TupleAndCursorMixin)
+classlite.declareClass(_Serializer, __ArrayAndCursorMixin)
 
 
 
@@ -146,7 +146,7 @@ local IDanmakuSource =
     _mApplication   = classlite.declareConstantField(nil),
     _mPlugin        = classlite.declareConstantField(nil),
 
-    new = function(self, app)
+    setApplication = function(self, app)
         self._mApplication = app
     end,
 
@@ -164,7 +164,7 @@ local IDanmakuSource =
     _update = constants.FUNC_EMPTY,
     _serialize = constants.FUNC_EMPTY,
     _deserizlie = constants.FUNC_EMPTY,
-    _isFromSameUpdateSource = constants.FUNC_EMPTY,
+    _isDuplicated = constants.FUNC_EMPTY,
 }
 
 classlite.declareClass(IDanmakuSource)
@@ -209,7 +209,14 @@ local _LocalDanmakuSource =
             local _, fileName = unportable.splitPath(filePath)
             return fileName
         end
-    end
+    end,
+
+
+    _isDuplicated = function(self, source2)
+        -- 一个文件不能对应多个弹幕源
+        return classlite.isInstanceOf(source2, self:getClass())
+            and self._mFilePath == source2._mFilePath
+    end,
 }
 
 classlite.declareClass(_LocalDanmakuSource, IDanmakuSource)
@@ -380,7 +387,7 @@ local _CachedRemoteDanmakuSource =
         end
     end,
 
-    _isFromSameUpdateSource = function(self, source2)
+    _isDuplicated = function(self, source2)
         local function __hasSameArrayContent(array1, array2)
             if types.isTable(array1) and types.isTable(array2) and #array1 == #array2
             then
@@ -414,8 +421,8 @@ local DanmakuSourceManager =
     _mDeserializer              = classlite.declareClassField(_Deserializer),
     _mDanmakuSourcePools        = classlite.declareTableField(),
 
-    __mSerializeTuple           = classlite.declareTableField(),
-    __mDeserializeTuple         = classlite.declareTableField(),
+    __mSerializeArray           = classlite.declareTableField(),
+    __mDeserializeArray         = classlite.declareTableField(),
     __mListFilePaths            = classlite.declareTableField(),
     __mDownloadedFilePaths      = classlite.declareTableField(),
     __mDanmakuSources           = classlite.declareTableField(),
@@ -438,7 +445,9 @@ local DanmakuSourceManager =
 
     _obtainDanmakuSource = function(self, srcClz)
         local pool = self._mDanmakuSourcePools[srcClz]
-        return pool and utils.popArrayElement(pool) or srcClz:new(self._mApplication)
+        local ret = pool and utils.popArrayElement(pool) or srcClz:new()
+        ret:setApplication(self._mApplication)
+        return ret
     end,
 
     recycleDanmakuSource = function(self, source)
@@ -468,14 +477,14 @@ local DanmakuSourceManager =
     _doReadMetaFile = function(self, deserializeCallback)
         local cfg = self._mApplication:getConfiguration()
         local metaFilePath = cfg.danmakuSourceMetaDataFilePath
-        serialize.deserializeTupleFromFilePath(metaFilePath, deserializeCallback)
+        serialize.deserializeFromFilePath(metaFilePath, deserializeCallback)
     end,
 
     _doAppendMetaFile = function(self, source)
         local app = self._mApplication
-        local tuple = utils.clearTable(self.__mSerializeTuple)
+        local array = utils.clearTable(self.__mSerializeArray)
         local serializer = self._mSerializer
-        serializer:_init(tuple)
+        serializer:_init(array)
         if source:_serialize(serializer)
         then
             local metaFilePath = app:getConfiguration().danmakuSourceMetaDataFilePath
@@ -490,7 +499,7 @@ local DanmakuSourceManager =
             end
 
             local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
-            serialize.serializeTuple(file, utils.unpackArray(tuple))
+            serialize.serializeArray(file, array)
             app:closeFile(file)
         end
     end,
@@ -512,10 +521,10 @@ local DanmakuSourceManager =
             if md5 == app:getVideoMD5()
             then
                 local deserializer = self._mDeserializer
-                local tuple = utils.clearTable(self.__mDeserializeTuple)
+                local array = utils.clearTable(self.__mDeserializeArray)
                 local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
-                utils.packArray(tuple, md5, ...)
-                deserializer:_init(tuple)
+                utils.packArray(array, md5, ...)
+                deserializer:_init(array)
                 if source:_deserizlie(deserializer)
                 then
                     table.insert(danmakuSources, source)
@@ -587,7 +596,7 @@ local DanmakuSourceManager =
                 local found = false
                 for j = 1, i - 1
                 do
-                    if source:_isFromSameUpdateSource(inSources[j])
+                    if source:_isDuplicated(inSources[j])
                     then
                         found = true
                         break
