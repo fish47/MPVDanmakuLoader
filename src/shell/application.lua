@@ -49,10 +49,10 @@ local MPVDanmakuLoaderApp =
 
     _initDanmakuSourcePlugins = function(self)
         local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
---        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
---        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
---        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
---        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
+        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
+        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
+        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
     end,
 
     iterateDanmakuSourcePlugin = function(self)

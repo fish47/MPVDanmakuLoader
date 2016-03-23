@@ -46,6 +46,11 @@ local _MockFileSystemTreeNode =
     content     = classlite.declareConstantField(nil),
     children    = classlite.declareTableField(),
 
+    new = function(self, name, content)
+        self.name = name
+        self.content = content
+    end,
+
     isFile = function(self)
         return types.isString(self.content)
     end,
@@ -88,12 +93,8 @@ end
 local MockFileSystem =
 {
     _mFreeNodes         = classlite.declareTableField(),
-    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode),
+    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
     _mPendingFileSet    = classlite.declareTableField(),
-
-    new = function(self)
-        self._mRootNode.name = "/"
-    end,
 
     setup = function(self, app)
         types.isOpenedFile = __isOpenedFilePatched
@@ -171,7 +172,9 @@ local MockFileSystem =
 
     _obtainTreeNode = function(self)
         local ret = utils.popArrayElement(self._mFreeNodes)
-        return ret and ret or _MockFileSystemTreeNode:new()
+        ret = ret or _MockFileSystemTreeNode:new()
+        utils.clearTable(ret.children)
+        return ret
     end,
 
     _doCreateBridgedFile = function(self, fullPath)

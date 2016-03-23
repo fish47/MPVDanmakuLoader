@@ -14,7 +14,7 @@ local UI_STRINGS_CN =
     column_sources_plugin_name              = "插件名",
     column_sources_description              = "备注",
 
-    option_main_add_local_danmaku_source    = "添加本地弹幕源",
+    option_main_add_local_danmaku_source    = "添加弹幕源",
     option_main_search_danmaku_source       = "搜索弹幕源",
     option_main_update_danmaku_source       = "更新弹幕源",
     option_main_generate_ass_file           = "生成弹幕",
