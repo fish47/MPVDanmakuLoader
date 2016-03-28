@@ -1,7 +1,12 @@
-local _STR_DIST_FILE_NAME               = "mpvdanmakuloader.lua"
 local _STR_READ_MODE_LINE_WITH_EOL      = "*L"
-local _STR_MODULE_FUNC_NAME_PATTERN     = "/%."
+local _STR_MODULE_FUNC_NAME_PATTERN     = "[/%.]"
 local _STR_MODULE_FUNC_NAME_REPLACE     = "_"
+local _STR_PATTERN_STRIP_SUFFIX         = "(.*)%.[^%.]-"
+local _STR_FMT_FILE_SEPARATOR_TAG_STRAT = " %s <START> "
+local _STR_FMT_FILE_SEPARATOR_TAG_END   = " %s <END> "
+local _STR_CONST_SEPARATOR              = "-"
+local _STR_CONST_EOL                    = "\n"
+local _NUM_SEPARATOR_WIDTH              = 80
 
 local _STR_MERGE_FILES_START    = [[
 local require = nil
@@ -12,8 +17,8 @@ require = function(path)
 local _STR_MODULE_CONTENT_START = [[
     if path == "%s"
     then
-        local module = package.loaded[path]
-        if not module
+        local requestedModule = package.loaded[path]
+        if not requestedModule
         then
             local function %s()
 
@@ -22,9 +27,10 @@ local _STR_MODULE_CONTENT_START = [[
 local _STR_MODULE_CONTENT_END   = [[
 
             end
-            module = %s()
+            requestedModule = %s()
+            package.loaded[path] = requestedModule
         end
-        return module
+        return requestedModule
     end
 ]]
 
@@ -34,6 +40,17 @@ local _STR_MERGE_FILES_END      = [[
 end
 
 ]]
+
+
+local function _writeFileTag(outFile, tag)
+    local headSepCount = math.floor((_NUM_SEPARATOR_WIDTH - #tag) / 2)
+    local tailSepCount = math.max(_NUM_SEPARATOR_WIDTH - headSepCount - #tag, 0)
+    outFile:write(_STR_CONST_EOL)
+    outFile:write(string.rep(_STR_CONST_SEPARATOR, headSepCount))
+    outFile:write(tag)
+    outFile:write(string.rep(_STR_CONST_SEPARATOR, tailSepCount))
+    outFile:write(_STR_CONST_EOL)
+end
 
 
 local function __doWriteModule(outFile, path, isMainFile)
@@ -46,9 +63,13 @@ local function __doWriteModule(outFile, path, isMainFile)
     local funcName = nil
     if not isMainFile
     then
+        local requirePath = path:match(_STR_PATTERN_STRIP_SUFFIX)
         funcName = path:gsub(_STR_MODULE_FUNC_NAME_PATTERN, _STR_MODULE_FUNC_NAME_REPLACE)
-        outFile:write(string.format(_STR_MODULE_CONTENT_START, path, funcName))
+        outFile:write(string.format(_STR_MODULE_CONTENT_START, requirePath, funcName))
     end
+
+    local startTag = string.format(_STR_FMT_FILE_SEPARATOR_TAG_STRAT, path)
+    _writeFileTag(outFile, startTag)
 
     while true
     do
@@ -62,6 +83,9 @@ local function __doWriteModule(outFile, path, isMainFile)
         outFile:write(line)
     end
 
+    local endTag = string.format(_STR_FMT_FILE_SEPARATOR_TAG_END, path)
+    _writeFileTag(outFile, endTag)
+
     if not isMainFile
     then
         outFile:write(string.format(_STR_MODULE_CONTENT_END, funcName))
@@ -74,29 +98,48 @@ local function _writeModule(outFile, path)
 end
 
 local function _writeMain(outFile, path)
-    return __doWriteModule(outFile, path, false)
+    return __doWriteModule(outFile, path, true)
 end
 
 local function main()
---    local distFile = io.open(_STR_DIST_FILE_NAME)
-    local distFile = io.stdout
-    if not distFile
-    then
-        return
+    local destFile = io.stdout
+    local function _addModule(path)
+        _writeModule(destFile, path)
     end
 
-    distFile:write(_STR_MERGE_FILES_START)
-    _writeModule(distFile, "src/base/_algo.lua")
-    _writeModule(distFile, "src/base/_conv.lua")
---    _writeModule(distFile, "src/base/classlite.lua")
---    _writeModule(distFile, "src/base/constants.lua")
---    _writeModule(distFile, "src/base/serialize.lua")
---    _writeModule(distFile, "src/base/types.lua")
---    _writeModule(distFile, "src/base/unportable.lua")
---    _writeModule(distFile, "src/base/utf8.lua")
---    _writeModule(distFile, "src/base/utils.lua")
-    distFile:write(_STR_MERGE_FILES_END)
-    distFile:close()
+    local function _addMain(path)
+        _writeMain(destFile, path)
+    end
+
+    destFile:write(_STR_MERGE_FILES_START)
+    _addModule("src/base/_algo.lua")
+    _addModule("src/base/_conv.lua")
+    _addModule("src/base/classlite.lua")
+    _addModule("src/base/constants.lua")
+    _addModule("src/base/serialize.lua")
+    _addModule("src/base/types.lua")
+    _addModule("src/base/unportable.lua")
+    _addModule("src/base/utf8.lua")
+    _addModule("src/base/utils.lua")
+    _addModule("src/core/_ass.lua")
+    _addModule("src/core/_poscalc.lua")
+    _addModule("src/core/_writer.lua")
+    _addModule("src/core/danmaku.lua")
+    _addModule("src/plugins/acfun.lua")
+    _addModule("src/plugins/bilibili.lua")
+    _addModule("src/plugins/dandanplay.lua")
+    _addModule("src/plugins/pluginbase.lua")
+    _addModule("src/plugins/srt.lua")
+    _addModule("src/shell/application.lua")
+    _addModule("src/shell/configuration.lua")
+    _addModule("src/shell/logic.lua")
+    _addModule("src/shell/sourcemgr.lua")
+    _addModule("src/shell/uiconstants.lua")
+    _addModule("test/mocks.lua")
+    destFile:write(_STR_MERGE_FILES_END)
+
+    _addMain("demo/testapp.lua")
+    destFile:close()
 end
 
 main()

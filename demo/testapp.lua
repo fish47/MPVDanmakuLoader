@@ -125,6 +125,24 @@ local MockShell =
             plugin2:addSearchResult("c", { "Title1", "Title2" })
         end
     end,
+
+
+    __showSelectFiles = function(self, outPaths)
+        -- 控件选中的是实际文件系统的路径，在虚拟文件系统是不存在的，这里也顺道创建空文件
+        local ret = logic.MPVDanmakuLoaderShell.__showSelectFiles(self, outPaths)
+        local app = self._mApplication
+        for _, path in ipairs(outPaths)
+        do
+            if not app:isExistedFile(path)
+            then
+                app:createDir(unportable.splitPath(path))
+                local f = app:writeFile(path)
+                f:write(constants.STR_EMPTY)
+                f:close()
+            end
+        end
+        return ret
+    end,
 }
 
 classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
@@ -134,6 +152,6 @@ local shell = MockShell:new()
 local app = shell._mApplication
 local cfg = app:getConfiguration()
 local videoFilePath = "/dir/videofile.mp4"
-app:setIsLogEnabled(true)
+app:setLogFunction(print)
 __createFile(app, videoFilePath)
 shell:show(cfg, videoFilePath)

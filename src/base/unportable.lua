@@ -9,6 +9,7 @@ local _SHELL_SYNTAX_REDIRECT_STRING_TO_INPUT    = "<<<"
 local _SHELL_SYNTAX_ARGUMENT_SEP                = " "
 local _SHELL_SYNTAX_STRONG_QUOTE                = "\'"
 local _SHELL_SYNTAX_NO_STDERR                   = "2>/dev/null"
+local _SHELL_SYNTAX_REDICT_STDIN                = "<"
 
 local _SHELL_CONST_STRONG_QUOTE_ESCAPED         = "'\"'\"'"
 local _SHELL_CONST_DOUBLE_DASH                  = "--"
@@ -385,7 +386,7 @@ local ZenityGUIBuilder =
             startIdx = pathEndIdx + #_ZENITY_SEP_FILE_SELECTION + 1
         end
 
-        return types.isEmptyTable(outPaths)
+        return not types.isEmptyTable(outPaths)
     end,
 }
 
@@ -582,7 +583,33 @@ end
 local function deleteTree(fullPath)
     if types.isString(fullPath)
     then
-        local arguments
+        local arguments = utils._obtainTable()
+        _addCommand("rm")
+        _addOption("-rf")
+        _addValue(fullPath)
+
+        local succeed = _getCommandResult(arguments)
+        utils._recycleTable(arguments)
+        return succeed
+    end
+end
+
+
+local function readUTF8File(fullPath)
+    if types.isString(fullPath)
+    then
+        local arguments = utils._obtainTable()
+        _addCommand("enca")
+        _addOption("-L")
+        _addValue("zh")
+        _addOption("-x")
+        _addValue("utf8")
+        _addSyntax(_SHELL_SYNTAX_REDICT_STDIN)
+        _addValue(fullPath)
+
+        local commandString = _getCommandString(arguments)
+        utils._recycleTable(arguments)
+        return io.popen(commandString)
     end
 end
 
@@ -601,6 +628,8 @@ return
 
     calcFileMD5                 = calcFileMD5,
     createDir                   = createDir,
+    deleteTree                  = deleteTree,
+    readUTF8File                = readUTF8File,
 
     iteratePathElements         = iteratePathElements,
     normalizePath               = normalizePath,

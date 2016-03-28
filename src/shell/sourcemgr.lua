@@ -556,14 +556,27 @@ local DanmakuSourceManager =
         end
     end,
 
-    addLocalDanmakuSource = function(self, plugin, filePath)
-        local source = self._obtainDanmakuArea(_LocalDanmakuSource)
-        if source._init(self._mApplication, plugin, filePath)
+    addLocalDanmakuSource = function(self, sources, plugin, filePath)
+        local isDuplicated = false
+        local newSource = self:_obtainDanmakuSource(_LocalDanmakuSource)
+        if newSource:_init(plugin, filePath)
         then
-            return source
+            for _, source in utils.iterateArray(sources)
+            do
+                if newSource:_isDuplicated(source)
+                then
+                    isDuplicated = true
+                    break
+                end
+            end
         end
 
-        self:recycleDanmakuSource(source)
+        if not isDuplicated
+        then
+            return newSource
+        end
+
+        self:recycleDanmakuSource(newSource)
     end,
 
     deleteDanmakuSource = function(self, source)

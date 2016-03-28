@@ -102,7 +102,7 @@ local MPVDanmakuLoaderApp =
     end,
 
     readUTF8File = function(self, fullPath)
-        --TODO
+        return types.isString(fullPath) and unportable.readUTF8File(fullPath)
     end,
 
     writeFile = function(self, fullPath, mode)
@@ -201,6 +201,9 @@ end
 
 local LoggedMPVDanmakuLoaderApp =
 {
+    _mLogFunction       = classlite.declareConstantField(nil),
+
+
     new = function(self, ...)
         MPVDanmakuLoaderApp.new(self, ...)
         self:_attachFileSystemMethodLogs()
@@ -248,14 +251,23 @@ local LoggedMPVDanmakuLoaderApp =
         self.createTempFile = __createPatchedFSFunction(self.createTempFile,    "createTempFile")
     end,
 
+    setLogFunction = function(self, func)
+        self._mLogFunction = types.isFunction(func) and func
+    end,
 
     _printLog = function(self, tag, fmt, ...)
+        local func = self._mLogFunction
+        if not func
+        then
+            return
+        end
+
         if not tag
         then
-            print(string.format(fmt, ...))
+            func(string.format(fmt, ...))
         else
             local spaces1, spaces2 = __centerWord(tag, _LOG_TAG_WIDTH)
-            print(string.format("[%s%s%s]  " .. fmt, spaces1, tag, spaces2, ...))
+            func(string.format("[%s%s%s]  " .. fmt, spaces1, tag, spaces2, ...))
         end
     end,
 

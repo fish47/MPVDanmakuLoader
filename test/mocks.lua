@@ -381,7 +381,6 @@ classlite.declareClass(MockConfiguration)
 
 local MockApplication =
 {
-    _mIsLogEnabled      = classlite.declareConstantField(false),
     _mConfiguration     = classlite.declareClassField(MockConfiguration),
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
@@ -414,15 +413,12 @@ local MockApplication =
         return 600
     end,
 
-    setIsLogEnabled = function(self, val)
-        self._mIsLogEnabled = types.toBoolean(val)
+    setSubtitleFile = function(self, path)
+        --TODO
     end,
 
-    _printLog = function(self, ...)
-        if self._mIsLogEnabled
-        then
-            self:getParent():_printLog(...)
-        end
+    setSubtitleData = function(self, data)
+        --TODO
     end,
 }
 

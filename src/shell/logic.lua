@@ -55,49 +55,46 @@ local MPVDanmakuLoaderShell =
         self._mDanmakuSourceManager:setApplication(app)
     end,
 
+    __showSelectPlugins = function(self)
+        local plugins = utils.clearTable(self.__mPlugins)
+        local props = self._mListBoxProperties
+        props:reset()
+        self:__initWindowProperties(props, self._mUISizes.select_plugin)
+        props.listBoxTitle = self._mUIStrings.title_select_plugin
+        props.listBoxColumnCount = 1
+        props.isHeaderHidden = true
+        for _, plugin in self._mApplication:iterateDanmakuSourcePlugin()
+        do
+            table.insert(plugins, plugin)
+            table.insert(props.listBoxElements, plugin:getName())
+        end
+
+        local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
+        if self._mGUIBuilder:showListBox(props, selectedIndexes)
+        then
+            return plugins[selectedIndexes[1]]
+        end
+    end,
+
+    __showSelectFiles = function(self, outPaths)
+        local props = self._mFileSelectionProperties
+        props:reset()
+        self:__initWindowProperties(props)
+        props.isMultiSelectable = true
+        return self._mGUIBuilder:showFileSelection(props, outPaths)
+    end,
 
     _showAddLocalDanmakuSource = function(self)
-        local function __showSelectPlugins(self)
-            local plugins = utils.clearTable(self.__mPlugins)
-            local props = self._mListBoxProperties
-            props:reset()
-            self:__initWindowProperties(props, self._mUISizes.select_plugin)
-            props.listBoxTitle = self._mUIStrings.title_select_plugin
-            props.listBoxColumnCount = 1
-            props.isHeaderHidden = true
-            for _, plugin in self._mApplication:iterateDanmakuSourcePlugin()
-            do
-                table.insert(plugins, plugin)
-                table.insert(props.listBoxElements, plugin:getName())
-            end
-
-            local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
-            if self._mGUIBuilder:showListBox(props, selectedIndexes)
-            then
-                return plugins[selectedIndexes[1]]
-            end
-        end
-
-
-        local function __showSelectFiles(self, outPaths)
-            local props = self._mFileSelectionProperties
-            props:reset()
-            self:__initWindowProperties(props)
-            props.isMultiSelectable = true
-            return self._mGUIBuilder:showFileSelection(props, outPaths)
-        end
-
-
         local paths = utils.clearTable(self.__mSelectedFilePaths)
-        local plugin = __showSelectPlugins(self)
-        local hasSelectedFile = plugin and __showSelectFiles(self, plugin, paths)
+        local plugin = self:__showSelectPlugins()
+        local hasSelectedFile = plugin and self:__showSelectFiles(paths)
         if hasSelectedFile
         then
             local sources = self._mDanmakuSources
             local sourceMgr = self._mDanmakuSourceManager
             for _, path in ipairs(paths)
             do
-                local source = sourceMgr:addLocalDanmakuSource(plugin, path)
+                local source = sourceMgr:addLocalDanmakuSource(sources, plugin, path)
                 table.insert(sources, source)
             end
         end
