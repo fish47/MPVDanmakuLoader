@@ -401,7 +401,7 @@ local MockApplication =
 
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
-    getVideoMD5 = function(self)
+    getVideoFileMD5 = function(self)
         return string.rep("1", 32)
     end,
 

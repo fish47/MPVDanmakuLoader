@@ -307,7 +307,7 @@ local _CachedRemoteDanmakuSource =
     _serialize = function(self, serializer)
         if self:__isValid()
         then
-            serializer:writeElement(self._mApplication:getVideoMD5())
+            serializer:writeElement(self._mApplication:getVideoFileMD5())
             serializer:writeElement(self:getPluginName())
             serializer:writeElement(self._mDate)
             serializer:writeElement(self._mDescription)
@@ -322,7 +322,7 @@ local _CachedRemoteDanmakuSource =
     _deserizlie = function(self, deserializer)
         local app = self._mApplication
         local videoMD5 = deserializer:readElement()
-        if videoMD5 ~= app:getVideoMD5()
+        if videoMD5 ~= app:getVideoFileMD5()
         then
             return false
         end
@@ -518,7 +518,7 @@ local DanmakuSourceManager =
         -- 读取下载过的弹幕源
         local function __callback(md5, ...)
             -- 用 MD5 来区分不同视频文件的弹幕源，提前判可以过滤大部分记录
-            if md5 == app:getVideoMD5()
+            if md5 == app:getVideoFileMD5()
             then
                 local deserializer = self._mDeserializer
                 local array = utils.clearTable(self.__mDeserializeArray)

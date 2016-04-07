@@ -15,26 +15,32 @@ local _APP_MD5_BYTE_COUNT   = 32 * 1024 * 1024
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration         = classlite.declareConstantField(nil),
-    _mDanmakuPools          = classlite.declareClassField(danmaku.DanmakuPools),
-    _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
-    _mDanmakuSourcePlugins  = classlite.declareTableField(),
-    _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
+    _mConfiguration                     = classlite.declareConstantField(nil),
+    _mDanmakuPools                      = classlite.declareClassField(danmaku.DanmakuPools),
+    _mNetworkConnection                 = classlite.declareClassField(unportable.CURLNetworkConnection),
+    _mDanmakuSourcePlugins              = classlite.declareTableField(),
+    _mUniquePathGenerator               = classlite.declareClassField(unportable.UniquePathGenerator),
 
-    __mVideoFileMD5         = classlite.declareConstantField(nil),
-    __mVideoFilePath        = classlite.declareConstantField(nil),
+    __mVideoFileMD5                     = classlite.declareConstantField(nil),
+    __mVideoFilePath                    = classlite.declareConstantField(nil),
+    __mDanmakuSourceRawDataDirPath      = classlite.declareConstantField(nil),
+    __mDanmakuSourceMetaDataFilePath    = classlite.declareConstantField(nil),
 
 
     new = function(self)
         self:_initDanmakuSourcePlugins()
     end,
 
+    __updatePaths = function(self, cfg, filePath)
+        self.__mVideoFilePath = filePath
+    end,
+
     init = function(self, cfg, filePath)
         self._mConfiguration = cfg
-        self.__mVideoFilePath = filePath
         self.__mVideoFileMD5 = nil
         self._mDanmakuPools:clear()
         self._mNetworkConnection:reset()
+        self:__updatePaths()
 
         for _, pool in self._mDanmakuPools:iteratePools()
         do
@@ -143,7 +149,7 @@ local MPVDanmakuLoaderApp =
         return generator:getUniquePath(dir, prefix, suffix, __isExistedPath, self)
     end,
 
-    getVideoMD5 = function(self)
+    getVideoFileMD5 = function(self)
         local md5 = self.__mVideoFileMD5
         if md5
         then
