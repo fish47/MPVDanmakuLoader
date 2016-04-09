@@ -369,10 +369,9 @@ classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
 local MockConfiguration =
 {
     new = function(self)
-        configuration.updateConfiguration(self,
-                                          "/1.mp4",
-                                          unportable.joinPath,
-                                          unportable.splitPath)
+        configuration.initConfiguration(self)
+        self.danmakuSourceRawDataRelDirPath = "1/2/3/rawdata"
+        self.danmakuSourceMetaDataRelFilePath = "4/5/6/meta.lua"
     end,
 }
 
@@ -386,9 +385,8 @@ local MockApplication =
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
     new = function(self, ...)
-        application.LoggedMPVDanmakuLoaderApp.new(self, ...)
         self._mMockFileSystem:setup(self)
-        self:_attachFileSystemMethodLogs()
+        application.LoggedMPVDanmakuLoaderApp.new(self, ...)
     end,
 
     dispose = function(self)
@@ -400,6 +398,10 @@ local MockApplication =
     end,
 
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
+
+    _getPrivateDirPath = function(self)
+        return "/mpvdanmakuloader/private_dir/"
+    end,
 
     getVideoFileMD5 = function(self)
         return string.rep("1", 32)
@@ -414,11 +416,11 @@ local MockApplication =
     end,
 
     setSubtitleFile = function(self, path)
-        --TODO
+        -- do nothing
     end,
 
     setSubtitleData = function(self, data)
-        --TODO
+        -- do nothing
     end,
 }
 
@@ -429,9 +431,8 @@ local MockDanmakuSourceManager =
 {
     _doReadMetaFile = function(self, callback)
         local app = self._mApplication
-        local cfg = app:getConfiguration()
-        local f = app:readFile(cfg.danmakuSourceMetaDataFilePath)
-        local content = utils.readAndCloseFile(f)
+        local path = app:getDanmakuSourceMetaDataFilePath()
+        local content = utils.readAndCloseFile(app:readFile(path))
         serialize.deserializeFromString(content, callback)
     end,
 }

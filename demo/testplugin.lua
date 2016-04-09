@@ -7,10 +7,10 @@ local acfun         = require("src/plugins/acfun")
 local application   = require("src/shell/application")
 
 local cfg = mocks.MockConfiguration:new()
-local app = application.MPVDanmakuLoaderApp:new()
+local app = application.LoggedMPVDanmakuLoaderApp:new()
 local result = pluginbase.DanmakuSourceSearchResult:new()
 local plugin = acfun.AcfunDanmakuSourcePlugin:new()
-app:init(cfg, "/1.mp4")
+app:init(cfg)
 plugin:setApplication(app)
 
 local f = io.open("/tmp/1.txt")

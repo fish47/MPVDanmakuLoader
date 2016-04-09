@@ -37,7 +37,7 @@ local function __downloadDanmakuRawDataFiles(app, plugin, ids, outFilePaths)
     end
 
     -- 没有指定缓存的文件夹
-    local baseDir = app:getConfiguration().danmakuSourceRawDataDirPath
+    local baseDir = app:getDanmakuSourceRawDataDirPath()
     if not baseDir
     then
         return false
@@ -211,6 +211,10 @@ local _LocalDanmakuSource =
         end
     end,
 
+    _delete = function(self)
+        -- 因为不写入持久化数据，所以认为总是删除成功
+        return true
+    end,
 
     _isDuplicated = function(self, source2)
         -- 一个文件不能对应多个弹幕源
@@ -473,11 +477,9 @@ local DanmakuSourceManager =
         end
     end,
 
-
     _doReadMetaFile = function(self, deserializeCallback)
-        local cfg = self._mApplication:getConfiguration()
-        local metaFilePath = cfg.danmakuSourceMetaDataFilePath
-        serialize.deserializeFromFilePath(metaFilePath, deserializeCallback)
+        local path = self._mApplication:getDanmakuSourceMetaDataFilePath()
+        serialize.deserializeFromFilePath(path, deserializeCallback)
     end,
 
     _doAppendMetaFile = function(self, source)
@@ -487,7 +489,7 @@ local DanmakuSourceManager =
         serializer:_init(array)
         if source:_serialize(serializer)
         then
-            local metaFilePath = app:getConfiguration().danmakuSourceMetaDataFilePath
+            local metaFilePath = app:getDanmakuSourceMetaDataFilePath()
             if not app:isExistedFile(metaFilePath)
             then
                 local dir = unportable.splitPath(metaFilePath)

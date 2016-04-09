@@ -16,7 +16,7 @@ end
 
 local function __ensureConfiguration()
     local configuration = require("src/shell/configuration")
-    _gConfiguration = configuration.updateConfiguration(_gConfiguration)
+    _gConfiguration = configuration.initConfiguration(_gConfiguration)
     return _gConfiguration
 end
 

@@ -92,7 +92,7 @@ TestDanmakuSourceManager =
     testAddAndRemoveSource = function(self)
         local app = self._mApplication
         local manager = self._mDanmakuSourceManager
-        local dir = app:getConfiguration().danmakuSourceRawDataDirPath
+        local dir = app:getDanmakuSourceRawDataDirPath()
 
         local plugins = {}
         local pluginCount = math.random(5)
@@ -220,9 +220,8 @@ TestDanmakuSourceManager =
             manager:deleteDanmakuSource(source)
             manager:deleteDanmakuSource(source2)
 
-            local cfg = app:getConfiguration()
             utils.clearTable(filePaths)
-            app:listFiles(cfg.danmakuSourceRawDataDirPath, filePaths)
+            app:listFiles(app:getDanmakuSourceRawDataDirPath(), filePaths)
             lu.assertTrue(types.isEmptyTable(filePaths))
         end
     end,

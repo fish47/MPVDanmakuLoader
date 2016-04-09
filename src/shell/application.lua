@@ -23,29 +23,21 @@ local MPVDanmakuLoaderApp =
 
     __mVideoFileMD5                     = classlite.declareConstantField(nil),
     __mVideoFilePath                    = classlite.declareConstantField(nil),
-    __mDanmakuSourceRawDataDirPath      = classlite.declareConstantField(nil),
-    __mDanmakuSourceMetaDataFilePath    = classlite.declareConstantField(nil),
-
+    __mPrivateDirPath                   = classlite.declareConstantField(nil),
 
     new = function(self)
         self:_initDanmakuSourcePlugins()
     end,
 
-    __updatePaths = function(self, cfg, filePath)
-        self.__mVideoFilePath = filePath
-    end,
-
     init = function(self, cfg, filePath)
         self._mConfiguration = cfg
         self.__mVideoFileMD5 = nil
+        self.__mVideoFilePath = filePath
+        self.__mPrivateDirPath = filePath and unportable.splitPath(filePath)
         self._mDanmakuPools:clear()
         self._mNetworkConnection:reset()
-        self:__updatePaths()
 
-        for _, pool in self._mDanmakuPools:iteratePools()
-        do
-            pool:setAddDanmakuHook(cfg.addDanmakuHook)
-        end
+        --TODO spans
     end,
 
     _addDanmakuSourcePlugin = function(self, plugin)
@@ -162,6 +154,25 @@ local MPVDanmakuLoaderApp =
         return md5
     end,
 
+    _getPrivateDirPath = function(self)
+        return self.__mPrivateDirPath
+    end,
+
+    __doGetConfigurationFullPath = function(self, relPath)
+        local dir = self:_getPrivateDirPath()
+        return dir and relPath and unportable.joinPath(dir, relPath)
+    end,
+
+    getDanmakuSourceRawDataDirPath = function(self)
+        local cfg = self:getConfiguration()
+        return cfg and self:__doGetConfigurationFullPath(cfg.danmakuSourceRawDataRelDirPath)
+    end,
+
+    getDanmakuSourceMetaDataFilePath = function(self)
+        local cfg = self:getConfiguration()
+        return cfg and self:__doGetConfigurationFullPath(cfg.danmakuSourceMetaDataRelFilePath)
+    end,
+
     getCurrentDateTime = function(self)
         return os.time()
     end,
@@ -184,6 +195,7 @@ local _LOG_TAG_WIDTH    = 14
 local _TAG_PLUGIN       = "plugin"
 local _TAG_NETWORK      = "network"
 local _TAG_FILESYSTEM   = "filesystem"
+local _TAG_SUBTITLE     = "subtitle"
 
 
 local function __centerWord(word, maxWidth)
@@ -209,18 +221,10 @@ local LoggedMPVDanmakuLoaderApp =
 {
     _mLogFunction       = classlite.declareConstantField(nil),
 
-
     new = function(self, ...)
         MPVDanmakuLoaderApp.new(self, ...)
-        self:_attachFileSystemMethodLogs()
-
-        local function __printNetworkLog(_, url)
-            self:_printLog(_TAG_NETWORK, "GET %s", url)
-        end
-        local conn = self._mNetworkConnection
-        conn._createConnection = __patchFunction(conn._createConnection, __printNetworkLog)
+        self:__attachMethodLogHooks()
     end,
-
 
     _addDanmakuSourcePlugin = function(self, plugin)
         local orgSearchFunc = plugin.search
@@ -235,8 +239,7 @@ local LoggedMPVDanmakuLoaderApp =
         MPVDanmakuLoaderApp._addDanmakuSourcePlugin(self, plugin)
     end,
 
-
-    _attachFileSystemMethodLogs = function(self)
+    __attachMethodLogHooks = function(self)
         local function __createPatchedFSFunction(orgFunc, subTag)
             local ret = function(self, arg1, ...)
                 local ret = orgFunc(self, arg1, ...)
@@ -255,6 +258,18 @@ local LoggedMPVDanmakuLoaderApp =
         self.createDir      = __createPatchedFSFunction(self.createDir,         "createDir")
         self.deleteTree     = __createPatchedFSFunction(self.deleteTree,        "deleteTree")
         self.createTempFile = __createPatchedFSFunction(self.createTempFile,    "createTempFile")
+
+        local function __printNetworkLog(_, url)
+            self:_printLog(_TAG_NETWORK, "GET %s", url)
+        end
+        local conn = self._mNetworkConnection
+        conn._createConnection = __patchFunction(conn._createConnection, __printNetworkLog)
+
+        local function __printSetSubtitle(_, arg)
+            self:_printLog(_TAG_SUBTITLE, "setSubtitle: %s", arg)
+        end
+        self.setSubtitleFile = __patchFunction(self.setSubtitleFile, __printSetSubtitle)
+        self.setSubtitleData = __patchFunction(self.setSubtitleData, __printSetSubtitle)
     end,
 
     setLogFunction = function(self, func)
