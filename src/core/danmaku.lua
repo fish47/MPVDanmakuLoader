@@ -15,17 +15,17 @@ local DanmakuPool =
     _mDanmakuSourceIDs  = classlite.declareTableField(),    -- 弹幕源
     _mDanmakuIDs        = classlite.declareTableField(),    -- 在相同弹幕源前提下的唯一标识
     _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
-    _mAddDanmakuHook    = classlite.declareConstantField(nil),
     __mDanmakuIndexes   = classlite.declareTableField(),
+    __mAddDanmakuHook   = classlite.declareConstantField(nil),
 
-    setAddDanmakuHook = function(self, func)
-        self._mAddDanmakuHook = types.isFunction(func) and func
+
+    setAddDanmakuHook = function(self, hook)
+        self.__mAddDanmakuHook = types.isFunction(hook) and hook
     end,
 
     getDanmakuCount = function(self)
         return #self.__mDanmakuIndexes
     end,
-
 
     getDanmakuByIndex = function(self, idx)
         idx = types.isNumber(idx) and self.__mDanmakuIndexes[idx]
@@ -112,7 +112,7 @@ local DanmakuPool =
             return ...
         end
 
-        local hook = self._mAddDanmakuHook or __unpackAll
+        local hook = self.__mAddDanmakuHook or __unpackAll
         local sourceID, start, life, color, size, danmakuID, text = hook(...)
         if sourceID
             and danmakuID

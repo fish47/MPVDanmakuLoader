@@ -60,6 +60,12 @@ local function __writeBottomSubtitlePos(cfg, screenW, screenH, b, w, y)
     y = screenH - y
     b:addBottomCenterAlign()
     b:addPos(screenW / 2, y)
+
+    local hook = cfg.writeSubtitleHook
+    if types.isFunction(hook)
+    then
+        hook(b)
+    end
 end
 
 

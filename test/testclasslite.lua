@@ -178,7 +178,6 @@ TestClassLite =
         }
         classlite.declareClass(Bar)
 
-        --TODO 对于实例重置的定义待完善
         local bar = Bar:new()
         bar.a.a = {}
         bar.a.b = 5

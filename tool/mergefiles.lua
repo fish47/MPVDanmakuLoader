@@ -135,10 +135,9 @@ local function main()
     _addModule("src/shell/logic.lua")
     _addModule("src/shell/sourcemgr.lua")
     _addModule("src/shell/uiconstants.lua")
-    _addModule("test/mocks.lua")
     destFile:write(_STR_MERGE_FILES_END)
 
-    _addMain("demo/testapp.lua")
+    _addMain("src/shell/main.lua")
     destFile:close()
 end
 

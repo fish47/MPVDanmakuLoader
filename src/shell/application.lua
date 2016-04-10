@@ -25,19 +25,24 @@ local MPVDanmakuLoaderApp =
     __mVideoFilePath                    = classlite.declareConstantField(nil),
     __mPrivateDirPath                   = classlite.declareConstantField(nil),
 
+
     new = function(self)
         self:_initDanmakuSourcePlugins()
     end,
 
     init = function(self, cfg, filePath)
         self._mConfiguration = cfg
+        self._mNetworkConnection:reset()
         self.__mVideoFileMD5 = nil
         self.__mVideoFilePath = filePath
         self.__mPrivateDirPath = filePath and unportable.splitPath(filePath)
-        self._mDanmakuPools:clear()
-        self._mNetworkConnection:reset()
 
-        --TODO spans
+        local pools = self._mDanmakuPools
+        pools:clear()
+        for _, pool in pools:iteratePools()
+        do
+            pool:setAddDanmakuHook(cfg.addDanmakuHook)
+        end
     end,
 
     _addDanmakuSourcePlugin = function(self, plugin)

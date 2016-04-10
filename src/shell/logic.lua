@@ -42,10 +42,6 @@ local MPVDanmakuLoaderShell =
     __mSearchResult             = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
 
 
-    new = function(self)
-        self._mDanmakuSourceManager:setApplication(self._mApplication)
-    end,
-
     dispose = function(self)
         utils.forEachArrayElement(self._mDanmakuSources, utils.disposeSafely)
     end,

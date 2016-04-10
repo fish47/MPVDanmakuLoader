@@ -261,22 +261,23 @@ local function sortParallelArrays(...)
     compareFuncArg = nil
 end
 
---TODO Index
+
 local function reverseIterateArray(array)
     local function __doReverseIterateArrayImpl(array, idx)
+        idx = idx - 1
         if idx < 1
         then
             return nil
         end
 
-        return idx - 1, array[idx]
+        return idx, array[idx]
     end
 
     if not types.isTable(array)
     then
         return constants.FUNC_EMPTY
     end
-    return __doReverseIterateArrayImpl, array, #array
+    return __doReverseIterateArrayImpl, array, #array + 1
 end
 
 local function iterateTable(tbl)

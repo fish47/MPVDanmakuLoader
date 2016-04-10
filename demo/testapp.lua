@@ -8,16 +8,6 @@ local logic         = require("src/shell/logic")
 local mocks         = require("test/mocks")
 
 
-local function __createFile(app, fullPath, content)
-    local dir = unportable.splitPath(fullPath)
-    app:createDir(dir)
-
-    local file = app:writeFile(fullPath)
-    file:write(content or constants.STR_EMPTY)
-    app:closeFile(file)
-end
-
-
 local MockRemoteDanmakuSourcePlugin =
 {
     _mName                  = classlite.declareConstantField(nil),
@@ -108,6 +98,8 @@ local MockShell =
         logic.MPVDanmakuLoaderShell.new(self)
 
         local app = self._mApplication
+        self:setApplication(app)
+
         local plugin1 = MockRemoteDanmakuSourcePlugin:new("Plugin1")
         local plugin2 = MockRemoteDanmakuSourcePlugin:new("Plugin2")
         app:_addDanmakuSourcePlugin(plugin1)
@@ -151,7 +143,5 @@ classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 local shell = MockShell:new()
 local app = shell._mApplication
 local cfg = app:getConfiguration()
-local videoFilePath = "/dir/videofile.mp4"
 app:setLogFunction(print)
-__createFile(app, videoFilePath)
-shell:show(cfg, videoFilePath)
+shell:show(cfg)
