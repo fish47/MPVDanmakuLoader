@@ -52,10 +52,10 @@ local MPVDanmakuLoaderApp =
 
     _initDanmakuSourcePlugins = function(self)
         local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
-        table.insert(plugins, srt.SRTDanmakuSourcePlugin:new())
-        table.insert(plugins, acfun.AcfunDanmakuSourcePlugin:new())
-        table.insert(plugins, bilibili.BiliBiliDanmakuSourcePlugin:new())
-        table.insert(plugins, dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+        self:_addDanmakuSourcePlugin(srt.SRTDanmakuSourcePlugin:new())
+        self:_addDanmakuSourcePlugin(acfun.AcfunDanmakuSourcePlugin:new())
+        self:_addDanmakuSourcePlugin(bilibili.BiliBiliDanmakuSourcePlugin:new())
+        self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayDanmakuSourcePlugin:new())
     end,
 
     iterateDanmakuSourcePlugin = function(self)
@@ -129,7 +129,7 @@ local MPVDanmakuLoaderApp =
 
     isExistedFile = function(self, fullPath)
         local file = nil
-        if types.iString(fullPath)
+        if types.isString(fullPath)
         then
             file = io.open(fullPath)
             utils.closeSafely(file)

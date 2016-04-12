@@ -135,7 +135,7 @@ local SRTDanmakuSourcePlugin =
     end,
 }
 
-classlite.declareClass(SRTDanmakuSourcePlugin, pluginbase.IRemoteDanmakuSourcePlugin)
+classlite.declareClass(SRTDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
 
 
 return

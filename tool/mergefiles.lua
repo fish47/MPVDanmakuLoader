@@ -9,6 +9,34 @@ local _STR_CONST_EOL                    = "\n"
 local _NUM_SEPARATOR_WIDTH              = 80
 
 local _STR_MERGE_FILES_START    = [[
+local mp = {}
+setmetatable(mp, {
+    __index = function(tbl, name)
+        local ret = _G["mp"][name] or rawget(tbl, name)
+        if ret
+        then
+            return ret
+        end
+
+        if name == "msg"
+        then
+            ret = require("mp.msg")
+        elseif name == "options"
+        then
+            ret = require("mp.options")
+        elseif name == "utils"
+        then
+            ret = require("mp.utils")
+        else
+            return ret
+        end
+
+        tbl[name] = ret
+        return ret
+    end,
+})
+
+
 local require = nil
 require = function(path)
 

@@ -1,5 +1,3 @@
-local utils     = require("mp.utils")
-
 local _gConfiguration   = nil
 local _gApplication     = nil
 local _gLoaderShell     = nil
@@ -8,7 +6,7 @@ local _gOpenedFilePath  = nil
 
 
 local function __ensureLoaderShell()
-    if not _gLoaderShell
+    if _gLoaderShell
     then
         return _gLoaderShell
     end
@@ -32,8 +30,8 @@ local function __ensureConfiguration()
     -- 读取当前目录下的配置文件
     if _gOpenedFilePath
     then
-        local dir = utils.split_path(_gOpenedFilePath)
-        local cfgPath = utils.join_path(dir, "cfg.lua")
+        local dir = mp.utils.split_path(_gOpenedFilePath)
+        local cfgPath = mp.utils.join_path(dir, "cfg.lua")
         local func = loadfile(cfgPath)
         if func
         then
@@ -74,3 +72,6 @@ end
 
 -- 如果传网址会经过 youtube-dl 分析并重定向，为了拿到最初的网址必须加回调
 mp.add_hook("on_load", 5, __markOpenedPath)
+
+mp.add_key_binding("1", "showMain", showMain)
+mp.add_key_binding("2", "loadDanmakuFromURL", loadDanmakuFromURL)

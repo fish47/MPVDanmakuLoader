@@ -29,7 +29,7 @@ classlite.declareClass(IDanmakuSourcePlugin)
 
 
 local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
-    local function __appendResult(outList, ret)
+    local function __appendResult(ret, outList)
         table.insert(outList, ret)
     end
 

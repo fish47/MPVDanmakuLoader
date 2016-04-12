@@ -69,7 +69,7 @@ local function __downloadDanmakuRawDataFiles(app, plugin, ids, outFilePaths)
         local f = app:writeFile(fullPath)
         if not utils.writeAndCloseFile(f, rawData)
         then
-            utils.clearArray(rawDatas, i + 1)
+            utils.clearArray(rawDatas, i)
             __deleteDownloadedFiles(app, outFilePaths)
             return false
         end
