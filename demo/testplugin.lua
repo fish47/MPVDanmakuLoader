@@ -7,7 +7,7 @@ local acfun         = require("src/plugins/acfun")
 local application   = require("src/shell/application")
 
 local cfg = mocks.MockConfiguration:new()
-local app = application.LoggedMPVDanmakuLoaderApp:new()
+local app = application.MPVDanmakuLoaderApp:new()
 local result = pluginbase.DanmakuSourceSearchResult:new()
 local plugin = acfun.AcfunDanmakuSourcePlugin:new()
 app:init(cfg)

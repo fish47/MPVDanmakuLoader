@@ -11,7 +11,15 @@ local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
 
 
-local _APP_MD5_BYTE_COUNT   = 32 * 1024 * 1024
+local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
+local _APP_PRIVATE_DIR_NAME     = ".mpvdanmakuloader"
+
+local _TAG_LOG_WIDTH            = 14
+local _TAG_PLUGIN               = "plugin"
+local _TAG_NETWORK              = "network"
+local _TAG_FILESYSTEM           = "filesystem"
+local _TAG_SUBTITLE             = "subtitle"
+
 
 local MPVDanmakuLoaderApp =
 {
@@ -20,6 +28,7 @@ local MPVDanmakuLoaderApp =
     _mNetworkConnection                 = classlite.declareClassField(unportable.CURLNetworkConnection),
     _mDanmakuSourcePlugins              = classlite.declareTableField(),
     _mUniquePathGenerator               = classlite.declareClassField(unportable.UniquePathGenerator),
+    _mLogFunction                       = classlite.declareConstantField(nil),
 
     __mVideoFileMD5                     = classlite.declareConstantField(nil),
     __mVideoFilePath                    = classlite.declareConstantField(nil),
@@ -28,14 +37,99 @@ local MPVDanmakuLoaderApp =
 
     new = function(self)
         self:_initDanmakuSourcePlugins()
+
+        -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
+        self:__attachMethodLoggingHooks()
+    end,
+
+    __attachMethodLoggingHooks = function(self)
+        local function __patchFunction(orgFunc, patchFunc)
+            local ret = function(...)
+                utils.invokeSafelly(patchFunc, ...)
+                return utils.invokeSafelly(orgFunc, ...)
+            end
+            return ret
+        end
+
+        local function __createPatchedFSFunction(orgFunc, subTag)
+            local ret = function(self, arg1, ...)
+                local ret = orgFunc(self, arg1, ...)
+                local arg1Str = arg1 or constants.STR_EMPTY
+                arg1Str = types.isString(arg1) and string.format("%q", arg1Str) or arg1Str
+                self:_printLog(_TAG_FILESYSTEM, "%s(%s) -> %s", subTag, arg1Str, tostring(ret))
+                return ret
+            end
+            return ret
+        end
+
+        local clzApp = self:getClass()
+        self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "read")
+        self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8")
+        self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
+        self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
+        self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
+        self.deleteTree     = __createPatchedFSFunction(clzApp.deleteTree,      "deleteTree")
+        self.createTempFile = __createPatchedFSFunction(clzApp.createTempFile,  "createTempFile")
+
+        local function __printNetworkLog(_, url)
+            self:_printLog(_TAG_NETWORK, "GET %s", url)
+        end
+        local conn = self._mNetworkConnection
+        conn._createConnection = __patchFunction(conn:getClass()._createConnection, __printNetworkLog)
+
+        local function __printSubtitleFilePath(_, path)
+            self:_printLog(_TAG_SUBTITLE, "file: %s", path)
+        end
+        self.setSubtitleFile = __patchFunction(clzApp.setSubtitleFile, __printSubtitleFilePath)
+
+        local function __printSubtitleData(_, data)
+            self:_printLog(_TAG_SUBTITLE, "data")
+        end
+        self.setSubtitleData = __patchFunction(clzApp.setSubtitleData, __printSubtitleData)
+
+        for _, plugin in self:iterateDanmakuSourcePlugin()
+        do
+            local orgSearchFunc = plugin:getClass().search
+            plugin.search = function(plugin, keyword, ...)
+                local ret = orgSearchFunc(plugin, keyword, ...)
+                if ret
+                then
+                    self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
+                end
+                return ret
+            end
+        end
+    end,
+
+
+    setLogFunction = function(self, func)
+        self._mLogFunction = types.isFunction(func) and func
+    end,
+
+    _printLog = function(self, tag, fmt, ...)
+        local func = self._mLogFunction
+        if not func
+        then
+            return
+        end
+
+        local wordWidth = #tag
+        local maxWidth = _TAG_LOG_WIDTH
+        local leadingSpaceCount = math.floor((maxWidth - wordWidth) / 2)
+        local trailingSpaceCount = math.max(maxWidth - wordWidth - leadingSpaceCount, 0)
+        local leadingSpaces = string.rep(constants.STR_SPACE, leadingSpaceCount)
+        local trailingSpaces = string.rep(constants.STR_SPACE, trailingSpaceCount)
+        func(string.format("[%s%s%s]  " .. fmt, leadingSpaces, tag, trailingSpaces, ...))
     end,
 
     init = function(self, cfg, filePath)
         self._mConfiguration = cfg
         self._mNetworkConnection:reset()
+
+        local dir = filePath and unportable.splitPath(filePath)
+        self.__mPrivateDirPath = dir and unportable.joinPath(dir, _APP_PRIVATE_DIR_NAME)
         self.__mVideoFileMD5 = nil
         self.__mVideoFilePath = filePath
-        self.__mPrivateDirPath = filePath and unportable.splitPath(filePath)
 
         local pools = self._mDanmakuPools
         pools:clear()
@@ -109,6 +203,7 @@ local MPVDanmakuLoaderApp =
     end,
 
     writeFile = function(self, fullPath, mode)
+        mode = mode or constants.FILE_MODE_WRITE_ERASE
         return types.isString(fullPath) and io.open(fullPath, mode)
     end,
 
@@ -194,116 +289,7 @@ local MPVDanmakuLoaderApp =
 classlite.declareClass(MPVDanmakuLoaderApp)
 
 
-
-local _LOG_TAG_WIDTH    = 14
-
-local _TAG_PLUGIN       = "plugin"
-local _TAG_NETWORK      = "network"
-local _TAG_FILESYSTEM   = "filesystem"
-local _TAG_SUBTITLE     = "subtitle"
-
-
-local function __centerWord(word, maxWidth)
-    local wordWidth = #word
-    local beforeSpaceCount = math.floor((maxWidth - wordWidth) / 2)
-    local afterSpaceCount = math.max(maxWidth - wordWidth - beforeSpaceCount, 0)
-    local beforeSpaces = string.rep(constants.STR_SPACE, beforeSpaceCount)
-    local afterSpaces = string.rep(constants.STR_SPACE, afterSpaceCount)
-    return beforeSpaces, afterSpaces
-end
-
-
-local function __patchFunction(orgFunc, patchFunc)
-    local ret = function(...)
-        utils.invokeSafelly(patchFunc, ...)
-        return utils.invokeSafelly(orgFunc, ...)
-    end
-    return ret
-end
-
-
-local LoggedMPVDanmakuLoaderApp =
-{
-    _mLogFunction       = classlite.declareConstantField(nil),
-
-    new = function(self, ...)
-        MPVDanmakuLoaderApp.new(self, ...)
-        self:__attachMethodLogHooks()
-    end,
-
-    _addDanmakuSourcePlugin = function(self, plugin)
-        local orgSearchFunc = plugin.search
-        plugin.search = function(plugin, keyword, ...)
-            local ret = orgSearchFunc(plugin, keyword, ...)
-            if ret
-            then
-                self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
-            end
-            return ret
-        end
-        MPVDanmakuLoaderApp._addDanmakuSourcePlugin(self, plugin)
-    end,
-
-    __attachMethodLogHooks = function(self)
-        local function __createPatchedFSFunction(orgFunc, subTag)
-            local ret = function(self, arg1, ...)
-                local ret = orgFunc(self, arg1, ...)
-                local arg1Str = arg1 or constants.STR_EMPTY
-                arg1Str = types.isString(arg1) and string.format("%q", arg1Str) or arg1Str
-                self:_printLog(_TAG_FILESYSTEM, "%s(%s) -> %s", subTag, arg1Str, tostring(ret))
-                return ret
-            end
-            return ret
-        end
-
-        self.readFile       = __createPatchedFSFunction(self.readFile,          "read")
-        self.readUTF8File   = __createPatchedFSFunction(self.readUTF8File,      "readUTF8")
-        self.writeFile      = __createPatchedFSFunction(self.writeFile,         "writeFile")
-        self.closeFile      = __createPatchedFSFunction(self.closeFile,         "closeFile")
-        self.createDir      = __createPatchedFSFunction(self.createDir,         "createDir")
-        self.deleteTree     = __createPatchedFSFunction(self.deleteTree,        "deleteTree")
-        self.createTempFile = __createPatchedFSFunction(self.createTempFile,    "createTempFile")
-
-        local function __printNetworkLog(_, url)
-            self:_printLog(_TAG_NETWORK, "GET %s", url)
-        end
-        local conn = self._mNetworkConnection
-        conn._createConnection = __patchFunction(conn._createConnection, __printNetworkLog)
-
-        local function __printSetSubtitle(_, arg)
-            self:_printLog(_TAG_SUBTITLE, "setSubtitle: %s", arg)
-        end
-        self.setSubtitleFile = __patchFunction(self.setSubtitleFile, __printSetSubtitle)
-        self.setSubtitleData = __patchFunction(self.setSubtitleData, __printSetSubtitle)
-    end,
-
-    setLogFunction = function(self, func)
-        self._mLogFunction = types.isFunction(func) and func
-    end,
-
-    _printLog = function(self, tag, fmt, ...)
-        local func = self._mLogFunction
-        if not func
-        then
-            return
-        end
-
-        if not tag
-        then
-            func(string.format(fmt, ...))
-        else
-            local spaces1, spaces2 = __centerWord(tag, _LOG_TAG_WIDTH)
-            func(string.format("[%s%s%s]  " .. fmt, spaces1, tag, spaces2, ...))
-        end
-    end,
-
-}
-
-classlite.declareClass(LoggedMPVDanmakuLoaderApp, MPVDanmakuLoaderApp)
-
-
 return
 {
     MPVDanmakuLoaderApp         = MPVDanmakuLoaderApp,
-    LoggedMPVDanmakuLoaderApp   = LoggedMPVDanmakuLoaderApp,
 }

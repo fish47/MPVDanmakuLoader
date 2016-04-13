@@ -90,36 +90,26 @@ local function __isClosedFilePatched(f)
 end
 
 
+local function setupMockFSEnvironment()
+    types.isOpenedFile = __isOpenedFilePatched
+    types.isClosedFile = __isClosedFilePatched
+end
+
+
+local function unsetupMockFSEnvironment()
+    types.isOpenedFile = __gIsOpenedFileFunc
+    types.isClosedFile = __gIsClosedFileFunc
+end
+
+
 local MockFileSystem =
 {
     _mFreeNodes         = classlite.declareTableField(),
     _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
     _mPendingFileSet    = classlite.declareTableField(),
 
-    setup = function(self, app)
-        types.isOpenedFile = __isOpenedFilePatched
-        types.isClosedFile = __isClosedFilePatched
-        if classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
-        then
-            for _, methodName in ipairs({ "isExistedDir",
-                                          "isExistedFile",
-                                          "readUTF8File",
-                                          "readFile",
-                                          "writeFile",
-                                          "createDir",
-                                          "deleteTree",
-                                          "listFiles" })
-            do
-                app[methodName] = function(_, ...)
-                    return self[methodName](self, ...)
-                end
-            end
-        end
-    end,
-
-    unsetup = function(self)
-        types.isOpenedFile = __gIsOpenedFileFunc
-        types.isClosedFile = __gIsClosedFileFunc
+    new = function(self)
+        setupMockFSEnvironment()
     end,
 
     dispose = function(self)
@@ -384,11 +374,6 @@ local MockApplication =
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
-    new = function(self, ...)
-        self._mMockFileSystem:setup(self)
-        application.LoggedMPVDanmakuLoaderApp.new(self, ...)
-    end,
-
     dispose = function(self)
         self._mMockFileSystem:unsetup()
     end,
@@ -424,7 +409,23 @@ local MockApplication =
     end,
 }
 
-classlite.declareClass(MockApplication, application.LoggedMPVDanmakuLoaderApp)
+-- 将文件相关操作转交给虚拟文件系统
+for _, methodName in ipairs({ "isExistedDir",
+                              "isExistedFile",
+                              "readUTF8File",
+                              "readFile",
+                              "writeFile",
+                              "createDir",
+                              "deleteTree",
+                              "listFiles" })
+do
+    MockApplication[methodName] = function(self, ...)
+        local mockfs = self._mMockFileSystem
+        return mockfs[methodName](mockfs, ...)
+    end
+end
+
+classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)
 
 
 local MockDanmakuSourceManager =
@@ -447,4 +448,7 @@ return
     MockConfiguration           = MockConfiguration,
     MockApplication             = MockApplication,
     MockDanmakuSourceManager    = MockDanmakuSourceManager,
+
+    setupMockFSEnvironment      = setupMockFSEnvironment,
+    unsetupMockFSEnvironment    = unsetupMockFSEnvironment,
 }

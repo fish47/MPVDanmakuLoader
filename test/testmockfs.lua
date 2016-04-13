@@ -36,7 +36,6 @@ TestMockFileSystem =
 
     setUp = function(self)
         local fs = mocks.MockFileSystem:new()
-        fs:setup()
         self._mFileSystem = fs
 
         local pathsAndContents =
@@ -58,7 +57,7 @@ TestMockFileSystem =
     end,
 
     tearDown = function(self)
-        self._mFileSystem:unsetup()
+        mocks.unsetupMockFSEnvironment()
         self._mFileSystem:dispose()
         utils.clearTable(self._mPathsAndContents)
     end,

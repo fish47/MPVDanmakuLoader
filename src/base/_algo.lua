@@ -54,12 +54,12 @@ local function _recycleTable(tbl)
 end
 
 
-local function mergeTable(destTbl, srcTbl, isJustMergeMissed)
+local function mergeTable(destTbl, srcTbl, ignoreExisted)
     if types.isTable(destTbl) and types.isTable(srcTbl)
     then
         for k, v in pairs(srcTbl)
         do
-            destTbl[k] = isJustMergeMissed and destTbl[k] or v
+            destTbl[k] = ignoreExisted and destTbl[k] or v
         end
     end
     return destTbl
