@@ -1,6 +1,5 @@
 local lu            = require("test/luaunit")
 local mocks         = require("test/mocks")
-local _ass          = require("src/core/_ass")
 local danmaku       = require("src/core/danmaku")
 local utils         = require("src/base/utils")
 local srt           = require("src/plugins/srt")

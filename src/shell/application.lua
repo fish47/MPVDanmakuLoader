@@ -271,12 +271,12 @@ local MPVDanmakuLoaderApp =
 
     getDanmakuSourceRawDataDirPath = function(self)
         local cfg = self:getConfiguration()
-        return cfg and self:__doGetConfigurationFullPath(cfg.danmakuSourceRawDataRelDirPath)
+        return cfg and self:__doGetConfigurationFullPath(cfg.rawDataRelDirPath)
     end,
 
     getDanmakuSourceMetaDataFilePath = function(self)
         local cfg = self:getConfiguration()
-        return cfg and self:__doGetConfigurationFullPath(cfg.danmakuSourceMetaDataRelFilePath)
+        return cfg and self:__doGetConfigurationFullPath(cfg.metaDataRelFilePath)
     end,
 
     getCurrentDateTime = function(self)

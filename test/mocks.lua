@@ -360,8 +360,8 @@ local MockConfiguration =
 {
     new = function(self)
         configuration.initConfiguration(self)
-        self.danmakuSourceRawDataRelDirPath = "1/2/3/rawdata"
-        self.danmakuSourceMetaDataRelFilePath = "4/5/6/meta.lua"
+        self.rawDataRelDirPath = "1/2/3/rawdata"
+        self.metaDataRelFilePath = "4/5/6/meta.lua"
     end,
 }
 
