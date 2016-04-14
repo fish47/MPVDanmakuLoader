@@ -186,8 +186,14 @@ local MPVDanmakuLoaderApp =
         return types.isString(dir) and unportable.createDir(dir)
     end,
 
-    deleteTree = function(self, dir)
-        return types.isString(dir) and unportable.deleteTree(dir)
+    deleteTree = function(self, fullPath)
+        if types.isString(fullPath)
+        then
+            local trashDirPath = self._mConfiguration.trashDirPath
+            return types.isString(trashDirPath)
+                and unportable.moveTree(fullPath, trashDirPath, true)
+                or unportable.deleteTree(fullPath)
+        end
     end,
 
     createTempFile = function(self)

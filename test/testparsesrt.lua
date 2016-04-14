@@ -8,13 +8,13 @@ local srt           = require("src/plugins/srt")
 
 TestParseSRTFile =
 {
-    _mPools = nil,
-    _mCfg   = nil,
+    _mPools             = nil,
+    _mConfiguration     = nil,
 
 
     setUp = function(self)
-        self._mCfg = mocks.MockConfiguration:new()
         self._mPools = {}
+        self._mConfiguration = mocks.MockConfiguration:new()
     end,
 
 
@@ -26,8 +26,8 @@ TestParseSRTFile =
         end
         self._mPools = nil
 
-        self._mCfg:dispose()
-        self._mCfg = nil
+        self._mConfiguration:dispose()
+        self._mConfiguration = nil
     end,
 
 
@@ -38,7 +38,7 @@ TestParseSRTFile =
         f:seek("set", 0)
 
         local pool = danmaku.DanmakuPool:new()
-        local ret = srt._parseSRTFile(self._mCfg, pool, f, "foo")
+        local ret = srt._parseSRTFile(self._mConfiguration, pool, f, "foo")
 
         f:close()
         pool:sortAndTrim()

@@ -595,6 +595,22 @@ local function deleteTree(fullPath)
 end
 
 
+local function moveTree(fromPath, toPath, preserved)
+    if types.isString(fromPath)
+    then
+        local arguments = utils._obtainTable()
+        _addCommand(arguments, "mv")
+        _addOption(arguments, preserved and "--backup=numbered" or "-f")
+        _addValue(arguments, fromPath)
+        _addValue(arguments, toPath)
+
+        local succeed = _getCommandString(arguments)
+        utils._recycleTable(arguments)
+        return succeed
+    end
+end
+
+
 local function readUTF8File(fullPath)
     if types.isString(fullPath)
     then
