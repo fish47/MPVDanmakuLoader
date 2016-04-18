@@ -5,6 +5,7 @@ local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local danmaku       = require("src/core/danmaku")
 local configuration = require("src/shell/configuration")
+local pluginbase    = require("src/plugins/pluginbase")
 local srt           = require("src/plugins/srt")
 local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
@@ -87,7 +88,7 @@ local MPVDanmakuLoaderApp =
         end
         self.setSubtitleData = __patchFunction(clzApp.setSubtitleData, __printSubtitleData)
 
-        for _, plugin in self:iterateDanmakuSourcePlugin()
+        for _, plugin in self:iterateDanmakuSourcePlugins()
         do
             local orgSearchFunc = plugin:getClass().search
             plugin.search = function(plugin, keyword, ...)
@@ -139,9 +140,23 @@ local MPVDanmakuLoaderApp =
         end
     end,
 
+    getPluginByName = function(self, name)
+        for _, plugin in self:iterateDanmakuSourcePlugins()
+        do
+            if plugin:getName() == name
+            then
+                return plugin
+            end
+        end
+    end,
+
     _addDanmakuSourcePlugin = function(self, plugin)
-        table.insert(self._mDanmakuSourcePlugins, plugin)
-        plugin:setApplication(self)
+        if classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
+            and not self:getPluginByName(plugin:getName())
+        then
+            table.insert(self._mDanmakuSourcePlugins, plugin)
+            plugin:setApplication(self)
+        end
     end,
 
     _initDanmakuSourcePlugins = function(self)
@@ -152,7 +167,7 @@ local MPVDanmakuLoaderApp =
         self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayDanmakuSourcePlugin:new())
     end,
 
-    iterateDanmakuSourcePlugin = function(self)
+    iterateDanmakuSourcePlugins = function(self)
         return utils.iterateArray(self._mDanmakuSourcePlugins)
     end,
 

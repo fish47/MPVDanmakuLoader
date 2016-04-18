@@ -1,47 +1,46 @@
 local lu            = require("test/luaunit")
 local mocks         = require("test/mocks")
+local constants     = require("src/base/constants")
 local danmaku       = require("src/core/danmaku")
 local utils         = require("src/base/utils")
 local srt           = require("src/plugins/srt")
 
 
-TestParseSRTFile =
+local function __setUp(self)
+    local app = mocks.MockApplication:new()
+    local cfg = mocks.MockConfiguration:new()
+    app:init(cfg)
+    self._mApplication = app
+    self._mConfiguration = cfg
+end
+
+
+local function __tearDown(self)
+    utils.disposeSafely(self._mApplication)
+    utils.disposeSafely(self._mConfiguration)
+    self._mApplication = nil
+    self._mConfiguration = nil
+end
+
+
+TestParse =
 {
-    _mPools             = nil,
-    _mConfiguration     = nil,
+    setUp = __setUp,
+    tearDown = __tearDown,
 
-
-    setUp = function(self)
-        self._mPools = {}
-        self._mConfiguration = mocks.MockConfiguration:new()
-    end,
-
-
-    tearDown = function(self)
-        for i, pools in ipairs(self._mPools)
-        do
-            pools:dispose()
-            self._mPools[i] = nil
-        end
-        self._mPools = nil
-
-        self._mConfiguration:dispose()
-        self._mConfiguration = nil
-    end,
-
-
-    __doParse = function(self, content)
+    _parseSRT = function(self, content)
         local f = io.tmpfile()
         f:write(content)
         f:flush()
         f:seek("set", 0)
 
-        local pool = danmaku.DanmakuPool:new()
-        local ret = srt._parseSRTFile(self._mConfiguration, pool, f, "foo")
+        local app = self._mApplication
+        local pool = app:getDanmakuPools():getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
+        pool:clear()
 
+        local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, constants.STR_EMPTY)
+        pool:freeze()
         f:close()
-        pool:sortAndTrim()
-        table.insert(self._mPools, pool)
         return ret, pool
     end,
 
@@ -54,7 +53,7 @@ TestParseSRTFile =
 
     -- 随手截一段来测
     testParseSimple1 = function(self)
-        local ret, pool = self:__doParse([[
+        local ret, pool = self:_parseSRT([[
 
 
 1
@@ -102,7 +101,7 @@ TestParseSRTFile =
     -- 直到出现空行前，都算是字幕内容
     testParseSimple2 = function(self)
 
-        local ret, pool = self:__doParse([[
+        local ret, pool = self:_parseSRT([[
 1
 00:00:00,100 --> 00:00:03,750
 00:00:00,100 --> 00:00:03,750
@@ -125,7 +124,7 @@ sdf
 
     -- 简单测一下不对的格式吧
     testMalformed = function(self)
-        local ret, pool = self:__doParse([[
+        local ret, pool = self:_parseSRT([[
 1
 00:00:00,100 --> 00:00:03,750
 没有甚么特别的 只是被特别的病魔缠上而已
@@ -139,7 +138,7 @@ sdf
 
 
     testBlankFile = function(self)
-        local ret = self:__doParse([[
+        local ret = self:_parseSRT([[
 
 
 
@@ -149,7 +148,7 @@ sdf
 
 
     testTrailingBlankLines = function(self)
-        local ret, pool = self:__doParse([[
+        local ret, pool = self:_parseSRT([[
 
 
 1
@@ -162,6 +161,10 @@ sdf
         lu.assertEquals(pool:getDanmakuCount(), 1)
     end,
 }
+
+
+local TestParseBiliBili =
+{}
 
 
 lu.LuaUnit.verbosity = 2

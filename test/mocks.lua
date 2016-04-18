@@ -374,10 +374,6 @@ local MockApplication =
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
-    dispose = function(self)
-        self._mMockFileSystem:unsetup()
-    end,
-
     getMockFileSystem = function(self)
         return self._mMockFileSystem
     end,

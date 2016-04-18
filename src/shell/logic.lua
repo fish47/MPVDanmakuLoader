@@ -59,7 +59,7 @@ local MPVDanmakuLoaderShell =
         props.listBoxTitle = self._mUIStrings.title_select_plugin
         props.listBoxColumnCount = 1
         props.isHeaderHidden = true
-        for _, plugin in self._mApplication:iterateDanmakuSourcePlugin()
+        for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
         do
             table.insert(plugins, plugin)
             table.insert(props.listBoxElements, plugin:getName())
@@ -112,7 +112,7 @@ local MPVDanmakuLoaderShell =
         end
 
         local result = self.__mSearchResult
-        for _, plugin in self._mApplication:iterateDanmakuSourcePlugin()
+        for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
         do
             result:reset()
             if plugin:search(input, result)
@@ -373,7 +373,7 @@ local MPVDanmakuLoaderShell =
         app:init(cfg, nil)
 
         local result = self.__mSearchResult
-        for _, plugin in app:iterateDanmakuSourcePlugin()
+        for _, plugin in app:iterateDanmakuSourcePlugins()
         do
             if plugin:search(url, result)
             then

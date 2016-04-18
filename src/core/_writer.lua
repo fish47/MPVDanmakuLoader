@@ -104,7 +104,7 @@ local DanmakuWriter =
         for layer, calc in pairs(calculators)
         do
             local pool = pools:getDanmakuPoolByLayer(layer)
-            pool:sortAndTrim()
+            pool:freeze()
             hasDanmaku = hasDanmaku or pool:getDanmakuCount() ~= 0
         end
 

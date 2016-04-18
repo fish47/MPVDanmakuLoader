@@ -332,7 +332,7 @@ local _CachedRemoteDanmakuSource =
         end
 
         local function __findPluginByName(app, name)
-            for _, plugin in app:iterateDanmakuSourcePlugin()
+            for _, plugin in app:iterateDanmakuSourcePlugins()
             do
                 if plugin:getName() == name
                 then

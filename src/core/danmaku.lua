@@ -43,7 +43,7 @@ local DanmakuPool =
     end,
 
 
-    sortAndTrim = function(self)
+    freeze = function(self)
         local startTimes = self._mStartTimes
         local sources = self._mDanmakuSourceIDs
         local danmakuIDs = self._mDanmakuIDs
