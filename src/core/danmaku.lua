@@ -1,55 +1,60 @@
-local _ass      = require("src/core/_ass")
-local _writer   = require("src/core/_writer")
-local types     = require("src/base/types")
-local utils     = require("src/base/utils")
-local constants = require("src/base/constants")
-local classlite = require("src/base/classlite")
+local _ass              = require("src/core/_ass")
+local _coreconstants    = require("src/core/_coreconstants")
+local _writer           = require("src/core/_writer")
+local types             = require("src/base/types")
+local utils             = require("src/base/utils")
+local constants         = require("src/base/constants")
+local classlite         = require("src/base/classlite")
 
 
 local DanmakuPool =
 {
-    _mStartTimes        = classlite.declareTableField(),    -- 弹幕起始时间，单位 ms
-    _mLifeTimes         = classlite.declareTableField(),    -- 弹幕存活时间，单位 ms
-    _mFontColors        = classlite.declareTableField(),    -- 字体颜色字符串，格式 BBGGRR
-    _mFontSizes         = classlite.declareTableField(),    -- 字体大小，单位 pt
-    _mDanmakuSourceIDs  = classlite.declareTableField(),    -- 弹幕源
-    _mDanmakuIDs        = classlite.declareTableField(),    -- 在相同弹幕源前提下的唯一标识
-    _mTexts             = classlite.declareTableField(),    -- 评论内容，以 utf8 编码
-    __mDanmakuIndexes   = classlite.declareTableField(),
-    __mAddDanmakuHook   = classlite.declareConstantField(nil),
+    _mDanmakuDataArrays     = classlite.declareTableField(),
+    _mDanmakuIndexes        = classlite.declareTableField(),
+    _mAddDanmakuHook        = classlite.declareConstantField(nil),
 
+
+    new = function(self)
+        local arrays = self._mDanmakuDataArrays
+        for i = 1, _coreconstants.DANMAKU_IDX_MAX
+        do
+            arrays[i] = {}
+        end
+    end,
+
+    dispose = function(self)
+        self:clear()
+    end,
 
     setAddDanmakuHook = function(self, hook)
-        self.__mAddDanmakuHook = types.isFunction(hook) and hook
+        self._mAddDanmakuHook = types.isFunction(hook) and hook
     end,
 
     getDanmakuCount = function(self)
-        return #self.__mDanmakuIndexes
+        return #self._mDanmakuIndexes
     end,
 
-    getDanmakuByIndex = function(self, idx)
-        idx = types.isNumber(idx) and self.__mDanmakuIndexes[idx]
-        if idx
+    getDanmakuByIndex = function(self, idx, outArray)
+        idx = types.isNumber(idx) and self._mDanmakuIndexes[idx]
+        if idx and types.isTable(outArray)
         then
-            return self._mStartTimes[idx],
-                self._mLifeTimes[idx],
-                self._mFontColors[idx],
-                self._mFontSizes[idx],
-                self._mDanmakuSourceIDs[idx],
-                self._mDanmakuIDs[idx],
-                self._mTexts[idx]
-
+            local arrays = self._mDanmakuDataArrays
+            for i = 1, _coreconstants.DANMAKU_IDX_MAX
+            do
+                table.insert(outArray, arrays[i][idx])
+            end
         end
     end,
 
 
     freeze = function(self)
-        local startTimes = self._mStartTimes
-        local sources = self._mDanmakuSourceIDs
-        local danmakuIDs = self._mDanmakuIDs
-        local indexes = self.__mDanmakuIndexes
+        local arrays = self._mDanmakuDataArrays
+        local startTimes = arrays[_coreconstants.DANMAKU_IDX_START_TIME]
+        local sourceIDs = arrays[_coreconstants.DANMAKU_IDX_SOURCE_ID]
+        local danmakuIDs = arrays[_coreconstants.DANMAKU_IDX_DANMAKU_ID]
+        local indexes = self._mDanmakuIndexes
         utils.clearTable(indexes)
-        utils.fillArrayWithAscNumbers(indexes, #sources)
+        utils.fillArrayWithAscNumbers(indexes, #sourceIDs)
 
         local function __cmp(idx1, idx2)
             local function __compareString(str1, str2)
@@ -63,7 +68,7 @@ local DanmakuPool =
 
             local ret = 0
             ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
-            ret = ret ~= 0 and ret or __compareString(sources[idx1], sources[idx2])
+            ret = ret ~= 0 and ret or __compareString(sourceIDs[idx1], sourceIDs[idx2])
             ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
             return ret < 0
         end
@@ -76,7 +81,7 @@ local DanmakuPool =
         local prevDanmakuID = nil
         for i, idx in ipairs(indexes)
         do
-            local curSource = sources[i]
+            local curSource = sourceIDs[i]
             local curDanmakuID = danmakuIDs[i]
             if curSource ~= prevSource or curDanmakuID ~= prevDanmakuID
             then
@@ -95,7 +100,7 @@ local DanmakuPool =
     end,
 
 
-    addDanmaku = function(self, ...)
+    addDanmaku = function(self, danmakuData)
         local function __checkArgs(checkFunc, ...)
             for i = 1, types.getVarArgCount(...)
             do
@@ -108,38 +113,37 @@ local DanmakuPool =
             return true
         end
 
-        local function __unpackAll(...)
-            return ...
+
+        local hook = self._mAddDanmakuHook
+        if hook and not hook(danmakuData)
+        then
+            return
         end
 
-        local hook = self.__mAddDanmakuHook or __unpackAll
-        local sourceID, start, life, color, size, danmakuID, text = hook(...)
-        if sourceID
-            and danmakuID
-            and types.isString(text)
-            and __checkArgs(types.isNumber, start, life, color, size)
+        if danmakuData[_coreconstants.DANMAKU_IDX_SOURCE_ID]
+            and danmakuData[_coreconstants.DANMAKU_IDX_DANMAKU_ID]
+            and types.isString(danmakuData[_coreconstants.DANMAKU_IDX_TEXT])
+            and __checkArgs(types.isNumber,
+                            danmakuData[_coreconstants.DANMAKU_IDX_START_TIME],
+                            danmakuData[_coreconstants.DANMAKU_IDX_LIFE_TIME],
+                            danmakuData[_coreconstants.DANMAKU_IDX_FONT_COLOR],
+                            danmakuData[_coreconstants.DANMAKU_IDX_FONT_SIZE])
         then
-            table.insert(self._mStartTimes, start)
-            table.insert(self._mLifeTimes, life)
-            table.insert(self._mFontColors, color)
-            table.insert(self._mFontSizes, size)
-            table.insert(self._mDanmakuSourceIDs, sourceID)
-            table.insert(self._mDanmakuIDs, danmakuID)
-            table.insert(self._mTexts, text)
-            table.insert(self.__mDanmakuIndexes, #self.__mDanmakuIndexes + 1)
+            local arrays = self._mDanmakuDataArrays
+            for i = 1, _coreconstants.DANMAKU_IDX_MAX
+            do
+                table.insert(arrays[i], danmakuData[i])
+            end
+
+            local indexes = self._mDanmakuIndexes
+            table.insert(indexes, #indexes + 1)
         end
     end,
 
 
     clear = function(self)
-        utils.clearTable(self._mStartTimes)
-        utils.clearTable(self._mLifeTimes)
-        utils.clearTable(self._mFontColors)
-        utils.clearTable(self._mFontSizes)
-        utils.clearTable(self._mDanmakuSourceIDs)
-        utils.clearTable(self._mDanmakuIDs)
-        utils.clearTable(self._mTexts)
-        utils.clearTable(self.__mDanmakuIndexes)
+        utils.forEachTableValue(self._mDanmakuDataArrays, utils.clearTable)
+        utils.clearTable(self._mDanmakuIndexes)
     end,
 }
 
@@ -153,12 +157,12 @@ local DanmakuPools =
 
     new = function(self)
         local pools = self._mPools
-        pools[_ass.LAYER_MOVING_L2R]    = DanmakuPool:new()
-        pools[_ass.LAYER_MOVING_R2L]    = DanmakuPool:new()
-        pools[_ass.LAYER_STATIC_TOP]    = DanmakuPool:new()
-        pools[_ass.LAYER_STATIC_BOTTOM] = DanmakuPool:new()
-        pools[_ass.LAYER_ADVANCED]      = DanmakuPool:new()
-        pools[_ass.LAYER_SUBTITLE]      = DanmakuPool:new()
+        pools[_coreconstants.LAYER_MOVING_L2R]      = DanmakuPool:new()
+        pools[_coreconstants.LAYER_MOVING_R2L]      = DanmakuPool:new()
+        pools[_coreconstants.LAYER_STATIC_TOP]      = DanmakuPool:new()
+        pools[_coreconstants.LAYER_STATIC_BOTTOM]   = DanmakuPool:new()
+        pools[_coreconstants.LAYER_ADVANCED]        = DanmakuPool:new()
+        pools[_coreconstants.LAYER_SUBTITLE]        = DanmakuPool:new()
     end,
 
     dispose = function(self)
@@ -188,16 +192,11 @@ local DanmakuPools =
 classlite.declareClass(DanmakuPools)
 
 
-return
+local __exports =
 {
-    LAYER_MOVING_L2R        = _ass.LAYER_MOVING_L2R,
-    LAYER_MOVING_R2L        = _ass.LAYER_MOVING_R2L,
-    LAYER_STATIC_TOP        = _ass.LAYER_STATIC_TOP,
-    LAYER_STATIC_BOTTOM     = _ass.LAYER_STATIC_BOTTOM,
-    LAYER_ADVANCED          = _ass.LAYER_ADVANCED,
-    LAYER_SUBTITLE          = _ass.LAYER_SUBTITLE,
-    LAYER_SKIPPED           = _ass.LAYER_SKIPPED,
-
     DanmakuPool             = DanmakuPool,
     DanmakuPools            = DanmakuPools,
 }
+
+utils.mergeTable(__exports, _coreconstants)
+return __exports

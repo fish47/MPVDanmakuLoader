@@ -11,6 +11,7 @@ local pluginbase    = require("src/plugins/pluginbase")
 -- http://www.acfun.tv/v/ac2545690
 -- http://danmu.aixifan.com/V2/3201855
 -- http://www.acfun.tv/video/getVideo.aspx?id=3201855
+-- http://www.acfun.tv/v/ac785605
 
 local _ACFUN_PLUGIN_NAME                = "Acfun"
 
@@ -33,7 +34,7 @@ local _ACFUN_FMT_URL_VIDEO_INFO         = "http://www.acfun.tv/video/getVideo.as
 
 local _ACFUN_POS_TO_LAYER_MAP   =
 {
-    [1] = danmaku.LAYER_MOVING_L2R,
+    [1] = danmaku.LAYER_MOVING_R2L,
     [2] = danmaku.LAYER_MOVING_R2L,
     [4] = danmaku.LAYER_STATIC_TOP,
     [5] = danmaku.LAYER_STATIC_BOTTOM,
@@ -85,21 +86,19 @@ local AcfunDanmakuSourcePlugin =
         return ret
     end,
 
-    _extractDanmaku = function(self, iterFunc, cfg)
+    _extractDanmaku = function(self, iterFunc, cfg, danmakuData)
         local text, startTime, fontColor, layer, fontSize, danmakuID = iterFunc()
         if not text
         then
             return
         end
 
-        startTime = tonumber(startTime)
-        fontColor = tonumber(fontColor)
-        layer = _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmaku.LAYER_SKIPPED
-        fontSize = tonumber(fontSize)
-        danmakuID = tonumber(danmakuID)
-
-        local lifeTime = self:_getLifeTimeByLayer(cfg, layer)
-        return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
+        danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime)
+        danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = tonumber(fontSize)
+        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
+        danmakuData[danmaku.DANMAKU_IDX_DANMAKU_ID] = tonumber(danmakuID)
+        danmakuData[danmaku.DANMAKU_IDX_TEXT]       = text
+        return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmaku.LAYER_SKIPPED
     end,
 
     __initNetworkConnection = function(self, conn)

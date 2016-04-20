@@ -11,6 +11,7 @@ local sourcemgr     = require("src/shell/sourcemgr")
 
 local _SHELL_TIMEOFFSET_START       = 0
 local _SHELL_DESCRIPTION_VID_SEP    = ","
+local _SHELL_SOURCEID_FMT           = "%s:%s"
 
 
 local MPVDanmakuLoaderShell =
@@ -386,7 +387,8 @@ local MPVDanmakuLoaderShell =
                 local data = rawDatas[1]
                 if types.isString(data)
                 then
-                    plugin:parseData(data, _SHELL_TIMEOFFSET_START, videoID)
+                    local sourceID = string.format(_SHELL_SOURCEID_FMT, plugin:getName(), videoID)
+                    plugin:parseData(data, sourceID, _SHELL_TIMEOFFSET_START)
                     self:__doCommitDanmakus()
                 end
             end

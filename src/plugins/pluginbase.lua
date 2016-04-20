@@ -76,11 +76,13 @@ classlite.declareClass(_AbstractDanmakuSourcePlugin, IDanmakuSourcePlugin)
 
 local _PatternBasedDanmakuSourcePlugin =
 {
+    __mTmpArray     = classlite.declareTableField(),
+
     _extractDanmaku = constants.FUNC_EMPTY,
     _startExtractDanmakus = constants.FUNC_EMPTY,
 
     _getLifeTimeByLayer = function(self, cfg, pos)
-        if pos == danmaku.LAYER_MOVING_L2R or pos == danmaku.LAYER_MOVING_L2R
+        if pos == danmaku.LAYER_MOVING_L2R or pos == danmaku.LAYER_MOVING_R2L
         then
             return cfg.movingDanmakuLifeTime
         elseif pos == danmaku.LAYER_STATIC_TOP or pos == danmaku.LAYER_STATIC_BOTTOM
@@ -93,32 +95,29 @@ local _PatternBasedDanmakuSourcePlugin =
 
 
     parseData = function(self, rawData, sourceID, timeOffset)
-        local function __addDanmaku(pools, sourceID, offset, layer, start, ...)
-            if not layer
-            then
-                return false
-            end
-
-            local pool = pools:getDanmakuPoolByLayer(layer)
-            if pool
-            then
-                pool:addDanmaku(sourceID, start + offset, ...)
-            end
-            return true
-        end
-
         local app = self._mApplication
         local pools = app:getDanmakuPools()
         local cfg = app:getConfiguration()
         local iterFunc = self:_startExtractDanmakus(rawData)
+        local danmakuData = self.__mTmpArray
         timeOffset = timeOffset or 0
         while true
         do
-            local hasMore = __addDanmaku(pools, sourceID, timeOffset,
-                                         self:_extractDanmaku(iterFunc, cfg))
-            if not hasMore
+            local layer = self:_extractDanmaku(iterFunc, cfg, utils.clearTable(danmakuData))
+            if not layer
             then
                 break
+            end
+
+            local startTime = danmakuData[danmaku.DANMAKU_IDX_START_TIME]
+            danmakuData[danmaku.DANMAKU_IDX_START_TIME] = startTime + timeOffset
+            danmakuData[danmaku.DANMAKU_IDX_LIFE_TIME] = self:_getLifeTimeByLayer(cfg, layer)
+            danmakuData[danmaku.DANMAKU_IDX_SOURCE_ID] = sourceID
+
+            local pool = pools:getDanmakuPoolByLayer(layer)
+            if pool
+            then
+                pool:addDanmaku(danmakuData)
             end
         end
     end,

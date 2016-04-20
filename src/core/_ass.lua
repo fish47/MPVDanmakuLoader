@@ -4,15 +4,6 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local LAYER_MOVING_L2R      = 1
-local LAYER_MOVING_R2L      = 2
-local LAYER_STATIC_TOP      = 3
-local LAYER_STATIC_BOTTOM   = 4
-local LAYER_ADVANCED        = 5
-local LAYER_SUBTITLE        = 6
-local LAYER_SKIPPED         = 7
-
-
 local _ASS_SEP_FIELD            = ", "
 local _ASS_SEP_KEY_VALUE        = ": "
 local _ASS_SEP_LINE             = "\n"
@@ -161,8 +152,18 @@ local function __convertTimeToTimeString(builder, time)
     end
 end
 
+local function __toASSEscapedString(builder, val)
+    if types.isString(val)
+    then
+        return utils.escapeASSString(val)
+    end
+end
+
 local function __toNumberString(builder, val)
-    return types.isNumber(val) and tostring(math.floor(val))
+    if types.isNumber(val)
+    then
+        return tostring(math.floor(val))
+    end
 end
 
 local function __toNonDefaultFontSize(builder, fontSize)
@@ -196,7 +197,7 @@ local function __createBuilderMethod(...)
             then
                 -- 函数返回值是字符串
                 local arg = select(argIdx, ...)
-                val = arg and param(arg)
+                val = arg and param(self, arg)
                 argIdx = argIdx + 1
             end
 
@@ -261,9 +262,9 @@ local DialogueBuilder =
 
     startStyle              = __createBuilderMethod(_ASS_STYLE_START),
 
-    endStyle                = __createBuilderMethod(_ASS_STYLE_START),
+    endStyle                = __createBuilderMethod(_ASS_STYLE_END),
 
-    addText                 = __createBuilderMethod(utils.escapeASSString),
+    addText                 = __createBuilderMethod(__toASSEscapedString),
 
     addTopCenterAlign       = __createBuilderMethod("\\an8"),
 
@@ -298,17 +299,8 @@ classlite.declareClass(DialogueBuilder)
 
 return
 {
-    LAYER_MOVING_L2R        = LAYER_MOVING_L2R,
-    LAYER_MOVING_R2L        = LAYER_MOVING_R2L,
-    LAYER_STATIC_TOP        = LAYER_STATIC_TOP,
-    LAYER_STATIC_BOTTOM     = LAYER_STATIC_BOTTOM,
-    LAYER_ADVANCED          = LAYER_ADVANCED,
-    LAYER_SUBTITLE          = LAYER_SUBTITLE,
-    LAYER_SKIPPED           = LAYER_SKIPPED,
-
     writeScriptInfo         = writeScriptInfo,
     writeStyle              = writeStyle,
     writeEvents             = writeEvents,
-
     DialogueBuilder         = DialogueBuilder,
 }

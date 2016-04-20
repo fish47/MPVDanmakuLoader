@@ -67,22 +67,20 @@ local BiliBiliDanmakuSourcePlugin =
         return rawData:gmatch(_BILI_PATTERN_DANMAKU)
     end,
 
-    _extractDanmaku = function(self, iterFunc, cfg)
+    _extractDanmaku = function(self, iterFunc, cfg, danmakuData)
         local startTime, layer, fontSize, fontColor, danmakuID, text = iterFunc()
         if not startTime
         then
             return
         end
 
-        layer = _BILI_POS_TO_LAYER_MAP[tonumber(layer)]
-        startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
-        fontColor = tonumber(fontColor)
-        fontSize = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
-        danmakuID = tonumber(danmakuID)
-        text = utils.unescapeXMLString(__sanitizeString(text))
-
-        local lifeTime = self:_getLifeTimeByLayer(cfg, layer)
-        return layer, startTime, lifeTime, fontColor, fontSize, danmakuID, text
+        local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
+        danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = size
+        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
+        danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
+        danmakuData[danmaku.DANMAKU_IDX_DANMAKU_ID] = tonumber(danmakuID)
+        danmakuData[danmaku.DANMAKU_IDX_TEXT]       = utils.unescapeXMLString(__sanitizeString(text))
+        return _BILI_POS_TO_LAYER_MAP[tonumber(layer)] or danmaku.LAYER_SKIPPED
     end,
 
 

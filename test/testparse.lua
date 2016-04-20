@@ -4,29 +4,63 @@ local constants     = require("src/base/constants")
 local danmaku       = require("src/core/danmaku")
 local utils         = require("src/base/utils")
 local srt           = require("src/plugins/srt")
+local acfun         = require("src/plugins/acfun")
+local bilibili      = require("src/plugins/bilibili")
+local dandanplay    = require("src/plugins/dandanplay")
 
 
-local function __setUp(self)
-    local app = mocks.MockApplication:new()
-    local cfg = mocks.MockConfiguration:new()
-    app:init(cfg)
-    self._mApplication = app
-    self._mConfiguration = cfg
+local function __createSetUpMethod(pluginClz)
+    local ret = function(self)
+        local app = mocks.MockApplication:new()
+        local cfg = mocks.MockConfiguration:new()
+        app:init(cfg)
+        self._mApplication = app
+        self._mConfiguration = cfg
+        self._mDanmakuData = {}
+
+        if pluginClz
+        then
+            local plugin = pluginClz:new()
+            app:_addDanmakuSourcePlugin(plugin)
+            self._mPlugin = plugin
+        end
+    end
+    return ret
 end
 
 
-local function __tearDown(self)
+local function _tearDown(self)
     utils.disposeSafely(self._mApplication)
     utils.disposeSafely(self._mConfiguration)
+    utils.disposeSafely(self._mPlugin)
     self._mApplication = nil
     self._mConfiguration = nil
+    self._mPlugin = nil
+    self._mDanmakuData = nil
 end
+
+
+local function _parseData(self, text)
+    self._mApplication:init(self._mConfiguration)
+    self._mPlugin:parseData(text, "", 0)
+    for _, pool in self._mApplication:getDanmakuPools():iteratePools()
+    do
+        pool:freeze()
+    end
+end
+
+local function _assertDanmakuDataEquals(danmakuData, pool, idx, dataIdx, expected)
+    utils.clearTable(danmakuData)
+    pool:getDanmakuByIndex(idx, danmakuData)
+    lu.assertEquals(danmakuData[dataIdx], expected)
+end
+
 
 
 TestParse =
 {
-    setUp = __setUp,
-    tearDown = __tearDown,
+    setUp = __createSetUpMethod(),
+    tearDown = _tearDown,
 
     _parseSRT = function(self, content)
         local f = io.tmpfile()
@@ -38,7 +72,7 @@ TestParse =
         local pool = app:getDanmakuPools():getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
         pool:clear()
 
-        local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, constants.STR_EMPTY)
+        local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, constants.STR_EMPTY, 0)
         pool:freeze()
         f:close()
         return ret, pool
@@ -46,8 +80,9 @@ TestParse =
 
 
     __doGetDanmakuText = function(self, pool, idx)
-        local _, _, _, _, _, _, text = pool:getDanmakuByIndex(idx)
-        return text
+        local array = utils.clearTable(self._mDanmakuData)
+        pool:getDanmakuByIndex(idx, array)
+        return array[danmaku.DANMAKU_IDX_TEXT]
     end,
 
 
@@ -85,9 +120,10 @@ TestParse =
 
         lu.assertEquals(pool:getDanmakuCount(), 5)
 
-        local startTime4, lifeTime4 = pool:getDanmakuByIndex(4)
-        lu.assertEquals(startTime4, 28700)
-        lu.assertEquals(lifeTime4, 4790)
+        local danmakuData = utils.clearTable(self._mDanmakuData)
+        pool:getDanmakuByIndex(4, danmakuData)
+        lu.assertEquals(danmakuData[danmaku.DANMAKU_IDX_START_TIME], 28700)
+        lu.assertEquals(danmakuData[danmaku.DANMAKU_IDX_LIFE_TIME], 4790)
 
         local text5 = self:__doGetDanmakuText(pool, 5)
         lu.assertEquals(text5, "其中中枢神经分为大脑 间脑 小脑 脑干和脊髓")
@@ -163,8 +199,82 @@ sdf
 }
 
 
-local TestParseBiliBili =
-{}
+
+TestParseBiliBili =
+{
+    setUp = __createSetUpMethod(bilibili.BiliBiliDanmakuSourcePlugin),
+    tearDown = _tearDown,
+
+    testParse = function(self)
+        _parseData(self, [[
+<d p="46.465000152588,5,25,15772458,1443071599,0,3f6f67dc,1228539049">一天不听全身难受</d>
+<d p="98.81600189209,5,25,43981,1442841820,0,b866acaf,1224694747">不好听，一天也就听679次</d>
+
+
+<d p="6.4949998855591,1,25,16777062,1443231265,0,c0eb9e07,1231674903">姐拿着小米4i看着这段。。。。</d>
+<d p="22.941999435425,1,25,16777215,1443228647,0,e59f5789,1231616667">up有毒，各种自动循环</d>
+<d p="23.441999435425,1,25,16777215,1443229745,0,62b26620,1231639931">我擦自动循环？</d>
+<d p="36.86600112915,1,25,16777215,1443229882,0,62b26620,1231642831">擦我说怎么听那么久</d>
+]])
+        local danmakuData = self._mDanmakuData
+        local pools = self._mApplication:getDanmakuPools()
+        local pool1 = pools:getDanmakuPoolByLayer(danmaku.LAYER_MOVING_R2L)
+        lu.assertEquals(pool1:getDanmakuCount(), 4)
+        _assertDanmakuDataEquals(danmakuData, pool1, 2, danmaku.DANMAKU_IDX_TEXT, "up有毒，各种自动循环")
+        _assertDanmakuDataEquals(danmakuData, pool1, 1, danmaku.DANMAKU_IDX_START_TIME, 6494.9998855591)
+        _assertDanmakuDataEquals(danmakuData, pool1, 3, danmaku.DANMAKU_IDX_DANMAKU_ID, 1231639931)
+
+        local pool2 = pools:getDanmakuPoolByLayer(danmaku.LAYER_STATIC_TOP)
+        lu.assertEquals(pool2:getDanmakuCount(), 2)
+        _assertDanmakuDataEquals(danmakuData, pool2, 1, danmaku.DANMAKU_IDX_FONT_COLOR, 15772458)
+    end,
+}
+
+
+TestParseAcfun =
+{
+    setUp = __createSetUpMethod(acfun.AcfunDanmakuSourcePlugin),
+    tearDown = _tearDown,
+
+    testParse = function(self)
+        _parseData(self, [[
+{"c":"27.881,13369344,1,25,16dk1911614176,1397402398,139740239819","m":"金坷垃必须火金坷垃必须火金坷垃必须火金坷垃必须火金坷垃必须火金坷垃必须火"},
+{"c":"57.977,16777215,1,25,2dbk3702005386,1397403508,139740350820","m":"比原版好听"},
+{"c":"115.979,16777215,1,25,2dbk3702005386,1397403566,139740356621","m":"求番号、。。。。。。"},
+{"c":"224.378,16777215,1,25,2dbk3702005386,1397403675,139740367522","m":"原版叫幸运恋爱奇曲。。。"}
+]])
+
+        local danmakuData = self._mDanmakuData
+        local pool = self._mApplication:getDanmakuPools():getDanmakuPoolByLayer(danmaku.LAYER_MOVING_R2L)
+        lu.assertEquals(pool:getDanmakuCount(), 4)
+        _assertDanmakuDataEquals(danmakuData, pool, 2, danmaku.DANMAKU_IDX_TEXT, "比原版好听")
+        _assertDanmakuDataEquals(danmakuData, pool, 3, danmaku.DANMAKU_IDX_DANMAKU_ID, 1397403566)
+    end,
+}
+
+
+TestParseDanDanPlay =
+{
+    setUp = __createSetUpMethod(dandanplay.DanDanPlayDanmakuSourcePlugin),
+    tearDown = _tearDown,
+
+    testParse = function(self)
+        _parseData(self, [[
+<Comment Time="191.38" Mode="1" Color="16777215" Timestamp="1415593473" Pool="0" UId="-1" CId="1415593473">死枪果然基佬</Comment>
+<Comment Time="450.07" Mode="1" Color="16777215" Timestamp="1414926576" Pool="0" UId="-1" CId="1414926576">字幕组你又调皮了</Comment>
+<Comment Time="949.49" Mode="1" Color="16707842" Timestamp="1415960581" Pool="0" UId="-1" CId="1415960581">yooooooooooo</Comment>
+<Comment Time="1389.98" Mode="1" Color="16777215" Timestamp="1414916794" Pool="0" UId="-1" CId="1414916794">马云姨妈：怪我咯？</Comment>
+]])
+
+        local danmakuData = self._mDanmakuData
+        local pool = self._mApplication:getDanmakuPools():getDanmakuPoolByLayer(danmaku.LAYER_MOVING_R2L)
+        lu.assertEquals(pool:getDanmakuCount(), 4)
+        _assertDanmakuDataEquals(danmakuData, pool, 3, danmaku.DANMAKU_IDX_TEXT, "yooooooooooo")
+        _assertDanmakuDataEquals(danmakuData, pool, 4, danmaku.DANMAKU_IDX_START_TIME, 1389980)
+        _assertDanmakuDataEquals(danmakuData, pool, 1, danmaku.DANMAKU_IDX_DANMAKU_ID, 1415593473)
+        _assertDanmakuDataEquals(danmakuData, pool, 3, danmaku.DANMAKU_IDX_FONT_COLOR, 16707842)
+    end,
+}
 
 
 lu.LuaUnit.verbosity = 2

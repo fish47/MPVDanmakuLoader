@@ -38,6 +38,7 @@ setmetatable(mp, {
 
 
 local require = nil
+local __loadedModules = {}
 require = function(path)
 
 ]]
@@ -45,7 +46,7 @@ require = function(path)
 local _STR_MODULE_CONTENT_START = [[
     if path == "%s"
     then
-        local requestedModule = package.loaded[path]
+        local requestedModule = __loadedModules[path]
         if not requestedModule
         then
             local function %s()
@@ -56,7 +57,7 @@ local _STR_MODULE_CONTENT_END   = [[
 
             end
             requestedModule = %s()
-            package.loaded[path] = requestedModule
+            __loadedModules[path] = requestedModule
         end
         return requestedModule
     end
@@ -150,6 +151,7 @@ local function main()
     _addModule("src/base/utf8.lua")
     _addModule("src/base/utils.lua")
     _addModule("src/core/_ass.lua")
+    _addModule("src/core/_coreconstants.lua")
     _addModule("src/core/_poscalc.lua")
     _addModule("src/core/_writer.lua")
     _addModule("src/core/danmaku.lua")

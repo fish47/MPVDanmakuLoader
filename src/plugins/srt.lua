@@ -26,7 +26,7 @@ __readLine = function(f)
 end
 
 
-__readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx)
+__readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx, offset, tmpArray)
     if not line
     then
         -- 允许以空行结尾，但不允许只有空行的文件
@@ -37,7 +37,7 @@ __readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx)
     then
         -- 继续读空行
         line = __readLine(f)
-        return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx)
+        return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, tmpArray)
     else
         local nextIdx = line:match(_SRT_PATTERN_SUBTITLE_IDX)
         if not nextIdx
@@ -48,13 +48,13 @@ __readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx)
             -- 某些字幕文件时间段不是递增的
             nextIdx = tonumber(nextIdx)
             line = __readLine(f)
-            return __readSubtitleTimeSpan(cfg, p, f, line, src, nextIdx)
+            return __readSubtitleTimeSpan(cfg, p, f, line, src, nextIdx, offset, tmpArray)
         end
     end
 end
 
 
-__readSubtitleTimeSpan = function(cfg, p, f, line, src, idx)
+__readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, tmpArray)
     if not line
     then
         -- 只有字幕编号没有时间段
@@ -72,13 +72,12 @@ __readSubtitleTimeSpan = function(cfg, p, f, line, src, idx)
     local start = utils.convertHHMMSSToTime(h1, m1, s1, ms1)
     local endTime = utils.convertHHMMSSToTime(h2, m2, s2, ms2)
     local life = math.max(endTime - start, 0)
-
     line = __readLine(f)
-    return __readSubtitleContent(cfg, p, f, line, src, idx, start, life)
+    return __readSubtitleContent(cfg, p, f, line, src, idx, start, life, offset, tmpArray)
 end
 
 
-__readSubtitleContent = function(cfg, p, f, line, src, idx, start, life)
+__readSubtitleContent = function(cfg, p, f, line, src, idx, start, life, offset, tmpArray)
     if not line
     then
         return false
@@ -99,29 +98,38 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life)
         text = text .. constants.STR_NEWLINE .. line
     end
 
-    local color = cfg.subtitleFontColor
-    local size = cfg.subtitleFontSize
-    p:addDanmaku(src, start, life, color, size, tostring(idx), text)
+    utils.clearTable(tmpArray)
+    tmpArray[danmaku.DANMAKU_IDX_START_TIME]    = start + offset
+    tmpArray[danmaku.DANMAKU_IDX_LIFE_TIME]     = life
+    tmpArray[danmaku.DANMAKU_IDX_FONT_COLOR]    = cfg.subtitleFontColor
+    tmpArray[danmaku.DANMAKU_IDX_FONT_SIZE]     = cfg.subtitleFontSize
+    tmpArray[danmaku.DANMAKU_IDX_SOURCE_ID]     = src
+    tmpArray[danmaku.DANMAKU_IDX_DANMAKU_ID]    = tostring(idx)
+    tmpArray[danmaku.DANMAKU_IDX_TEXT]          = text
+    p:addDanmaku(tmpArray)
 
     line = hasMoreLine and __readLine(f)
-    return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx)
+    return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, tmpArray)
 end
 
 
-local function _parseSRTFile(cfg, pool, file, srcID)
+local function _parseSRTFile(cfg, pool, file, srcID, offset, tmpArray)
     local line = __readLine(file)
     local idx = _SRT_SUBTITLE_IDX_START
-    return __readSubtitleIdxOrEmptyLines(cfg, pool, file, line, srcID, idx)
+    tmpArray = types.isTable(tmpArray) and tmpArray or {}
+    return __readSubtitleIdxOrEmptyLines(cfg, pool, file, line, srcID, idx, offset, tmpArray)
 end
 
 
 local SRTDanmakuSourcePlugin =
 {
+    _mTmpArray      = classlite.declareTableField(),
+
     getName = function(self)
         return _SRT_PLUGIN_NAME
     end,
 
-    parseFile = function(self, filePath, sourceID)
+    parseFile = function(self, filePath, sourceID, timeOffset)
         local app = self._mApplication
         local file = app:readUTF8File(filePath)
         if types.isOpenedFile(file)
@@ -129,7 +137,8 @@ local SRTDanmakuSourcePlugin =
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
             local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            _parseSRTFile(cfg, pool, file, sourceID)
+            local tmpArray = utils.clearTable(self._mTmpArray)
+            _parseSRTFile(cfg, pool, file, sourceID, timeOffset, tmpArray)
             app:closeFile(file)
         end
     end,

@@ -14,6 +14,8 @@ local _RAW_DATA_FILE_FMT_SUFFIX     = "_%d.txt"
 
 local _FMT_SOURCEID                 = "%s:%s"
 
+local _DEFAULT_TIME_OFFSET          = 0
+
 
 local function __deleteDownloadedFiles(app, filePaths)
     local function __deleteFile(fullPath, _, __, app)
@@ -193,7 +195,7 @@ local _LocalDanmakuSource =
             local plugin = self._mPlugin
             local filePath = self._mFilePath
             local sourceID = string.format(_FMT_SOURCEID, plugin:getName(), filePath)
-            plugin:parseFile(filePath, sourceID)
+            plugin:parseFile(filePath, sourceID, _DEFAULT_TIME_OFFSET)
         end
     end,
 
@@ -273,7 +275,7 @@ local _CachedRemoteDanmakuSource =
             for i, filePath in utils.iterateArray(self._mFilePaths)
             do
                 local sourceID = string.format(_FMT_SOURCEID, pluginName, filePath)
-                self._mPlugin:parseFile(filePath, self._mTimeOffsets[i], sourceID)
+                self._mPlugin:parseFile(filePath, sourceID, self._mTimeOffsets[i])
             end
         end
     end,
