@@ -46,25 +46,6 @@ local function unescapeXMLString(text)
 end
 
 
-
-local _COLOR_CONV_FMT_STR       = "%02X%02X%02X"
-local _COLOR_CONV_CHANNEL_MOD   = 256
-
-local function convertRGBHexToBGRString(num)
-    local b = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
-    num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
-    local g = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
-    num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
-    local r = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
-
-    return string.format(_COLOR_CONV_FMT_STR, b, g, r)
-end
-
-
-
 local _TIME_CONV_MS_PER_SECOND  = 1000
 local _TIME_CONV_MS_PER_MINUTE  = 60 * 1000
 local _TIME_CONV_MS_PER_HOUR    = 60 * 60 * 1000
@@ -193,5 +174,4 @@ return
     findJSONString              = findJSONString,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
-    convertRGBHexToBGRString    = convertRGBHexToBGRString,
 }

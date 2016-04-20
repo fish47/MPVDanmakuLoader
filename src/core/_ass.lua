@@ -144,6 +144,10 @@ end
 
 local _ASS_DIALOGUE_TIME_FORMAT     = "%d:%02d:%05.02f"
 
+local _ASS_COLOR_VALUE_MIN          = 0
+local _ASS_COLOR_VALUE_MOD          = 0xFFFFFFFF
+local _ASS_COLOR_STRING_FMT         = "0x%08x"
+
 local function __convertTimeToTimeString(builder, time)
     if types.isNumber(time)
     then
@@ -174,9 +178,14 @@ local function __toNonDefaultFontSize(builder, fontSize)
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
-    if types.isString(fontColor) and fontColor ~= builder._mDefaultFontColor
+    if types.isNumber(fontColor)
     then
-        return fontColor
+        fontColor = math.floor(fontColor % _ASS_COLOR_VALUE_MOD)
+        fontColor = math.max(fontColor, _ASS_COLOR_VALUE_MIN)
+        if fontColor ~= builder._mDefaultFontColor
+        then
+            return string.format(_ASS_COLOR_STRING_FMT, fontColor)
+        end
     end
 end
 
@@ -287,7 +296,7 @@ local DialogueBuilder =
                                                     ")"),
 
     addFontColor            = __createBuilderMethod("\\c&H",
-                                                    __toNonDefaultFontColor     -- bgrHexStr
+                                                    __toNonDefaultFontColor,    -- bgrHex
                                                     "&"),
 
     addFontSize             = __createBuilderMethod("\\fs",
