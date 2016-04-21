@@ -144,10 +144,6 @@ end
 
 local _ASS_DIALOGUE_TIME_FORMAT     = "%d:%02d:%05.02f"
 
-local _ASS_COLOR_VALUE_MIN          = 0
-local _ASS_COLOR_VALUE_MOD          = 0xFFFFFFFF
-local _ASS_COLOR_STRING_FMT         = "0x%08x"
-
 local function __convertTimeToTimeString(builder, time)
     if types.isNumber(time)
     then
@@ -157,36 +153,19 @@ local function __convertTimeToTimeString(builder, time)
 end
 
 local function __toASSEscapedString(builder, val)
-    if types.isString(val)
-    then
-        return utils.escapeASSString(val)
-    end
+    return types.isString(val) and utils.escapeASSString(val)
 end
 
 local function __toNumberString(builder, val)
-    if types.isNumber(val)
-    then
-        return tostring(math.floor(val))
-    end
+    return types.isNumber(val) and tostring(math.floor(val))
 end
 
 local function __toNonDefaultFontSize(builder, fontSize)
-    if types.isNumber(fontSize) and fontSize ~= builder._mDefaultFontSize
-    then
-        return tostring(fontSize)
-    end
+    return types.isNumber(fontSize) and fontSize ~= builder._mDefaultFontSize and fontSize
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
-    if types.isNumber(fontColor)
-    then
-        fontColor = math.floor(fontColor % _ASS_COLOR_VALUE_MOD)
-        fontColor = math.max(fontColor, _ASS_COLOR_VALUE_MIN)
-        if fontColor ~= builder._mDefaultFontColor
-        then
-            return string.format(_ASS_COLOR_STRING_FMT, fontColor)
-        end
-    end
+    return types.isNumber(fontColor) and utils.convertRGBHexToBGRString(fontColor)
 end
 
 
@@ -210,7 +189,7 @@ local function __createBuilderMethod(...)
                 argIdx = argIdx + 1
             end
 
-            if types.isNil(val)
+            if not val
             then
                 -- 只要有一次返回空值，就取消本次写操作
                 utils.clearArray(self._mContent, contentLastIdxBak + 1)
@@ -296,7 +275,7 @@ local DialogueBuilder =
                                                     ")"),
 
     addFontColor            = __createBuilderMethod("\\c&H",
-                                                    __toNonDefaultFontColor,    -- bgrHex
+                                                    __toNonDefaultFontColor,    -- rgb
                                                     "&"),
 
     addFontSize             = __createBuilderMethod("\\fs",

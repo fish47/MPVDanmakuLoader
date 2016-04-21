@@ -52,24 +52,6 @@ local _BILI_POS_TO_LAYER_MAP =
 }
 
 
-local _BYTE_MOD     = 256
-
-local function __convertRGBToBGR(num)
-    local b = math.floor(num % _BYTE_MOD)
-
-    num = math.floor(num / _BYTE_MOD)
-    local g = math.floor(num % _BYTE_MOD)
-
-    num = math.floor(num / _BYTE_MOD)
-    local r = math.floor(num % _BYTE_MOD)
-
-    num = b
-    num = num * _BYTE_MOD + g
-    num = num * _BYTE_MOD + r
-    return num
-end
-
-
 local function __sanitizeString(str)
     return str:gsub(_BILI_PATTERN_SANITIZE, constants.STR_EMPTY)
 end
@@ -94,7 +76,7 @@ local BiliBiliDanmakuSourcePlugin =
 
         local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
         danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = size
-        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = __convertRGBToBGR(tonumber(fontColor))
+        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
         danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
         danmakuData[danmaku.DANMAKU_IDX_DANMAKU_ID] = tonumber(danmakuID)
         danmakuData[danmaku.DANMAKU_IDX_TEXT]       = utils.unescapeXMLString(__sanitizeString(text))

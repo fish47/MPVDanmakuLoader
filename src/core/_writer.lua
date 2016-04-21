@@ -72,7 +72,7 @@ end
 
 local DanmakuWriter =
 {
-    __mTempArray        = classlite.declareTableField(),
+    __mDanmakuData      = classlite.declareTableField(),
     _mCalculators       = classlite.declareTableField(),
     _mWritePosFunctions = classlite.declareTableField(),
     _mDialogueBuilder   = classlite.declareClassField(_ass.DialogueBuilder),
@@ -118,7 +118,6 @@ local DanmakuWriter =
 
         local stageW = screenW
         local stageH = math.max(screenH - cfg.bottomReservedHeight, 1)
-
         _ass.writeScriptInfo(f, screenW, screenH)
         _ass.writeStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize)
         _ass.writeEvents(f)
@@ -128,7 +127,7 @@ local DanmakuWriter =
         builder:setDefaultFontColor(cfg.danmakuFontColor)
         builder:setDefaultFontSize(cfg.danmakuFontSize)
 
-        local danmakuData = utils.clearTable(self.__mTempArray)
+        local danmakuData = utils.clearTable(self.__mDanmakuData)
         local writePosFuncs = self._mWritePosFunctions
         for layer, calc in pairs(calculators)
         do

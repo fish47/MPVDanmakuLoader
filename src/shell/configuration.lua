@@ -9,10 +9,10 @@ local function initConfiguration(cfg)
     cfg.bottomReservedHeight    = 0                 -- 弹幕底部预留空间
     cfg.danmakuFontSize         = 34                -- 弹幕默认字体大小
     cfg.danmakuFontName         = "sans-serif"      -- 弹幕默认字体名
-    cfg.danmakuFontColor        = 0x33FFFFFF        -- 弹幕默认颜色 BBGGRR
+    cfg.danmakuFontColor        = 0xFFFFFF          -- 弹幕默认颜色 RRGGBB
     cfg.subtitleFontSize        = 34                -- 字幕默认字体大小
     cfg.subtitleFontName        = "mono"            -- 字幕默认字体名
-    cfg.subtitleFontColor       = 0xFFFFFFFF        -- 字幕默认颜色 BBGGRR
+    cfg.subtitleFontColor       = 0xFFFFFF          -- 字幕默认颜色 RRGGBB
     cfg.movingDanmakuLifeTime   = 8000              -- 滚动弹幕存活时间
     cfg.staticDanmakuLIfeTime   = 5000              -- 固定位置弹幕存活时间
 
