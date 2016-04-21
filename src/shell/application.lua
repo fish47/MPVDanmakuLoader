@@ -14,6 +14,8 @@ local dandanplay    = require("src/plugins/dandanplay")
 
 local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
 local _APP_PRIVATE_DIR_NAME     = ".mpvdanmakuloader"
+local _APP_ASS_FILE_SUFFIX      = ".ass"
+
 
 local _TAG_LOG_WIDTH            = 14
 local _TAG_PLUGIN               = "plugin"
@@ -292,6 +294,14 @@ local MPVDanmakuLoaderApp =
     getDanmakuSourceMetaDataFilePath = function(self)
         local cfg = self:getConfiguration()
         return cfg and self:__doGetConfigurationFullPath(cfg.metaDataRelFilePath)
+    end,
+
+    getGeneratedASSFilePath = function(self)
+        if self:getConfiguration().saveGeneratedASS
+        then
+            local videoFilePath = self.__mVideoFilePath
+            return videoFilePath and videoFilePath .. _APP_ASS_FILE_SUFFIX
+        end
     end,
 
     getCurrentDateTime = function(self)

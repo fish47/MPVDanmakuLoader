@@ -18,6 +18,11 @@ local _SHELL_CONST_RETURN_CODE_SUCCEED          = 0
 local _SHELL_PATTERN_STARTS_WITH_DASH           = "^%-"
 
 
+local __gCommandArguments   = {}
+local __gPathElements1      = {}
+local __gPathElements2      = {}
+
+
 -- 从 pipes.py 抄过来的
 local function __quoteShellString(text)
     text = tostring(text)
@@ -75,9 +80,10 @@ local function _getCommandString(arguments)
     return table.concat(arguments, _SHELL_SYNTAX_ARGUMENT_SEP)
 end
 
-local function _getCommandResult(arguments, expectedRetCode)
+local function _getCommandResult(arguments, expectedRetCode, openMode)
+    openMode = openMode or constants.FILE_MODE_READ
     expectedRetCode = expectedRetCode or _SHELL_CONST_RETURN_CODE_SUCCEED
-    local popenFile = io.popen(_getCommandString(arguments))
+    local popenFile = io.popen(_getCommandString(arguments), openMode)
     local output, succeed, reason, retCode = utils.readAndCloseFile(popenFile)
     local ret = succeed
                 and reason == constants.EXEC_RET_EXIT
@@ -94,17 +100,18 @@ local _PATH_PATTERN_ELEMENT             = "[^/]+"
 local _PATH_PATTERN_STARTS_WITH_ROOT    = "^/"
 local _PATH_PATTERN_ROOT                = "^/+$"
 
-local function __splitPathElements(fullPath)
+local function __splitPathElements(fullPath, paths)
+    utils.clearTable(paths)
+
     if not types.isString(fullPath)
     then
-        return nil
+        return false
     end
 
-    local paths = utils._obtainTable()
     if fullPath:match(_PATH_PATTERN_ROOT)
     then
         table.insert(paths, _PATH_ROOT_DIR)
-        return paths
+        return true
     end
 
     local hasRoot = fullPath:match(_PATH_PATTERN_STARTS_WITH_ROOT)
@@ -126,7 +133,7 @@ local function __splitPathElements(fullPath)
             table.insert(paths, path)
         end
     end
-    return paths
+    return true
 end
 
 
@@ -139,57 +146,100 @@ local function __joinPathElements(paths)
     else
         ret = table.concat(paths, _PATH_SEPERATOR)
     end
-    utils._recycleTable(paths)
+    utils.clearTable(paths)
     return ret
 end
 
 
-local function __doIteratePathElements(paths, idx)
-    idx = idx + 1
-    if idx > #paths
-    then
-        -- 如果是中途 break 出来，就让虚拟机回收吧
-        utils._recycleTable(paths)
-        return nil
-    else
-        return idx, paths[idx]
-    end
-end
 
-local function iteratePathElements(fullPath)
-    local paths = __splitPathElements(fullPath)
-    return __doIteratePathElements, paths, 0
-end
+local PathElementIterator =
+{
+    _mTablePool     = classlite.declareTableField(),
+    _mIterateFunc   = classlite.declareConstantField(),
+
+    new = function(self)
+        self._mIterateFunc = function(paths, idx)
+            idx = idx + 1
+            if idx > #paths
+            then
+                -- 如果是中途 break 出来，就让虚拟机回收吧
+                self:_recycleTable(paths)
+                return nil
+            else
+                return idx, paths[idx]
+            end
+        end
+    end,
+
+    _obtainTable = function(self)
+        return utils.popArrayElement(self._mTablePool) or {}
+    end,
+
+    _recycleTable = function(self, tbl)
+        local pool = self._mTablePool
+        if types.isTable(pool)
+        then
+            utils.clearTable(tbl)
+            table.insert(pool, tbl)
+        end
+    end,
+
+    iterate = function(self, fullPath)
+        local paths = self:_obtainTable()
+        local succeed = __splitPathElements(fullPath, paths)
+        if succeed
+        then
+            return self._mIterateFunc, paths, 0
+        else
+            self:_recycleTable(paths)
+            return constants.FUNC_EMPTY
+        end
+    end,
+}
+
+classlite.declareClass(PathElementIterator)
 
 
 local function normalizePath(fullPath)
-    local paths = __splitPathElements(fullPath)
-    return paths and __joinPathElements(paths)
+    local paths = utils.clearTable(__gPathElements1)
+    local succeed = __splitPathElements(fullPath, paths)
+    local ret = succeed and __joinPathElements(paths)
+    utils.clearTable(paths)
+    return ret
 end
+
 
 local function joinPath(dirName, pathName)
-    local paths1 = __splitPathElements(dirName)
-    local paths2 = __splitPathElements(pathName)
-    if paths1 and paths2
+    local ret = nil
+    local paths1 = utils.clearTable(__gPathElements1)
+    local paths2 = utils.clearTable(__gPathElements2)
+    local succeed1 = __splitPathElements(dirName, paths1)
+    local succeed2 = __splitPathElements(pathName, paths2)
+    if succeed1 and succeed2
     then
         utils.appendArrayElements(paths1, paths2)
-        local ret = __joinPathElements(paths1)
-        utils._recycleTable(paths2)
-        return ret
-    else
-        utils._recycleTable(paths1)
-        utils._recycleTable(paths2)
+        ret = __joinPathElements(paths1)
     end
+
+    utils.clearTable(paths1)
+    utils.clearTable(paths2)
+    return ret
 end
 
+
 local function splitPath(fullPath)
-    local paths = __splitPathElements(fullPath)
-    if paths
+    local baseName = nil
+    local dirName = nil
+    local paths = utils.clearTable(__gPathElements1)
+    local succeed = __splitPathElements(fullPath, paths)
+    if succeed
     then
-        local baseName = utils.popArrayElement(paths)
-        local dirName = __joinPathElements(paths)
-        return dirName, baseName
+        baseName = utils.popArrayElement(paths)
+        dirName = __joinPathElements(paths)
     end
+
+    utils.clearTable(paths)
+    return dirName, baseName
 end
 
 
@@ -241,11 +291,20 @@ local FileSelectionProperties =
 classlite.declareClass(FileSelectionProperties, _WidgetPropertiesBase)
 
 
-local _ZENITY_RESULT_RSTRIP_COUNT   = 2
-local _ZENITY_DEFAULT_OUTPUT        = constants.STR_EMPTY
-local _ZENITY_SEP_LISTBOX_INDEX     = "|"
-local _ZENITY_SEP_FILE_SELECTION    = "//.//"
-local _ZENITY_PATTERN_SPLIT_INDEXES = "(%d+)"
+local ProgressBarProperties =
+{
+    isAutoClose     = classlite.declareConstantField(false),
+}
+
+classlite.declareClass(ProgressBarProperties, _WidgetPropertiesBase)
+
+
+local _ZENITY_RESULT_RSTRIP_COUNT       = 2
+local _ZENITY_DEFAULT_OUTPUT            = constants.STR_EMPTY
+local _ZENITY_SEP_LISTBOX_INDEX         = "|"
+local _ZENITY_SEP_FILE_SELECTION        = "//.//"
+local _ZENITY_PATTERN_SPLIT_INDEXES     = "(%d+)"
+local _ZENITY_PREFFIX_PROGRESS_MESSAGE  = "# "
 
 local ZenityGUIBuilder =
 {
@@ -387,6 +446,43 @@ local ZenityGUIBuilder =
         end
 
         return not types.isEmptyTable(outPaths)
+    end,
+
+
+    showProgressBar = function(self, props)
+        local arguments = self.__mArguments
+        self:__prepareZenityCommand(arguments, props)
+        _addOption(arguments, "--progress")
+        _addOption(arguments, props.isAutoClose and "--auto-close")
+        _addSyntax(arguments, _SHELL_SYNTAX_NO_STDERR)
+
+        local handler = io.popen(_getCommandString(arguments), constants.FILE_MODE_WRITE_ERASE)
+        utils.clearTable(arguments)
+        return handler
+    end,
+
+
+    advanceProgressBar = function(self, handler, percentage, message)
+        if types.isOpenedFile(handler) and percentage > 0
+        then
+            -- 进度
+            handler:write(tostring(math.floor(percentage)))
+            handler:write(constants.STR_NEWLINE)
+
+            -- 提示字符
+            if types.isString(message)
+            then
+                handler:write(_ZENITY_PREFFIX_PROGRESS_MESSAGE)
+                handler:write(message)
+                handler:write(constants.STR_NEWLINE)
+            end
+
+            handler:flush()
+        end
+    end,
+
+    finishProgressBar = function(self, handler)
+        utils.closeSafely(handler)
     end,
 }
 
@@ -540,7 +636,7 @@ local _MD5_PATTERN_CHECK_STRING = "^(%x+)$"
 
 
 local function calcFileMD5(fullPath, byteCount)
-    local arguments = utils._obtainTable()
+    local arguments = utils.clearTable(__gCommandArguments)
     if types.isNumber(byteCount)
     then
         _addCommand(arguments, "head")
@@ -556,7 +652,7 @@ local function calcFileMD5(fullPath, byteCount)
 
     local succeed, output = _getCommandResult(arguments)
     local ret = succeed and output:match(_MD5_PATTERN_GRAB_OUTPUT)
-    utils._recycleTable(arguments)
+    utils.clearTable(arguments)
 
     if ret:match(_MD5_PATTERN_CHECK_STRING) and #ret == _MD5_RESULT_CHAR_COUNT
     then
@@ -568,13 +664,13 @@ end
 local function createDir(fullPath)
     if types.isString(fullPath)
     then
-        local arguments = utils._obtainTable()
+        local arguments = utils.clearTable(__gCommandArguments)
         _addCommand(arguments, "mkdir")
         _addOption(arguments, "-p")
         _addValue(arguments, fullPath)
 
         local succeed = _getCommandResult(arguments)
-        utils._recycleTable(arguments)
+        utils.clearTable(arguments)
         return succeed
     end
 end
@@ -583,13 +679,13 @@ end
 local function deleteTree(fullPath)
     if types.isString(fullPath)
     then
-        local arguments = utils._obtainTable()
+        local arguments = utils.clearTable(__gCommandArguments)
         _addCommand(arguments, "rm")
         _addOption(arguments, "-rf")
         _addValue(arguments, fullPath)
 
         local succeed = _getCommandResult(arguments)
-        utils._recycleTable(arguments)
+        utils.clearTable(arguments)
         return succeed
     end
 end
@@ -598,14 +694,14 @@ end
 local function moveTree(fromPath, toPath, preserved)
     if types.isString(fromPath)
     then
-        local arguments = utils._obtainTable()
+        local arguments = utils.clearTable(__gCommandArguments)
         _addCommand(arguments, "mv")
         _addOption(arguments, preserved and "--backup=numbered" or "-f")
         _addValue(arguments, fromPath)
         _addValue(arguments, toPath)
 
         local succeed = _getCommandString(arguments)
-        utils._recycleTable(arguments)
+        utils.clearTable(arguments)
         return succeed
     end
 end
@@ -614,7 +710,7 @@ end
 local function readUTF8File(fullPath)
     if types.isString(fullPath)
     then
-        local arguments = utils._obtainTable()
+        local arguments = utils.clearTable(__gCommandArguments)
         _addCommand(arguments, "enca")
         _addOption(arguments, "-L")
         _addValue(arguments, "zh")
@@ -624,7 +720,7 @@ local function readUTF8File(fullPath)
         _addValue(arguments, fullPath)
 
         local commandString = _getCommandString(arguments)
-        utils._recycleTable(arguments)
+        utils.clearTable(arguments)
         return io.popen(commandString)
     end
 end
@@ -638,16 +734,17 @@ return
     EntryProperties             = EntryProperties,
     ListBoxProperties           = ListBoxProperties,
     FileSelectionProperties     = FileSelectionProperties,
+    ProgressBarProperties       = ProgressBarProperties,
     ZenityGUIBuilder            = ZenityGUIBuilder,
     CURLNetworkConnection       = CURLNetworkConnection,
     UniquePathGenerator         = UniquePathGenerator,
+    PathElementIterator         = PathElementIterator,
 
     calcFileMD5                 = calcFileMD5,
     createDir                   = createDir,
     deleteTree                  = deleteTree,
     readUTF8File                = readUTF8File,
 
-    iteratePathElements         = iteratePathElements,
     normalizePath               = normalizePath,
     joinPath                    = joinPath,
     splitPath                   = splitPath,

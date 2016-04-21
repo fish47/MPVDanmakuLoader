@@ -104,9 +104,10 @@ end
 
 local MockFileSystem =
 {
-    _mFreeNodes         = classlite.declareTableField(),
-    _mRootNode          = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
-    _mPendingFileSet    = classlite.declareTableField(),
+    _mFreeNodes             = classlite.declareTableField(),
+    _mRootNode              = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
+    _mPendingFileSet        = classlite.declareTableField(),
+    _mPathElementIterator   = classlite.declareClassField(unportable.PathElementIterator),
 
     new = function(self)
         setupMockFSEnvironment()
@@ -122,7 +123,7 @@ local MockFileSystem =
         local node = nil
         local parent = node
         local found = true
-        for i, path in unportable.iteratePathElements(fullPath)
+        for i, path in self._mPathElementIterator:iterate(fullPath)
         do
             -- 尽可能走完迭代可减少 table 生成，虽然某些情况下很早就得出结果
             if found

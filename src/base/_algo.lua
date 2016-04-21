@@ -1,6 +1,11 @@
 local types     = require("src/base/types")
 local constants = require("src/base/constants")
 
+
+local __gParallelIndexes    = {}
+local __gParallelArrayBak   = {}
+
+
 local function __equals(val1, val2)
     return val1 == val2
 end
@@ -29,28 +34,6 @@ local function clearArray(array, startIdx, endIdx)
         end
     end
     return array
-end
-
-
-local __gFreeTables = {}
-
-local function _obtainTable()
-    local count = #__gFreeTables
-    if count > 0
-    then
-        local ret = __gFreeTables[count]
-        __gFreeTables[count] = nil
-        return ret
-    end
-    return {}
-end
-
-local function _recycleTable(tbl)
-    if types.isTable(tbl)
-    then
-        clearTable(tbl)
-        table.insert(__gFreeTables, tbl)
-    end
 end
 
 
@@ -240,21 +223,20 @@ local function sortParallelArrays(...)
     end
 
     -- 获取排序后的新位置
-    local indexes = _obtainTable()
+    local indexes = clearTable(__gParallelIndexes)
     fillArrayWithAscNumbers(indexes, #firstArray)
     table.sort(indexes, compareFuncArg)
 
 
     -- 调整位置
-    local arrayBak = nil
+    local arrayBak = clearTable(__gParallelArrayBak)
     for i = arrayStartIdx, types.getVarArgCount(...)
     do
-        arrayBak = arrayBak or _obtainTable()
         __reorderArray(indexes, select(i, ...), arrayBak)
+        clearTable(arrayBak)
     end
 
-    _recycleTable(indexes)
-    _recycleTable(arrayBak)
+    clearTable(indexes)
 
     indexes = nil
     arrayBak = nil
@@ -367,8 +349,6 @@ end
 
 return
 {
-    _obtainTable                = _obtainTable,
-    _recycleTable               = _recycleTable,
     clearTable                  = clearTable,
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,

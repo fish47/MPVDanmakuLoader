@@ -193,4 +193,5 @@ return
     findJSONString              = findJSONString,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
+    convertRGBHexToBGRString    = convertRGBHexToBGRString,
 }

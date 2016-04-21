@@ -27,6 +27,7 @@ local MPVDanmakuLoaderShell =
     _mListBoxProperties         = classlite.declareClassField(unportable.ListBoxProperties),
     _mEntryProperties           = classlite.declareClassField(unportable.EntryProperties),
     _mFileSelectionProperties   = classlite.declareClassField(unportable.FileSelectionProperties),
+    _mProgressBarProperties     = classlite.declareClassField(unportable.ProgressBarProperties),
 
     _mDanmakuSources            = classlite.declareTableField(),
 
@@ -229,7 +230,7 @@ local MPVDanmakuLoaderShell =
         local pools = app:getDanmakuPools()
         if assFilePath
         then
-            local file = app:writeFile(assFilePath)
+            local file = app:writeFile(assFilePath, constants.FILE_MODE_WRITE_ERASE)
             pools:writeDanmakus(app, file)
             app:closeFile(file)
             app:setSubtitleFile(assFilePath)
@@ -243,8 +244,7 @@ local MPVDanmakuLoaderShell =
     end,
 
     __commitDanmakus = function(self)
-        local app = self._mApplication
-        local assFilePath = app:getConfiguration().generatedASSFilePath
+        local assFilePath = self._mApplication:getGeneratedASSFilePath()
         self:__doCommitDanmakus(assFilePath)
     end,
 
@@ -370,10 +370,20 @@ local MPVDanmakuLoaderShell =
 
 
     loadDanmakuFromURL = function(self, cfg, url)
+        local uiStrings = self._mUIStrings
+        local guiBuilder = self._mGUIBuilder
+        local progressBarProps = self._mProgressBarProperties
+        progressBarProps:reset()
+        self:__initWindowProperties(progressBarProps)
+
+        local succeed = false
+        local result = self.__mSearchResult
         local app = self._mApplication
+        local handler = guiBuilder:showProgressBar(progressBarProps)
+        guiBuilder:advanceProgressBar(handler, 10, uiStrings.load_progress_init)
         app:init(cfg, nil)
 
-        local result = self.__mSearchResult
+        guiBuilder:advanceProgressBar(handler, 20, uiStrings.load_progress_search)
         for _, plugin in app:iterateDanmakuSourcePlugins()
         do
             if plugin:search(url, result)
@@ -382,17 +392,27 @@ local MPVDanmakuLoaderShell =
                 local rawDatas = utils.clearTable(self.__mDanmakuRawDatas)
                 local videoID = result.videoIDs[result.preferredIDIndex]
                 table.insert(ids, videoID)
+
+                guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
                 plugin:downloadDanmakuRawDatas(ids, rawDatas)
 
                 local data = rawDatas[1]
                 if types.isString(data)
                 then
                     local sourceID = string.format(_SHELL_SOURCEID_FMT, plugin:getName(), videoID)
+                    guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
                     plugin:parseData(data, sourceID, _SHELL_TIMEOFFSET_START)
+
+                    guiBuilder:advanceProgressBar(uiStrings.load_progress_succeed)
+                    guiBuilder:finishProgressBar(handler)
                     self:__doCommitDanmakus()
+                    return
                 end
             end
         end
+
+        guiBuilder:advanceProgressBar(handler, 100, uiStrings.load_progress_failed)
+        guiBuilder:finishProgressBar(handler)
     end,
 }
 

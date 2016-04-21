@@ -280,6 +280,13 @@ local DialogueBuilder =
 
     addFontSize             = __createBuilderMethod("\\fs",
                                                     __toNonDefaultFontSize),    -- fontSize
+
+    addStyleUnchecked       = function(self, style)
+        if types.isString(style)
+        then
+            table.insert(self._mContent, style)
+        end
+    end,
 }
 
 classlite.declareClass(DialogueBuilder)

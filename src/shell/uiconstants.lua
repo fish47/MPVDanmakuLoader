@@ -25,6 +25,13 @@ local UI_STRINGS_CN =
 
     fmt_select_new_danmaku_source_header    = "标题%d",
     fmt_danmaku_source_datetime             = "%y/%m/%d %H:%M",
+
+    load_progress_init                      = "初始化环境",
+    load_progress_search                    = "正在搜索弹幕",
+    load_progress_download                  = "正在下载弹幕",
+    load_progress_parse                     = "正在解释弹幕",
+    load_progress_failed                    = "加载失败",
+    load_progress_succeed                   = "加载成功",
 }
 
 
