@@ -6,7 +6,7 @@ local configuration     = require("src/shell/configuration")
 
 
 local _TITLE_WINDOW     = "TestWriter"
-local _TITLE_LISTBOX    = "Select plugins"
+local _TITLE_LISTBOX    = "选择插件"
 
 
 local function __initPluginListBoxProps(listboxProps, app)
@@ -46,55 +46,43 @@ local function __patchApplication(app)
     app.getVideoHeight = __createFunction(800)
 end
 
+
+local app = application.MPVDanmakuLoaderApp:new()
+local cfg = configuration.initConfiguration()
+local listboxProps = unportable.ListBoxProperties:new()
+local textInfoProps = unportable.TextInfoProperties:new()
+local fileSelectionProps = unportable.FileSelectionProperties:new()
 local guiBuilder = unportable.ZenityGUIBuilder:new()
-local progressBarProps = unportable.ProgressBarProperties:new()
-local handler = guiBuilder:showProgressBar(progressBarProps)
-guiBuilder:advanceProgressBar(handler, 10, "10")
-io.popen("sleep 1"):read("*a")
-guiBuilder:advanceProgressBar(handler, 20, "20")
-io.popen("sleep 1"):read("*a")
-guiBuilder:advanceProgressBar(handler, 40, "40")
-io.popen("sleep 1"):read("*a")
-guiBuilder:advanceProgressBar(handler, 100, "100")
-io.popen("sleep 1"):read("*a")
+local outSelectedIndexes = {}
+local outSelectedFilePaths = {}
 
+__patchApplication(app)
+__initTextInfoProps(textInfoProps)
+__initPluginListBoxProps(listboxProps, app)
+__initFileSelectionProps(fileSelectionProps)
 
---local app = application.MPVDanmakuLoaderApp:new()
---local cfg = configuration.initConfiguration()
---local listboxProps = unportable.ListBoxProperties:new()
---local textInfoProps = unportable.TextInfoProperties:new()
---local fileSelectionProps = unportable.FileSelectionProperties:new()
---local guiBuilder = unportable.ZenityGUIBuilder:new()
---local outSelectedIndexes = {}
---local outSelectedFilePaths = {}
+while true
+do
+    local hasSelectedPlugin = guiBuilder:showListBox(listboxProps, outSelectedIndexes)
+    if not hasSelectedPlugin
+    then
+        break
+    end
 
---__patchApplication(app)
---__initTextInfoProps(textInfoProps)
---__initPluginListBoxProps(listboxProps, app)
---__initFileSelectionProps(fileSelectionProps)
+    local hasSelectedFile = guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
+    if hasSelectedFile
+    then
+        local filePath = outSelectedFilePaths[1]
+        local selectedIdx = outSelectedIndexes[1]
+        local plugin = app:getPluginByName(listboxProps.listBoxElements[selectedIdx])
+        app:init(cfg, nil)
+        plugin:parseFile(filePath, constants.STR_EMPTY, 0)
 
---while true
---do
---    local hasSelectedPlugin = guiBuilder:showListBox(listboxProps, outSelectedIndexes)
---    if not hasSelectedPlugin
---    then
---        break
---    end
-
---    local hasSelectedFile = guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
---    if hasSelectedFile
---    then
---        local filePath = outSelectedFilePaths[1]
---        local selectedIdx = outSelectedIndexes[1]
---        local plugin = app:getPluginByName(listboxProps.listBoxElements[selectedIdx])
---        app:init(cfg, nil)
---        plugin:parseFile(filePath, constants.STR_EMPTY, 0)
-
---        local tmpFile = app:createTempFile()
---        app:getDanmakuPools():writeDanmakus(app, tmpFile)
---        tmpFile:seek(constants.SEEK_MODE_BEGIN)
---        textInfoProps.textInfoContent = tmpFile:read(constants.READ_MODE_ALL)
---        tmpFile:close()
---        guiBuilder:showTextInfo(textInfoProps)
---    end
---end
+        local tmpFile = app:createTempFile()
+        app:getDanmakuPools():writeDanmakus(app, tmpFile)
+        tmpFile:seek(constants.SEEK_MODE_BEGIN)
+        textInfoProps.textInfoContent = tmpFile:read(constants.READ_MODE_ALL)
+        tmpFile:close()
+        guiBuilder:showTextInfo(textInfoProps)
+    end
+end

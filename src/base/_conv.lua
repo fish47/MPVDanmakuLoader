@@ -51,6 +51,7 @@ local _COLOR_CONV_FMT_STR       = "%02X%02X%02X"
 local _COLOR_CONV_CHANNEL_MOD   = 256
 
 local function convertRGBHexToBGRString(num)
+    num = math.floor(num)
     local b = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
 
     num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
@@ -58,7 +59,6 @@ local function convertRGBHexToBGRString(num)
 
     num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
     local r = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
 
     return string.format(_COLOR_CONV_FMT_STR, b, g, r)
 end

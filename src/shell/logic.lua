@@ -402,16 +402,14 @@ local MPVDanmakuLoaderShell =
                     local sourceID = string.format(_SHELL_SOURCEID_FMT, plugin:getName(), videoID)
                     guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
                     plugin:parseData(data, sourceID, _SHELL_TIMEOFFSET_START)
-
-                    guiBuilder:advanceProgressBar(uiStrings.load_progress_succeed)
-                    guiBuilder:finishProgressBar(handler)
                     self:__doCommitDanmakus()
-                    return
+                    succeed = true
                 end
             end
         end
 
-        guiBuilder:advanceProgressBar(handler, 100, uiStrings.load_progress_failed)
+        local lastMsg = succeed and uiStrings.load_progress_succeed or uiStrings.load_progress_failed
+        guiBuilder:advanceProgressBar(handler, 100, lastMsg)
         guiBuilder:finishProgressBar(handler)
     end,
 }

@@ -52,28 +52,38 @@ local function __ensureLoaderShell(app)
 end
 
 
+local function __doRunKeyBindingCallback(func)
+    local cfg = __ensureConfiguration()
+    local app = __ensureApplication()
+    local shell = __ensureLoaderShell(app)
+    local isPausedBefore = mp.get_property_native("pause")
+    mp.set_property_native("pause", cfg.pauseWhileShowing and true or isPausedBefore)
+    func(cfg, app, shell)
+    mp.set_property_native("pause", isPausedBefore)
+end
+
+
 local function showMain()
-    if _gOpenedFilePath
-    then
-        local cfg = __ensureConfiguration()
-        local app = __ensureApplication()
-        local shell = __ensureLoaderShell(app)
-        local isPausedBefore = mp.get_property_native("pause")
-        mp.set_property_native("pause", cfg.pauseWhileShowing and true or isPausedBefore)
+    local function __func(cfg, app, shell)
         app:setLogFunction(cfg.showDebugLog and print)
         shell:show(cfg, _gOpenedFilePath)
-        mp.set_property_native("pause", isPausedBefore)
+    end
+
+    if _gOpenedFilePath
+    then
+        __doRunKeyBindingCallback(__func)
     end
 end
 
 
 local function loadDanmakuFromURL()
+    local function __func(cfg, app, shell)
+        shell:loadDanmakuFromURL(cfg, _gOpenedURL)
+    end
+
     if _gOpenedURL
     then
-        local cfg = __ensureConfiguration()
-        local app = __ensureApplication()
-        local shell = __ensureLoaderShell(app)
-        shell:loadDanmakuFromURL(cfg, _gOpenedURL)
+        __doRunKeyBindingCallback(__func)
     end
 end
 

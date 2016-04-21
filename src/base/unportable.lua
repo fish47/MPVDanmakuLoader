@@ -5,7 +5,6 @@ local classlite = require("src/base/classlite")
 
 
 local _SHELL_SYNTAX_PIPE_STDOUT_TO_INPUT        = "|"
-local _SHELL_SYNTAX_REDIRECT_STRING_TO_INPUT    = "<<<"
 local _SHELL_SYNTAX_ARGUMENT_SEP                = " "
 local _SHELL_SYNTAX_STRONG_QUOTE                = "\'"
 local _SHELL_SYNTAX_NO_STDERR                   = "2>/dev/null"
@@ -80,10 +79,9 @@ local function _getCommandString(arguments)
     return table.concat(arguments, _SHELL_SYNTAX_ARGUMENT_SEP)
 end
 
-local function _getCommandResult(arguments, expectedRetCode, openMode)
-    openMode = openMode or constants.FILE_MODE_READ
+local function _getCommandResult(arguments, expectedRetCode)
     expectedRetCode = expectedRetCode or _SHELL_CONST_RETURN_CODE_SUCCEED
-    local popenFile = io.popen(_getCommandString(arguments), openMode)
+    local popenFile = io.popen(_getCommandString(arguments))
     local output, succeed, reason, retCode = utils.readAndCloseFile(popenFile)
     local ret = succeed
                 and reason == constants.EXEC_RET_EXIT
@@ -324,15 +322,19 @@ local ZenityGUIBuilder =
         return succeed and output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
     end,
 
+
     showTextInfo = function(self, props)
         local arguments = self.__mArguments
         self:__prepareZenityCommand(arguments, props)
         _addOption(arguments, "--text-info")
-        _addSyntax(arguments, _SHELL_SYNTAX_REDIRECT_STRING_TO_INPUT)
-        _addValue(arguments, props.textInfoContent)
-        return self:_getZenityCommandResult(arguments)
-    end,
+        _addOption(arguments, _SHELL_SYNTAX_NO_STDERR)
 
+        local cmdStr = _getCommandString(arguments)
+        local f = io.popen(cmdStr, constants.FILE_MODE_WRITE_ERASE)
+        utils.clearTable(arguments)
+        f:write(props.textInfoContent)
+        utils.readAndCloseFile(f)
+    end,
 
 
     showEntry = function(self, props)
@@ -456,7 +458,8 @@ local ZenityGUIBuilder =
         _addOption(arguments, props.isAutoClose and "--auto-close")
         _addSyntax(arguments, _SHELL_SYNTAX_NO_STDERR)
 
-        local handler = io.popen(_getCommandString(arguments), constants.FILE_MODE_WRITE_ERASE)
+        local cmdStr = _getCommandString(arguments)
+        local handler = io.popen(cmdStr, constants.FILE_MODE_WRITE_ERASE)
         utils.clearTable(arguments)
         return handler
     end,
@@ -482,7 +485,7 @@ local ZenityGUIBuilder =
     end,
 
     finishProgressBar = function(self, handler)
-        utils.closeSafely(handler)
+        utils.readAndCloseFile(handler)
     end,
 }
 

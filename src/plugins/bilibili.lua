@@ -21,7 +21,7 @@ local _BILI_PATTERN_DANMAKU     = '<d%s+p="'
 
 local _BILI_PATTERN_URL_1P      = "www%.bilibili%.[^/]*/video/av(%d+)"
 local _BILI_PATTERN_URL_NP      = "www%.bilibili%.[^/]*/video/av(%d+)/index_(%d*).html"
-local _BILI_PATTERN_ID          = "av(%d+)"
+local _BILI_PATTERN_AVID        = "av(%d+)"
 local _BILI_PATTERN_DURATION    = "<duration>(%d+):?(%d+)</duration>"
 local _BILI_PATTERN_TITLE_1P    = "<title>(.-)</title>"
 local _BILI_PATTERN_TITLE_NP    = "<option value=.->%d+、(.-)</option>"
@@ -74,7 +74,7 @@ local BiliBiliDanmakuSourcePlugin =
             return
         end
 
-        local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE) * cfg.danmakuFontSize
+        local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize)
         danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = size
         danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
         danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
@@ -88,7 +88,7 @@ local BiliBiliDanmakuSourcePlugin =
         local function __getVideoIDAndIndex(keyword)
             local id, idx = keyword:match(_BILI_PATTERN_URL_NP)
             id = id or keyword:match(_BILI_PATTERN_URL_1P)
-            id = id or keyword:match(_BILI_PATTERN_ID)
+            id = id or keyword:match(_BILI_PATTERN_AVID)
             idx = idx and tonumber(idx) or _BILI_DEFAULT_VIDEO_INDEX
             return id, idx
         end
@@ -109,6 +109,8 @@ local BiliBiliDanmakuSourcePlugin =
         conn:resetParams()
         conn:addHeader(pluginbase._HEADER_USER_AGENT)
         conn:setCompressed(true)
+
+        --TODO cid
 
         local data = conn:receive(string.format(_BILI_FMT_URL_VIDEO_1P, avID))
         if not data

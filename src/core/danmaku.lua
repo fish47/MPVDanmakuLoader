@@ -101,6 +101,10 @@ local DanmakuPool =
 
 
     addDanmaku = function(self, danmakuData)
+        local function __greaterThanZero(num)
+            return types.isNumber(num) and num > 0
+        end
+
         local function __checkArgs(checkFunc, ...)
             for i = 1, types.getVarArgCount(...)
             do
@@ -120,13 +124,15 @@ local DanmakuPool =
             return
         end
 
-        if danmakuData[_coreconstants.DANMAKU_IDX_SOURCE_ID]
+        local startTime = danmakuData[_coreconstants.DANMAKU_IDX_START_TIME]
+        if types.isNumber(startTime)
+            and startTime >= 0
+            and danmakuData[_coreconstants.DANMAKU_IDX_SOURCE_ID]
             and danmakuData[_coreconstants.DANMAKU_IDX_DANMAKU_ID]
             and types.isString(danmakuData[_coreconstants.DANMAKU_IDX_TEXT])
-            and __checkArgs(types.isNumber,
-                            danmakuData[_coreconstants.DANMAKU_IDX_START_TIME],
+            and types.isNumber(danmakuData[_coreconstants.DANMAKU_IDX_FONT_COLOR])
+            and __checkArgs(__greaterThanZero,
                             danmakuData[_coreconstants.DANMAKU_IDX_LIFE_TIME],
-                            danmakuData[_coreconstants.DANMAKU_IDX_FONT_COLOR],
                             danmakuData[_coreconstants.DANMAKU_IDX_FONT_SIZE])
         then
             local arrays = self._mDanmakuDataArrays

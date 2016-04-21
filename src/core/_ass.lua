@@ -161,7 +161,10 @@ local function __toNumberString(builder, val)
 end
 
 local function __toNonDefaultFontSize(builder, fontSize)
-    return types.isNumber(fontSize) and fontSize ~= builder._mDefaultFontSize and fontSize
+    return types.isNumber(fontSize)
+        and fontSize ~= builder._mDefaultFontSize
+        and fontSize > 0
+        and fontSize
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
