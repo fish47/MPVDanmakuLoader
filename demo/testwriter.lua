@@ -81,8 +81,7 @@ do
         local tmpFile = app:createTempFile()
         app:getDanmakuPools():writeDanmakus(app, tmpFile)
         tmpFile:seek(constants.SEEK_MODE_BEGIN)
-        textInfoProps.textInfoContent = tmpFile:read(constants.READ_MODE_ALL)
+        guiBuilder:showTextInfo(textInfoProps, tmpFile:read(constants.READ_MODE_ALL))
         tmpFile:close()
-        guiBuilder:showTextInfo(textInfoProps)
     end
 end

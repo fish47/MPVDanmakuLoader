@@ -308,8 +308,7 @@ local MPVDanmakuLoaderShell =
         local props = self._mTextInfoProperties
         props:reset()
         self:__initWindowProperties(props, self._mUISizes.help)
-        props.textInfoContent = self._mUIStrings.option_main_show_help
-        self._mGUIBuilder:showTextInfo(props)
+        self._mGUIBuilder:showTextInfo(props, self._mUIStrings.option_main_show_help)
         return self:_showMain()
     end,
 

@@ -251,10 +251,7 @@ local _WidgetPropertiesBase =
 classlite.declareClass(_WidgetPropertiesBase)
 
 
-local TextInfoProperties =
-{
-    textInfoContent = classlite.declareConstantField(nil),
-}
+local TextInfoProperties = {}
 classlite.declareClass(TextInfoProperties, _WidgetPropertiesBase)
 
 
@@ -323,7 +320,7 @@ local ZenityGUIBuilder =
     end,
 
 
-    showTextInfo = function(self, props)
+    showTextInfo = function(self, props, content)
         local arguments = self.__mArguments
         self:__prepareZenityCommand(arguments, props)
         _addOption(arguments, "--text-info")
@@ -332,7 +329,7 @@ local ZenityGUIBuilder =
         local cmdStr = _getCommandString(arguments)
         local f = io.popen(cmdStr, constants.FILE_MODE_WRITE_ERASE)
         utils.clearTable(arguments)
-        f:write(props.textInfoContent)
+        f:write(content)
         utils.readAndCloseFile(f)
     end,
 
