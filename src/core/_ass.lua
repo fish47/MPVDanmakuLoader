@@ -168,7 +168,9 @@ local function __toNonDefaultFontSize(builder, fontSize)
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
-    return types.isNumber(fontColor) and utils.convertRGBHexToBGRString(fontColor)
+    return types.isNumber(fontColor)
+        and fontColor ~= builder._mDefaultFontColor
+        and utils.convertRGBHexToBGRString(fontColor)
 end
 
 

@@ -1,11 +1,12 @@
+local _ass              = require("src/core/_ass")
+local _poscalc          = require("src/core/_poscalc")
+local _coreconstants    = require("src/core/_coreconstants")
 local utf8              = require("src/base/utf8")
 local types             = require("src/base/types")
 local utils             = require("src/base/utils")
 local constants         = require("src/base/constants")
 local classlite         = require("src/base/classlite")
-local _ass              = require("src/core/_ass")
-local _coreconstants    = require("src/core/_coreconstants")
-local _poscalc          = require("src/core/_poscalc")
+local danmaku           = require("src/core/danmaku")
 
 
 local function _measureDanmakuText(text, fontSize)
@@ -67,7 +68,7 @@ end
 
 local DanmakuWriter =
 {
-    __mDanmakuData      = classlite.declareTableField(),
+    __mDanmakuData      = classlite.declareClassField(danmaku.DanmakuData),
     _mCalculators       = classlite.declareTableField(),
     _mWritePosFunctions = classlite.declareTableField(),
     _mDialogueBuilder   = classlite.declareClassField(_ass.DialogueBuilder),
@@ -122,7 +123,7 @@ local DanmakuWriter =
         builder:setDefaultFontColor(cfg.danmakuFontColor)
         builder:setDefaultFontSize(cfg.danmakuFontSize)
 
-        local danmakuData = utils.clearTable(self.__mDanmakuData)
+        local danmakuData = self.__mDanmakuData
         local writePosFuncs = self._mWritePosFunctions
         for layer, calc in pairs(calculators)
         do
@@ -135,21 +136,20 @@ local DanmakuWriter =
                 utils.clearTable(danmakuData)
                 pool:getDanmakuByIndex(i, danmakuData)
 
-                local text = danmakuData[_coreconstants.DANMAKU_IDX_TEXT]
-                local startTime = danmakuData[_coreconstants.DANMAKU_IDX_START_TIME]
-                local fontSize = danmakuData[_coreconstants.DANMAKU_IDX_FONT_SIZE]
-                local fontColor = danmakuData[_coreconstants.DANMAKU_IDX_FONT_COLOR]
-                local lifeTime = danmakuData[_coreconstants.DANMAKU_IDX_LIFE_TIME]
-                local w, h = _measureDanmakuText(text, fontSize)
+                local startTime = danmakuData.startTime
+                local lifeTime = danmakuData.lifeTime
+                local fontSize = danmakuData.fontSize
+                local danmakuText = danmakuData.danmakuText
+                local w, h = _measureDanmakuText(danmakuText, fontSize)
                 local y = calc:calculate(w, h, startTime, lifeTime)
 
                 builder:startDialogue(layer, startTime, startTime + lifeTime)
                 builder:startStyle()
-                builder:addFontColor(fontColor)
+                builder:addFontColor(danmakuData.fontColor)
                 builder:addFontSize(fontSize)
                 writePosFunc(cfg, builder, screenW, screenH, w, y)
                 builder:endStyle()
-                builder:addText(text)
+                builder:addText(danmakuText)
                 builder:endDialogue()
                 builder:flushContent(f)
             end

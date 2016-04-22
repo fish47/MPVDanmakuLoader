@@ -2,7 +2,7 @@ local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
-local danmaku       = require("src/core/danmaku")
+local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
@@ -45,10 +45,10 @@ local _BILI_DEFAULT_VIDEO_INDEX = 1
 -- 暂时不处理神弹幕
 local _BILI_POS_TO_LAYER_MAP =
 {
-    [6] = danmaku.LAYER_MOVING_L2R,
-    [1] = danmaku.LAYER_MOVING_R2L,
-    [5] = danmaku.LAYER_STATIC_TOP,
-    [4] = danmaku.LAYER_STATIC_BOTTOM,
+    [6] = danmakupool.LAYER_MOVING_L2R,
+    [1] = danmakupool.LAYER_MOVING_R2L,
+    [5] = danmakupool.LAYER_STATIC_TOP,
+    [4] = danmakupool.LAYER_STATIC_BOTTOM,
 }
 
 
@@ -75,12 +75,12 @@ local BiliBiliDanmakuSourcePlugin =
         end
 
         local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize)
-        danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = size
-        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
-        danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
-        danmakuData[danmaku.DANMAKU_IDX_DANMAKU_ID] = tonumber(danmakuID)
-        danmakuData[danmaku.DANMAKU_IDX_TEXT]       = utils.unescapeXMLString(__sanitizeString(text))
-        return _BILI_POS_TO_LAYER_MAP[tonumber(layer)] or danmaku.LAYER_SKIPPED
+        danmakuData.fontSize = size
+        danmakuData.fontColor = tonumber(fontColor)
+        danmakuData.startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
+        danmakuData.danmakuID = tonumber(danmakuID)
+        danmakuData.danmakuText = utils.unescapeXMLString(__sanitizeString(text))
+        return _BILI_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
     end,
 
 

@@ -4,15 +4,12 @@ local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
-local danmaku       = require("src/core/danmaku")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
 
 
 local _RAW_DATA_FILE_PREFIX         = "raw_"
 local _RAW_DATA_FILE_FMT_SUFFIX     = "_%d.txt"
-
-local _FMT_SOURCEID                 = "%s:%s"
 
 local _DEFAULT_TIME_OFFSET          = 0
 
@@ -194,7 +191,9 @@ local _LocalDanmakuSource =
         then
             local plugin = self._mPlugin
             local filePath = self._mFilePath
-            local sourceID = string.format(_FMT_SOURCEID, plugin:getName(), filePath)
+            local sourceID = self._mApplication:getDanmakuPools():allocateDanmakuSourceID()
+            sourceID.pluginName = plugin:getName()
+            sourceID.filePath = filePath
             plugin:parseFile(filePath, sourceID, _DEFAULT_TIME_OFFSET)
         end
     end,
@@ -271,11 +270,11 @@ local _CachedRemoteDanmakuSource =
     parse = function(self)
         if self:__isValid()
         then
-            local pluginName = self:getPluginName()
+            local sourceIDs = self._mSourceIDs
+            local timeOffsets = self._mTimeOffsets
             for i, filePath in utils.iterateArray(self._mFilePaths)
             do
-                local sourceID = string.format(_FMT_SOURCEID, pluginName, filePath)
-                self._mPlugin:parseFile(filePath, sourceID, self._mTimeOffsets[i])
+                self._mPlugin:parseFile(filePath, sourceIDs[i], timeOffsets[i])
             end
         end
     end,
@@ -309,7 +308,7 @@ local _CachedRemoteDanmakuSource =
             and not utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
     end,
 
-
+    --TODO sourceID
     _serialize = function(self, serializer)
         if self:__isValid()
         then
@@ -324,7 +323,7 @@ local _CachedRemoteDanmakuSource =
         end
     end,
 
-
+    --TODO sourceID
     _deserizlie = function(self, deserializer)
         local app = self._mApplication
         local videoMD5 = deserializer:readElement()

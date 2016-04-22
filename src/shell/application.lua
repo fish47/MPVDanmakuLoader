@@ -3,7 +3,7 @@ local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
-local danmaku       = require("src/core/danmaku")
+local danmakupool   = require("src/core/danmakupool")
 local configuration = require("src/shell/configuration")
 local pluginbase    = require("src/plugins/pluginbase")
 local srt           = require("src/plugins/srt")
@@ -27,7 +27,7 @@ local _TAG_SUBTITLE             = "subtitle"
 local MPVDanmakuLoaderApp =
 {
     _mConfiguration                     = classlite.declareConstantField(nil),
-    _mDanmakuPools                      = classlite.declareClassField(danmaku.DanmakuPools),
+    _mDanmakuPools                      = classlite.declareClassField(danmakupool.DanmakuPools),
     _mNetworkConnection                 = classlite.declareClassField(unportable.CURLNetworkConnection),
     _mDanmakuSourcePlugins              = classlite.declareTableField(),
     _mUniquePathGenerator               = classlite.declareClassField(unportable.UniquePathGenerator),
@@ -128,6 +128,7 @@ local MPVDanmakuLoaderApp =
     init = function(self, cfg, filePath)
         self._mConfiguration = cfg
         self._mNetworkConnection:reset()
+        self._mNetworkConnection:setTimeout(cfg.networkTimeout)
 
         local dir = filePath and unportable.splitPath(filePath)
         self.__mPrivateDirPath = dir and unportable.joinPath(dir, _APP_PRIVATE_DIR_NAME)

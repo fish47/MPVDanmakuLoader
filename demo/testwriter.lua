@@ -1,8 +1,8 @@
-local utils             = require("src/base/utils")
-local constants         = require("src/base/constants")
-local unportable        = require("src/base/unportable")
-local application       = require("src/shell/application")
-local configuration     = require("src/shell/configuration")
+local utils         = require("src/base/utils")
+local constants     = require("src/base/constants")
+local unportable    = require("src/base/unportable")
+local application   = require("src/shell/application")
+local configuration = require("src/shell/configuration")
 
 
 local _TITLE_WINDOW     = "TestWriter"

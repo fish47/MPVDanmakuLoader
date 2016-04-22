@@ -2,7 +2,7 @@ local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
-local danmaku       = require("src/core/danmaku")
+local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 -- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
@@ -16,6 +16,7 @@ local pluginbase    = require("src/plugins/pluginbase")
 local _ACFUN_PLUGIN_NAME                = "Acfun"
 
 local _ACFUN_DEFAULT_DURATION           = 0
+local _ACFUN_FACTOR_TIME_STAMP          = 1000
 
 local _ACFUN_PATTERN_VID                = '<a%s*data-vid="([%d]+)"'
 local _ACFUN_PATTERN_DURATION           = '"time"%s*:%s*([%d]+)%s*,'
@@ -32,12 +33,13 @@ local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+),"     -- 出现时间
 local _ACFUN_FMT_URL_DANMAKU            = "http://danmu.aixifan.com/V2/%s"
 local _ACFUN_FMT_URL_VIDEO_INFO         = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
 
+
 local _ACFUN_POS_TO_LAYER_MAP   =
 {
-    [1] = danmaku.LAYER_MOVING_R2L,
-    [2] = danmaku.LAYER_MOVING_R2L,
-    [4] = danmaku.LAYER_STATIC_TOP,
-    [5] = danmaku.LAYER_STATIC_BOTTOM,
+    [1] = danmakupool.LAYER_MOVING_R2L,
+    [2] = danmakupool.LAYER_MOVING_R2L,
+    [4] = danmakupool.LAYER_STATIC_TOP,
+    [5] = danmakupool.LAYER_STATIC_BOTTOM,
 }
 
 
@@ -93,12 +95,12 @@ local AcfunDanmakuSourcePlugin =
             return
         end
 
-        danmakuData[danmaku.DANMAKU_IDX_START_TIME] = tonumber(startTime)
-        danmakuData[danmaku.DANMAKU_IDX_FONT_SIZE]  = tonumber(fontSize)
-        danmakuData[danmaku.DANMAKU_IDX_FONT_COLOR] = tonumber(fontColor)
-        danmakuData[danmaku.DANMAKU_IDX_DANMAKU_ID] = tonumber(danmakuID)
-        danmakuData[danmaku.DANMAKU_IDX_TEXT]       = text
-        return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmaku.LAYER_SKIPPED
+        danmakuData.startTime = tonumber(startTime * _ACFUN_FACTOR_TIME_STAMP)
+        danmakuData.fontSize = tonumber(fontSize)
+        danmakuData.fontColor = tonumber(fontColor)
+        danmakuData.danmakuID = tonumber(danmakuID)
+        danmakuData.danmakuText = text
+        return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
     end,
 
     __initNetworkConnection = function(self, conn)

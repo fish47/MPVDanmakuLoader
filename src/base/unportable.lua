@@ -502,7 +502,7 @@ local _NetworkConnectionBase =
     _readConnection = constants.FUNC_EMPTY,
 
     setTimeout = function(self, timeout)
-        self._mTimeoutSeconds = types.isNumber(timeout) and timeout
+        self._mTimeoutSeconds = types.isNumber(timeout) and timeout > 0 and timeout
     end,
 
     receive = function(self, url)

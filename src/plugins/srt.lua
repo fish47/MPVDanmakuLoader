@@ -4,6 +4,7 @@ local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local danmaku       = require("src/core/danmaku")
+local danmakupool   = require("src/core/danmakupool")
 
 
 local _SRT_PLUGIN_NAME              = "SRT"
@@ -26,7 +27,7 @@ __readLine = function(f)
 end
 
 
-__readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx, offset, tmpArray)
+__readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx, offset, danmakuData)
     if not line
     then
         -- 允许以空行结尾，但不允许只有空行的文件
@@ -37,7 +38,7 @@ __readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx, offset, tmpA
     then
         -- 继续读空行
         line = __readLine(f)
-        return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, tmpArray)
+        return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, danmakuData)
     else
         local nextIdx = line:match(_SRT_PATTERN_SUBTITLE_IDX)
         if not nextIdx
@@ -48,13 +49,13 @@ __readSubtitleIdxOrEmptyLines = function(cfg, p, f, line, src, idx, offset, tmpA
             -- 某些字幕文件时间段不是递增的
             nextIdx = tonumber(nextIdx)
             line = __readLine(f)
-            return __readSubtitleTimeSpan(cfg, p, f, line, src, nextIdx, offset, tmpArray)
+            return __readSubtitleTimeSpan(cfg, p, f, line, src, nextIdx, offset, danmakuData)
         end
     end
 end
 
 
-__readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, tmpArray)
+__readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, danmakuData)
     if not line
     then
         -- 只有字幕编号没有时间段
@@ -73,11 +74,11 @@ __readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, tmpArray)
     local endTime = utils.convertHHMMSSToTime(h2, m2, s2, ms2)
     local life = math.max(endTime - start, 0)
     line = __readLine(f)
-    return __readSubtitleContent(cfg, p, f, line, src, idx, start, life, offset, tmpArray)
+    return __readSubtitleContent(cfg, p, f, line, src, idx, start, life, offset, danmakuData)
 end
 
 
-__readSubtitleContent = function(cfg, p, f, line, src, idx, start, life, offset, tmpArray)
+__readSubtitleContent = function(cfg, p, f, line, src, idx, start, life, offset, danmakuData)
     if not line
     then
         return false
@@ -98,32 +99,31 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life, offset,
         text = text .. constants.STR_NEWLINE .. line
     end
 
-    utils.clearTable(tmpArray)
-    tmpArray[danmaku.DANMAKU_IDX_START_TIME]    = start + offset
-    tmpArray[danmaku.DANMAKU_IDX_LIFE_TIME]     = life
-    tmpArray[danmaku.DANMAKU_IDX_FONT_COLOR]    = cfg.subtitleFontColor
-    tmpArray[danmaku.DANMAKU_IDX_FONT_SIZE]     = cfg.subtitleFontSize
-    tmpArray[danmaku.DANMAKU_IDX_SOURCE_ID]     = src
-    tmpArray[danmaku.DANMAKU_IDX_DANMAKU_ID]    = tostring(idx)
-    tmpArray[danmaku.DANMAKU_IDX_TEXT]          = text
-    p:addDanmaku(tmpArray)
+    danmakuData.startTime = start + offset
+    danmakuData.lifeTime = life
+    danmakuData.fontColor = cfg.subtitleFontColor
+    danmakuData.fontSize = cfg.subtitleFontSize
+    danmakuData.sourceID = src
+    danmakuData.danmakuID = tostring(idx)
+    danmakuData.danmakuText = text
+    p:addDanmaku(danmakuData)
 
     line = hasMoreLine and __readLine(f)
-    return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, tmpArray)
+    return __readSubtitleIdxOrEmptyLines(cfg, p, f, line, src, idx, offset, danmakuData)
 end
 
 
-local function _parseSRTFile(cfg, pool, file, srcID, offset, tmpArray)
+local function _parseSRTFile(cfg, pool, file, srcID, offset, danmakuData)
     local line = __readLine(file)
     local idx = _SRT_SUBTITLE_IDX_START
-    tmpArray = types.isTable(tmpArray) and tmpArray or {}
-    return __readSubtitleIdxOrEmptyLines(cfg, pool, file, line, srcID, idx, offset, tmpArray)
+    return __readSubtitleIdxOrEmptyLines(cfg, pool, file, line, srcID, idx, offset, danmakuData)
 end
 
 
 local SRTDanmakuSourcePlugin =
 {
-    _mTmpArray      = classlite.declareTableField(),
+    _mDanmakuData   = classlite.declareClassField(danmaku.DanmakuData),
+
 
     getName = function(self)
         return _SRT_PLUGIN_NAME
@@ -136,9 +136,9 @@ local SRTDanmakuSourcePlugin =
         then
             local cfg = app:getConfiguration()
             local pools = app:getDanmakuPools()
-            local pool = pools:getDanmakuPoolByLayer(danmaku.LAYER_SUBTITLE)
-            local tmpArray = utils.clearTable(self._mTmpArray)
-            _parseSRTFile(cfg, pool, file, sourceID, timeOffset, tmpArray)
+            local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
+            local danmakuData = self._mDanmakuData
+            _parseSRTFile(cfg, pool, file, sourceID, timeOffset, danmakuData)
             app:closeFile(file)
         end
     end,

@@ -28,7 +28,8 @@ local function initConfiguration(cfg)
     -- 设置
     cfg.showDebugLog            = true              -- 是否输出调试信息
     cfg.pauseWhileShowing       = true              -- 弹窗后是否暂停播放
-    cfg.saveGeneratedASS        = false             -- 是否保存每次生成的
+    cfg.saveGeneratedASS        = false             -- 是否保存每次生成的弹幕文件
+    cfg.networkTimeout          = nil               -- 网络请求超时秒数
 
     return cfg
 end

@@ -16,6 +16,14 @@ local function isNumber(obj)
     return type(obj) == _LUA_TYPE_NUMBER
 end
 
+local function isPositiveNumber(obj)
+    return isNumber(obj) and obj > 0
+end
+
+local function isNonNegativeNumber(obj)
+    return isNumber(obj) and obj >= 0
+end
+
 local function isBoolean(obj)
     return type(obj) == _LUA_TYPE_BOOLEAN
 end
@@ -91,6 +99,8 @@ return
 {
     isString                = isString,
     isNumber                = isNumber,
+    isPositiveNumber        = isPositiveNumber,
+    isNonNegativeNumber     = isNonNegativeNumber,
     isBoolean               = isBoolean,
     isNil                   = isNil,
     isFunction              = isFunction,
