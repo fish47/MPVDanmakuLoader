@@ -718,6 +718,7 @@ local function readUTF8File(fullPath)
         _addValue(arguments, "utf8")
         _addSyntax(arguments, _SHELL_SYNTAX_REDICT_STDIN)
         _addValue(arguments, fullPath)
+        _addSyntax(arguments, _SHELL_SYNTAX_NO_STDERR)
 
         local commandString = _getCommandString(arguments)
         utils.clearTable(arguments)

@@ -23,7 +23,29 @@ local __readLine                    = nil
 
 
 __readLine = function(f)
-    return f:read(constants.READ_MODE_LINE_NO_EOL)
+    local function __doSeekToNonCR(line, startIdx, lastIdx, step)
+        local endIdx = lastIdx + step
+        while startIdx ~= endIdx
+        do
+            if line:sub(startIdx, startIdx) ~= "\r"
+            then
+                break
+            end
+            startIdx = startIdx + step
+        end
+        return startIdx
+    end
+
+    local line = f:read(constants.READ_MODE_LINE_NO_EOL)
+    if line
+    then
+        local startIdx = 1
+        local lastIdx = #line
+        startIdx = __doSeekToNonCR(line, startIdx, lastIdx, 1)
+        lastIdx = __doSeekToNonCR(line, lastIdx, startIdx, -1)
+        line = startIdx <= lastIdx and line:sub(startIdx, lastIdx) or constants.STR_EMPTY
+    end
+    return line
 end
 
 
@@ -56,6 +78,14 @@ end
 
 
 __readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, danmakuData)
+    local function __doConvert(h, m, s, ms)
+        h = tonumber(h)
+        m = tonumber(m)
+        s = tonumber(s)
+        ms = tonumber(ms)
+        return utils.convertHHMMSSToTime(h, m, s, ms)
+    end
+
     if not line
     then
         -- 只有字幕编号没有时间段
@@ -70,8 +100,8 @@ __readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, danmakuData
         return false
     end
 
-    local start = utils.convertHHMMSSToTime(h1, m1, s1, ms1)
-    local endTime = utils.convertHHMMSSToTime(h2, m2, s2, ms2)
+    local start = __doConvert(h1, m1, s1, ms1)
+    local endTime = __doConvert(h2, m2, s2, ms2)
     local life = math.max(endTime - start, 0)
     line = __readLine(f)
     return __readSubtitleContent(cfg, p, f, line, src, idx, start, life, offset, danmakuData)
@@ -104,7 +134,7 @@ __readSubtitleContent = function(cfg, p, f, line, src, idx, start, life, offset,
     danmakuData.fontColor = cfg.subtitleFontColor
     danmakuData.fontSize = cfg.subtitleFontSize
     danmakuData.sourceID = src
-    danmakuData.danmakuID = tostring(idx)
+    danmakuData.danmakuID = tonumber(idx)
     danmakuData.danmakuText = text
     p:addDanmaku(danmakuData)
 

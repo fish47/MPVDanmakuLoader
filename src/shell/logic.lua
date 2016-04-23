@@ -36,7 +36,7 @@ local MPVDanmakuLoaderShell =
     __mOptionStrings            = classlite.declareTableField(),
 
     __mVideoIDs                 = classlite.declareTableField(),
-    __mTimeOffsets              = classlite.declareTableField(),
+    __mStartTimeOffsets         = classlite.declareTableField(),
     __mDanmakuRawDatas          = classlite.declareTableField(),
     __mToBeUpdatedSources       = classlite.declareTableField(),
     __mPlugins                  = classlite.declareTableField(),
@@ -174,7 +174,7 @@ local MPVDanmakuLoaderShell =
         end
 
         local desc = table.concat(videoIDs, _SHELL_DESCRIPTION_VID_SEP)
-        local offsets = utils.clearTable(self.__mTimeOffsets)
+        local offsets = utils.clearTable(self.__mStartTimeOffsets)
         __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
         local sourceMgr = self._mDanmakuSourceManager

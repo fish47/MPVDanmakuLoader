@@ -32,6 +32,7 @@ return
     STR_EMPTY                   = "",
     STR_SPACE                   = " ",
     STR_NEWLINE                 = "\n",
+    STR_CARRIAGE_RETURN         = "\r",
     CODEPOINT_NEWLINE           = string.byte("\n"),
 
     FUNC_EMPTY                  = function() end,

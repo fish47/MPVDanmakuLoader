@@ -76,7 +76,9 @@ do
         local selectedIdx = outSelectedIndexes[1]
         local plugin = app:getPluginByName(listboxProps.listBoxElements[selectedIdx])
         app:init(cfg, nil)
-        plugin:parseFile(filePath, constants.STR_EMPTY, 0)
+
+        local sourceID = app:getDanmakuPools():allocateDanmakuSourceID()
+        plugin:parseFile(filePath, sourceID, 0)
 
         local tmpFile = app:createTempFile()
         app:getDanmakuPools():writeDanmakus(app, tmpFile)

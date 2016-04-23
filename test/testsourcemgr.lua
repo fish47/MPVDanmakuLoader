@@ -128,8 +128,8 @@ TestDanmakuSourceManager =
                 lu.assertNotNil(idx)
                 lu.assertIs(source._mPlugin, plugins[idx])
 
-                local ids1, ids2 = source._mSourceIDs, ids[idx]
-                local offsets1, offsets2 = source._mTimeOffsets, offsets[idx]
+                local ids1, ids2 = source._mVideoIDs, ids[idx]
+                local offsets1, offsets2 = source._mStartTimeOffsets, offsets[idx]
                 lu.assertEquals(#ids1, #ids2)
                 lu.assertEquals(#offsets1, #offsets2)
                 lu.assertTrue(#ids1 == #offsets1)
@@ -213,7 +213,7 @@ TestDanmakuSourceManager =
             do
                 local content = utils.readAndCloseFile(app:readFile(filePath))
                 lu.assertNotNil(content)
-                lu.assertEquals(content, source2._mSourceIDs[j])
+                lu.assertEquals(content, source2._mVideoIDs[j])
             end
 
             -- 更新失败的临时文件应该被删除

@@ -72,9 +72,16 @@ local DanmakuPool =
                 end
             end
 
+            local function __compareSourceID(sourceID1, sourceID2)
+                if sourceID1 == sourceID2
+                then
+                    return 0
+                end
+            end
+
             local ret = 0
             ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
-            ret = ret ~= 0 and ret or __compareString(sourceIDs[idx1], sourceIDs[idx2])
+            ret = ret ~= 0 and ret or sourceIDs[idx1]._index - sourceIDs[idx2]._index
             ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
             return ret < 0
         end
@@ -145,17 +152,33 @@ local DanmakuPools =
         return layer and self._mPools[layer]
     end,
 
-    allocateDanmakuSourceID = function(self)
+    allocateDanmakuSourceID = function(self, pluginName, videoID, partIdx, offset, filePath)
         local sourceIDPool = self._mSourceIDPool
         local sourceIDCount = self._mSourceIDCount
         local sourceID = sourceIDPool[sourceIDCount]
-        if sourceID
+        if not sourceID
         then
-            sourceID:reset()
-        else
             sourceID = danmaku.DanmakuSourceID:new()
             sourceIDPool[sourceIDCount] = sourceID
         end
+
+        sourceID._index = sourceIDCount
+        sourceID.pluginName = pluginName
+        sourceID.videoID = videoID
+        sourceID.videoPartIndex = partIdx
+        sourceID.startTimeOffset = offset
+        sourceID.filePath = filePath
+
+        -- 有可能之前就生成过
+        for i = 1, sourceIDCount
+        do
+            local iterSourceID = sourceIDPool[i]
+            if iterSourceID:_isSame(sourceID)
+            then
+                return iterSourceID
+            end
+        end
+
         self._mSourceIDCount = sourceIDCount + 1
         return sourceID
     end,

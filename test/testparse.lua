@@ -70,11 +70,13 @@ TestParse =
         f:seek(constants.SEEK_MODE_BEGIN, 0)
 
         local app = self._mApplication
-        local pool = app:getDanmakuPools():getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
+        local pools = app:getDanmakuPools()
+        local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
         pool:clear()
 
         local danmakuData = self._mDanmakuData
-        local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, constants.STR_EMPTY, 0, danmakuData)
+        local sourceID = pools:allocateDanmakuSourceID()
+        local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, sourceID, 0, danmakuData)
         pool:freeze()
         f:close()
         return ret, pool

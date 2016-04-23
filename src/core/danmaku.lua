@@ -5,11 +5,26 @@ local classlite         = require("src/base/classlite")
 
 local DanmakuSourceID =
 {
+    _index          = classlite.declareConstantField(0),
     pluginName      = classlite.declareConstantField(nil),
     videoID         = classlite.declareConstantField(nil),
     videoPartIndex  = classlite.declareConstantField(1),
     startTimeOffset = classlite.declareConstantField(0),
     filePath        = classlite.declareConstantField(nil),
+
+    _isSame = function(self, sourceID)
+        if self == sourceID
+        then
+            return true
+        end
+
+        return classlite.isInstanceOf(sourceID, self:getClass())
+            and self.pluginName == sourceID.pluginName
+            and self.videoID == sourceID.videoID
+            and self.videoPartIndex == sourceID.videoPartIndex
+            and self.startTimeOffset == sourceID.startTimeOffset
+            and self.filePath == sourceID.filePath
+    end,
 }
 
 classlite.declareClass(DanmakuSourceID)
@@ -31,8 +46,8 @@ local DanmakuData =
             and types.isPositiveNumber(self.lifeTime)
             and types.isNonNegativeNumber(self.fontColor)
             and types.isPositiveNumber(self.fontSize)
-            and self.sourceID
-            and classlite.isInstanceOf(self.danmakuID, DanmakuSourceID)
+            and classlite.isInstanceOf(self.sourceID, DanmakuSourceID)
+            and self.danmakuID
             and types.isString(self.danmakuText)
     end,
 
