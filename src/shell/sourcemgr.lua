@@ -126,12 +126,17 @@ local _Serializer =
         self._mCursor = self._mCursor + 1
     end,
 
-    writeArray = function(self, array)
+    writeArray = function(self, array, hook, arg)
         local count = #array
         self:writeElement(count)
         for i = 1, count
         do
-            self:writeElement(array[i])
+            local val = array[i]
+            if hook
+            then
+                val = hook(val, arg)
+            end
+            self:writeElement(val)
         end
     end,
 }
@@ -340,11 +345,17 @@ local _CachedRemoteDanmakuSource =
     end,
 
     _serialize = function(self, serializer)
+        local function __getRelativePath(fullPath, dir)
+            return unportable.getRelativePath(dir, fullPath)
+        end
+
         if IDanmakuSource._serialize(self, serializer)
         then
+            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
             serializer:writeElement(self._mDate)
             serializer:writeElement(self._mDescription)
             serializer:writeArray(self._mVideoIDs)
+            serializer:writeArray(self._mVideoIDs, __getRelativePath, cacheDir)
             serializer:writeArray(self._mFilePaths)
             serializer:writeArray(self._mStartTimeOffsets)
             return true
@@ -352,15 +363,28 @@ local _CachedRemoteDanmakuSource =
     end,
 
     _deserialize = function(self, deserializer)
+        local function __readFilePaths(deserializer, filePaths, dir)
+            local succeed = deserializer:readArray(filePaths)
+            if succeed
+            then
+                for i, relPath in ipairs(filePaths)
+                do
+                    filePaths[i] = unportable.joinPath(dir, relPath)
+                end
+                return true
+            end
+        end
+
         if IDanmakuSource._deserialize(self, deserializer)
         then
             local succeed = true
+            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
             self._mDate = deserializer:readElement()
             self._mDescription = deserializer:readElement()
             succeed = succeed and deserializer:readArray(self._mVideoIDs)
-            succeed = succeed and deserializer:readArray(self._mFilePaths)
+            succeed = succeed and __readFilePaths(deserializer, self._mFilePaths, cacheDir)
             succeed = succeed and deserializer:readArray(self._mStartTimeOffsets)
-            return succeed and self:_isValid()
+            return self:_isValid()
         end
     end,
 

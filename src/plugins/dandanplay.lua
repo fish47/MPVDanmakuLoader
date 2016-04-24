@@ -13,7 +13,7 @@ local _DDP_FMT_URL_SEARCH           = "http://acplay.net/api/v1/searchall/%s"
 
 local _DDP_PATTERN_VIDEO_TITLE      = '<Anime Title="(.-)"'
 local _DDP_PATTERN_EPISODE_TITLE    = '<Episode Id="(%d+)" Title="(.-)"'
-local _DDP_PATTERN_SEARCH_KEYWORD   = "ddp:%s*(.-)%s*"
+local _DDP_PATTERN_SEARCH_KEYWORD   = "ddp:%s*(.+)%s*$"
 local _DDP_PATTERN_COMMENT          = "<Comment"
                                       .. '%s+Time="([%d.]+)"'
                                       .. '%s+Mode="(%d+)"'
@@ -103,6 +103,9 @@ local DanDanPlayDanmakuSourcePlugin =
         end
 
         local conn = self._mApplication:getNetworkConnection():resetParams()
+        conn:addHeader(pluginbase._HEADER_USER_AGENT)
+        conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
+
         local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
         local data = conn:receive(url)
         if types.isNilOrEmpty(data)
@@ -135,6 +138,7 @@ local DanDanPlayDanmakuSourcePlugin =
             local nextTitleCaptureIdx = #titles > 1 and indexes1[titleIdx + 1] or math.huge
             while subtitleCaptureIdx and subtitleCaptureIdx < nextTitleCaptureIdx
             do
+                table.insert(result.videoIDs, videoIDs[subtitleIdx])
                 table.insert(result.videoTitles, title)
                 table.insert(result.videoTitles, subtitles[subtitleIdx])
                 subtitleIdx = subtitleIdx + 1

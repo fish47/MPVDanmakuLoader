@@ -167,14 +167,13 @@ local __BasePosCalculator =
     end,
 
 
-    __getCollisionScoreSum = function(self, iterAreaTop, iterArea, newAreaTop, area2)
+    __getCollisionScoreSum = function(self, iterTop, iterArea, newTop, area2)
         local scoreSum = 0
-        local iterAreaBottom = iterAreaTop + iterArea.height
-        local newAreaBottom = math.min(newAreaTop + area2.height, self._mScreenHeight)
+        local iterBottom = iterTop + iterArea.height
+        local newBottom = math.min(newTop + area2.height, self._mScreenHeight)
         while iterArea
         do
-            local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,
-                                                      newAreaTop, newAreaBottom)
+            local h1, h2, h3 = __getIntersectedHeight(iterTop, iterBottom, newTop, newBottom)
             local score = h2 > 0 and self:_doGetCollisionScore(iterArea, area2) * h2 or 0
             scoreSum = scoreSum + score
 
@@ -185,24 +184,23 @@ local __BasePosCalculator =
             end
 
             iterArea = iterArea._next
-            iterAreaTop = iterAreaBottom
-            iterAreaBottom = iterAreaTop + (iterArea and iterArea.height or 0)
+            iterTop = iterBottom
+            iterBottom = iterTop + (iterArea and iterArea.height or 0)
         end
 
         return scoreSum
     end,
 
 
-    __addDanmakuArea = function(self, iterArea, iterAreaTop, area2, newAreaTop)
-        local iterAreaBottom = iterAreaTop
-        local newAreaBottom = newAreaTop + area2.height
+    __addDanmakuArea = function(self, iterArea, iterTop, area2, newTop)
+        local iterBottom = iterTop
+        local newBottom = newTop + area2.height
         while iterArea
         do
-            iterAreaTop = iterAreaBottom
-            iterAreaBottom = iterAreaTop + iterArea.height
+            iterTop = iterBottom
+            iterBottom = iterTop + iterArea.height
 
-            local h1, h2, h3 = __getIntersectedHeight(iterAreaTop, iterAreaBottom,
-                                                      newAreaTop, newAreaBottom)
+            local h1, h2, h3 = __getIntersectedHeight(iterTop, iterBottom, newTop, newBottom)
             if h1 > 0 and h2 == 0
             then
                 break
@@ -211,30 +209,27 @@ local __BasePosCalculator =
             -- 很多时候只是部分相交，所以需要切割
             if h2 > 0
             then
-                local splitH1, _, splitH3 = __getIntersectedHeight(newAreaTop,
-                                                                   newAreaBottom,
-                                                                   iterAreaTop,
-                                                                   iterAreaBottom)
+                local newH1, _, newH3 = __getIntersectedHeight(newTop, newBottom, iterTop, iterBottom)
 
                 -- 切割不相交的上半部分
-                if splitH1 > 0
+                if newH1 > 0
                 then
                     local newArea = self:_obtainDanmakuArea()
-                    local upperArea, lowerArea = iterArea:split(splitH1, h2, newArea)
+                    local upperArea, lowerArea = iterArea:split(newH1, h2, newArea)
                     iterArea = lowerArea
                 end
 
                 -- 切割不相交的下半部分
-                if splitH3 > 0
+                if newH3 > 0
                 then
                     local newArea = self:_obtainDanmakuArea()
-                    local upperArea, lowerArea = iterArea:split(h2, splitH3, newArea)
+                    local upperArea, lowerArea = iterArea:split(h2, newH3, newArea)
                     iterArea = upperArea
                 end
 
                 -- 可能做了切割，必须更新高度信息，不然下一轮遍历会出错
-                iterAreaTop = iterAreaTop + splitH1
-                iterAreaBottom = iterAreaTop + h2
+                iterTop = iterTop + newH1
+                iterBottom = iterTop + h2
 
                 -- 切割之后两者区域上下边界都相同
                 iterArea.height = h2
@@ -261,9 +256,7 @@ local __BasePosCalculator =
         local insertAreaTop = screenTop
 
         local iterArea = self._mDanmakuAreas
-        local area2 = self:_doInitDanmakuArea(w, h, start, lifeTime,
-                                              self.__mTmpDanmakuArea)
-
+        local area2 = self:_doInitDanmakuArea(w, h, start, lifeTime, self.__mTmpDanmakuArea)
         local iterAreaBottom = 0
         while iterArea
         do
@@ -273,11 +266,7 @@ local __BasePosCalculator =
 
             if iterAreaBottom >= danmakuTop
             then
-                local score = self:__getCollisionScoreSum(iterAreaTop,
-                                                          iterArea,
-                                                          danmakuTop,
-                                                          area2)
-
+                local score = self:__getCollisionScoreSum(iterAreaTop, iterArea, danmakuTop, area2)
                 if score == 0
                 then
                     -- 找到完全合适的位置

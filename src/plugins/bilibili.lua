@@ -24,7 +24,7 @@ local _BILI_PATTERN_TITLE_1P    = "<title>(.-)</title>"
 local _BILI_PATTERN_TITLE_NP    = "<option value=.->%d+、(.-)</option>"
 local _BILI_PATTERN_CID_1       = "EmbedPlayer%(.-cid=(%d+).-%)"
 local _BILI_PATTERN_CID_2       = '<iframe.-src=".-cid=(%d+).-"'
-local _BILI_PATTERN_SANITIZE    = "[\x00-\x08\x0b\x0c\x0e-\x1f]"s
+local _BILI_PATTERN_SANITIZE    = "[\x00-\x08\x0b\x0c\x0e-\x1f]"
 
 local _BILI_FMT_URL_VIDEO_1P    = "http://www.bilibili.com/video/av%s/"
 local _BILI_FMT_URL_VIDEO_NP    = "http://www.bilibili.com/video/av%s/index_%d.html"
@@ -106,6 +106,7 @@ local BiliBiliDanmakuSourcePlugin =
         local cid = keyword:match(_BILI_PATTERN_SEARCH_CID)
         if cid
         then
+            result.isSplited = false
             result.preferredIDIndex = _BILI_DEFAULT_VIDEO_INDEX
             table.insert(result.videoIDs, cid)
             table.insert(result.videoTitles, string.format(_BILI_FMT_SEARCH_CID_TITLE, cid))
@@ -133,6 +134,7 @@ local BiliBiliDanmakuSourcePlugin =
             for partName in data:gmatch(_BILI_PATTERN_TITLE_NP)
             do
                 partName = __sanitizeString(partName)
+                partName = utils.unescapeXMLString(partName)
                 if partIdx == 1
                 then
                     __parseCID(data, result.videoIDs)
@@ -150,12 +152,14 @@ local BiliBiliDanmakuSourcePlugin =
             then
                 local title = data:match(_BILI_PATTERN_TITLE_1P)
                 title = __sanitizeString(title)
+                title = utils.unescapeXMLString(title)
                 table.insert(result.videoTitles, title)
                 __parseCID(data, result.videoIDs)
             end
+
+            result.isSplited = (partIdx > 1)
         end
 
-        result.isSplited = true
         result.videoTitleColumnCount = 1
         return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
     end,

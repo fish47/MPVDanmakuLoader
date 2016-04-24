@@ -13,12 +13,35 @@ local DanmakuPool =
     _mDanmakuDataArrays     = classlite.declareTableField(),
     _mDanmakuIndexes        = classlite.declareTableField(),
     _mAddDanmakuHook        = classlite.declareConstantField(nil),
+    __mCompareFunc          = classlite.declareConstantField(nil),
 
     new = function(self)
         local arrays = self._mDanmakuDataArrays
         for i = 1, _coreconstants._DANMAKU_IDX_MAX
         do
             arrays[i] = {}
+        end
+
+        self.__mCompareFunc = function(idx1, idx2)
+            local function __compareString(str1, str2)
+                if str1 == str2
+                then
+                    return 0
+                else
+                    return str1 < str2 and -1 or 1
+                end
+            end
+
+
+            local ret = 0
+            local arrays = self._mDanmakuDataArrays
+            local startTimes = arrays[_coreconstants._DANMAKU_IDX_START_TIME]
+            local sourceIDs = arrays[_coreconstants._DANMAKU_IDX_SOURCE_ID]
+            local danmakuIDs = arrays[_coreconstants._DANMAKU_IDX_DANMAKU_ID]
+            ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
+            ret = ret ~= 0 and ret or sourceIDs[idx1]._index - sourceIDs[idx2]._index
+            ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
+            return ret < 0
         end
     end,
 
@@ -35,7 +58,8 @@ local DanmakuPool =
     end,
 
     getDanmakuByIndex = function(self, idx, outData)
-        outData:_readFromDanmakuPool(self._mDanmakuDataArrays, idx)
+        local sortedIdx = self._mDanmakuIndexes[idx]
+        outData:_readFromDanmakuPool(self._mDanmakuDataArrays, sortedIdx)
     end,
 
 
@@ -49,44 +73,17 @@ local DanmakuPool =
         if danmakuData:_isValid()
         then
             danmakuData:_appendToDanmakuPool(self._mDanmakuDataArrays)
+            table.insert(self._mDanmakuIndexes, self:getDanmakuCount() + 1)
         end
     end,
 
 
     freeze = function(self)
         local arrays = self._mDanmakuDataArrays
-        local startTimes = arrays[_coreconstants._DANMAKU_IDX_START_TIME]
         local sourceIDs = arrays[_coreconstants._DANMAKU_IDX_SOURCE_ID]
         local danmakuIDs = arrays[_coreconstants._DANMAKU_IDX_DANMAKU_ID]
         local indexes = self._mDanmakuIndexes
-        utils.clearTable(indexes)
-        utils.fillArrayWithAscNumbers(indexes, #sourceIDs)
-
-        local function __cmp(idx1, idx2)
-            local function __compareString(str1, str2)
-                if str1 == str2
-                then
-                    return 0
-                else
-                    return str1 < str2 and -1 or 1
-                end
-            end
-
-            local function __compareSourceID(sourceID1, sourceID2)
-                if sourceID1 == sourceID2
-                then
-                    return 0
-                end
-            end
-
-            local ret = 0
-            ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
-            ret = ret ~= 0 and ret or sourceIDs[idx1]._index - sourceIDs[idx2]._index
-            ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
-            return ret < 0
-        end
-
-        table.sort(indexes, __cmp)
+        table.sort(indexes, self.__mCompareFunc)
 
         -- 去重
         local writeIdx = 1
@@ -106,9 +103,10 @@ local DanmakuPool =
         end
 
         -- 如果有重复数组长度会比原来的短
-        for i = writeIdx, #indexes
+        utils.clearArray(indexes, writeIdx)
+        for i = 1, _coreconstants._DANMAKU_IDX_MAX
         do
-            indexes[i] = nil
+            utils.clearArray(arrays[i], writeIdx)
         end
     end,
 

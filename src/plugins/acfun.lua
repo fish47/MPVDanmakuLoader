@@ -5,18 +5,13 @@ local classlite     = require("src/base/classlite")
 local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
--- http://www.acfun.tv/member/special/getSpecialContentPageBySpecial.aspx?specialId=1058
--- http://www.acfun.tv/video/getVideo.aspx?id=1280192
-
--- http://www.acfun.tv/v/ac2545690
--- http://danmu.aixifan.com/V2/3201855
--- http://www.acfun.tv/video/getVideo.aspx?id=3201855
--- http://www.acfun.tv/v/ac785605
 
 local _ACFUN_PLUGIN_NAME                = "Acfun"
 
 local _ACFUN_DEFAULT_DURATION           = 0
 local _ACFUN_FACTOR_TIME_STAMP          = 1000
+
+local _ACFUN_DEFAULT_VIDEO_INDEX        = 1
 
 local _ACFUN_PATTERN_VID                = '<a%s*data-vid="([%d]+)"'
 local _ACFUN_PATTERN_DURATION           = '"time"%s*:%s*([%d]+)%s*,'
@@ -30,8 +25,19 @@ local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+),"     -- 出现时间
                                           .. "(%d+),"      -- 弹幕 ID ？
                                           .. "[^,]+"        -- hash ？
 
+local _ACFUN_PATTERN_TITLE_1P           = "<h2>(.-)</h2>"
+local _ACFUN_PATTERN_VID_AND_TITLE      = '<a%s+data%-vid="(%d+)".->(.-)</a>'
+local _ACFUN_PATTERN_SANITIZE_TITLE     = "<i.-</i>"
+
+local _ACFUN_PATTERN_SEARCH_URL         = "http://www.acfun.tv/v/ac([%d_]+)"
+local _ACFUN_PATTERN_SEARCH_ACID        = "ac([%d_]+)"
+local _ACFUN_PATTERN_SEARCH_VID         = "vid(%d+)"
+local _ACFUN_PATTERN_SEARCH_PART_INDEX  = "^%d*_(%d+)$"
+
+local _ACFUN_FMT_URL_VIDEO              = "http://www.acfun.tv/v/ac%s"
 local _ACFUN_FMT_URL_DANMAKU            = "http://danmu.aixifan.com/V2/%s"
 local _ACFUN_FMT_URL_VIDEO_INFO         = "http://www.acfun.tv/video/getVideo.aspx?id=%s"
+local _ACFUN_FMT_SEARCH_VID_TITLE       = "vid%s"
 
 
 local _ACFUN_POS_TO_LAYER_MAP   =
@@ -45,9 +51,79 @@ local _ACFUN_POS_TO_LAYER_MAP   =
 
 local AcfunDanmakuSourcePlugin =
 {
+    __mVideoTitles      = classlite.declareTableField(),
+
+
     getName = function(self)
         return _ACFUN_PLUGIN_NAME
     end,
+
+    search = function(self, input, result)
+        local vid = input:match(_ACFUN_PATTERN_SEARCH_VID)
+        if vid
+        then
+            result.isSplited = false
+            result.preferredIDIndex = _ACFUN_DEFAULT_DURATION
+            table.insert(result.videoIDs, vid)
+            table.insert(result.videoTitles, string.format(_ACFUN_FMT_SEARCH_VID_TITLE, vid))
+        else
+            local acid = input:match(_ACFUN_PATTERN_SEARCH_URL)
+            acid = acid or input:match(_ACFUN_PATTERN_SEARCH_ACID)
+            if not acid
+            then
+                return false
+            end
+
+            local conn = self._mApplication:getNetworkConnection()
+            conn:resetParams()
+            conn:addHeader(pluginbase._HEADER_USER_AGENT)
+
+            local url = string.format(_ACFUN_FMT_URL_VIDEO, acid)
+            local data = conn:receive(url)
+            if not data
+            then
+                return false
+            end
+
+
+            local partCount = 0
+            local titles = utils.clearTable(self.__mVideoTitles)
+            for vid, title in data:gmatch(_ACFUN_PATTERN_VID_AND_TITLE)
+            do
+                title = title:gsub(_ACFUN_PATTERN_SANITIZE_TITLE, constants.STR_EMPTY)
+                title = utils.unescapeXMLString(title)
+                partCount = partCount + 1
+                table.insert(titles, title)
+                table.insert(result.videoIDs, vid)
+            end
+
+            if partCount <= 0
+            then
+                return false
+            elseif partCount == 1
+            then
+                local title = data:match(_ACFUN_PATTERN_TITLE_1P)
+                if not title
+                then
+                    return false
+                end
+
+                title = utils.unescapeXMLString(title)
+                table.insert(result.videoTitles, title)
+            else
+                utils.appendArrayElements(result.videoTitles, titles)
+            end
+
+            local partIdx = acid:match(_ACFUN_PATTERN_SEARCH_PART_INDEX)
+            partIdx = partIdx and tonumber(partIdx)
+            result.isSplited = partCount > 1
+            result.preferredIDIndex = partIdx or _ACFUN_DEFAULT_VIDEO_INDEX
+        end
+
+        result.videoTitleColumnCount = 1
+        return true
+    end,
+
 
     _startExtractDanmakus = function(self, rawData)
         -- 用闭包函数模仿 string.gmatch() 的行为

@@ -104,7 +104,7 @@ TestClassLite =
         local TripleEx =
         {
             clone = function(self, cloneObj)
-                cloneObj = self:getParent():clone(cloneObj)
+                cloneObj = Triple.clone(self, cloneObj)
                 for i, v in ipairs(self.b)
                 do
                     if types.isTable(v)

@@ -241,6 +241,47 @@ local function splitPath(fullPath)
 end
 
 
+local function getRelativePath(dir, fullPath)
+    local ret = nil
+    local paths1 = utils.clearTable(__gPathElements1)
+    local paths2 = utils.clearTable(__gPathElements2)
+    local succeed1 = __splitPathElements(dir, paths1)
+    local succeed2 = __splitPathElements(fullPath, paths2)
+    if succeed1 and succeed2 and #paths1 < #paths2
+    then
+        -- 找出第一个不同的路径元素
+        local relIdx = 1
+        for i = 1, #paths1
+        do
+            if paths1[i] ~= paths2[i]
+            then
+                break
+            end
+            relIdx = relIdx + 1
+        end
+
+        -- 可能传过来的参数没有相同的前缀
+        if relIdx > 1
+        then
+            local writeIdx = 1
+            local pathElemCount = #paths2
+            while relIdx <= pathElemCount
+            do
+                paths1[writeIdx] = paths2[relIdx]
+                writeIdx = writeIdx + 1
+                relIdx = relIdx + 1
+            end
+            utils.clearArray(paths1, writeIdx)
+            ret = __joinPathElements(paths1)
+        end
+    end
+
+    utils.clearTable(paths1)
+    utils.clearTable(paths2)
+    return ret
+end
+
+
 local _WidgetPropertiesBase =
 {
     windowTitle     = classlite.declareConstantField(nil),
@@ -502,7 +543,10 @@ local _NetworkConnectionBase =
     _readConnection = constants.FUNC_EMPTY,
 
     setTimeout = function(self, timeout)
-        self._mTimeoutSeconds = types.isNumber(timeout) and timeout > 0 and timeout
+        if types.isNumber(timeout) and timeout > 0 and timeout
+        then
+            self._mTimeoutSeconds = timeout
+        end
     end,
 
     receive = function(self, url)
@@ -749,4 +793,5 @@ return
     normalizePath               = normalizePath,
     joinPath                    = joinPath,
     splitPath                   = splitPath,
+    getRelativePath             = getRelativePath,
 }

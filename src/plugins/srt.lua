@@ -10,6 +10,7 @@ local danmakupool   = require("src/core/danmakupool")
 local _SRT_PLUGIN_NAME              = "SRT"
 local _SRT_SUBTITLE_IDX_START       = 0
 local _SRT_SEP_SUBTITLE             = constants.STR_EMPTY
+local _SRT_PATTERN_STRIP_CR         = "^\r*(.-)\r*$"
 local _SRT_PATTERN_SUBTITLE_IDX     = "^(%d+)$"
 local _SRT_PATTERN_TIME             = "(%d+):(%d+):(%d+),(%d+)"
 local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME
@@ -23,29 +24,8 @@ local __readLine                    = nil
 
 
 __readLine = function(f)
-    local function __doSeekToNonCR(line, startIdx, lastIdx, step)
-        local endIdx = lastIdx + step
-        while startIdx ~= endIdx
-        do
-            if line:sub(startIdx, startIdx) ~= "\r"
-            then
-                break
-            end
-            startIdx = startIdx + step
-        end
-        return startIdx
-    end
-
     local line = f:read(constants.READ_MODE_LINE_NO_EOL)
-    if line
-    then
-        local startIdx = 1
-        local lastIdx = #line
-        startIdx = __doSeekToNonCR(line, startIdx, lastIdx, 1)
-        lastIdx = __doSeekToNonCR(line, lastIdx, startIdx, -1)
-        line = startIdx <= lastIdx and line:sub(startIdx, lastIdx) or constants.STR_EMPTY
-    end
-    return line
+    return line and line:match(_SRT_PATTERN_STRIP_CR)
 end
 
 
