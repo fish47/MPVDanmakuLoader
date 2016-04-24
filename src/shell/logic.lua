@@ -11,7 +11,6 @@ local sourcemgr     = require("src/shell/sourcemgr")
 
 local _SHELL_TIMEOFFSET_START       = 0
 local _SHELL_DESCRIPTION_VID_SEP    = ","
-local _SHELL_SOURCEID_FMT           = "%s:%s"
 
 
 local MPVDanmakuLoaderShell =
@@ -399,9 +398,12 @@ local MPVDanmakuLoaderShell =
                 local data = rawDatas[1]
                 if types.isString(data)
                 then
-                    local sourceID = string.format(_SHELL_SOURCEID_FMT, plugin:getName(), videoID)
+                    local offset = _SHELL_TIMEOFFSET_START
+                    local pluginName = plugin:getName()
+                    local pools = app:getDanmakuPools()
+                    local sourceID = pools:allocateDanmakuSourceID(pluginName, videoID, nil, offset)
                     guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
-                    plugin:parseData(data, sourceID, _SHELL_TIMEOFFSET_START)
+                    plugin:parseData(data, sourceID, offset)
                     self:__doCommitDanmakus()
                     succeed = true
                 end
