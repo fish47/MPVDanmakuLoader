@@ -19,16 +19,12 @@ local _BILI_PATTERN_DANMAKU     = '<d%s+p="'
                                   .. "(%d+)"            -- 弹幕 ID
                                   .. '">([^<]+)</d>'
 
-local _BILI_PATTERN_URL_1P      = "www%.bilibili%.[^/]*/video/av(%d+)"
-local _BILI_PATTERN_URL_NP      = "www%.bilibili%.[^/]*/video/av(%d+)/index_(%d*).html"
-local _BILI_PATTERN_AVID        = "av(%d+)"
 local _BILI_PATTERN_DURATION    = "<duration>(%d+):?(%d+)</duration>"
 local _BILI_PATTERN_TITLE_1P    = "<title>(.-)</title>"
 local _BILI_PATTERN_TITLE_NP    = "<option value=.->%d+、(.-)</option>"
 local _BILI_PATTERN_CID_1       = "EmbedPlayer%(.-cid=(%d+).-%)"
 local _BILI_PATTERN_CID_2       = '<iframe.-src=".-cid=(%d+).-"'
-local _BILI_PATTERN_SANITIZE    = "[\x00-\x08\x0b\x0c\x0e-\x1f]"
-
+local _BILI_PATTERN_SANITIZE    = "[\x00-\x08\x0b\x0c\x0e-\x1f]"s
 
 local _BILI_FMT_URL_VIDEO_1P    = "http://www.bilibili.com/video/av%s/"
 local _BILI_FMT_URL_VIDEO_NP    = "http://www.bilibili.com/video/av%s/index_%d.html"
@@ -36,11 +32,19 @@ local _BILI_FMT_URL_DAMAKU      = "http://comment.bilibili.com/%s.xml"
 local _BILI_FMT_URL_VIDEO_INFO  = "http://interface.bilibili.com/player?id=cid:%s"
 
 
-local _BILI_FACTOR_TIME_STAMP   = 1000
-local _BILI_FACTOR_FONT_SIZE    = 25
+local _BILI_PATTERN_SEARCH_URL_1P   = "www%.bilibili%.[^/]*/video/av(%d+)"
+local _BILI_PATTERN_SERCH_URL_NP    = "www%.bilibili%.[^/]*/video/av(%d+)/index_(%d*).html"
+local _BILI_PATTERN_SEARCH_AVID     = "av(%d+)"
+local _BILI_PATTERN_SEARCH_CID      = "cid(%d+)"
 
-local _BILI_DEFAULT_DURATION    = 0
-local _BILI_DEFAULT_VIDEO_INDEX = 1
+local _BILI_FMT_SEARCH_CID_TITLE    = "cid%s"
+
+
+local _BILI_FACTOR_TIME_STAMP       = 1000
+local _BILI_FACTOR_FONT_SIZE        = 25
+
+local _BILI_DEFAULT_DURATION        = 0
+local _BILI_DEFAULT_VIDEO_INDEX     = 1
 
 -- 暂时不处理神弹幕
 local _BILI_POS_TO_LAYER_MAP =
@@ -86,9 +90,9 @@ local BiliBiliDanmakuSourcePlugin =
 
     search = function(self, keyword, result)
         local function __getVideoIDAndIndex(keyword)
-            local id, idx = keyword:match(_BILI_PATTERN_URL_NP)
-            id = id or keyword:match(_BILI_PATTERN_URL_1P)
-            id = id or keyword:match(_BILI_PATTERN_AVID)
+            local id, idx = keyword:match(_BILI_PATTERN_SERCH_URL_NP)
+            id = id or keyword:match(_BILI_PATTERN_SEARCH_URL_1P)
+            id = id or keyword:match(_BILI_PATTERN_SEARCH_AVID)
             idx = idx and tonumber(idx) or _BILI_DEFAULT_VIDEO_INDEX
             return id, idx
         end
@@ -99,54 +103,60 @@ local BiliBiliDanmakuSourcePlugin =
             utils.pushArrayElement(outCIDs, cid)
         end
 
-        local avID, index = __getVideoIDAndIndex(keyword)
-        if not avID
+        local cid = keyword:match(_BILI_PATTERN_SEARCH_CID)
+        if cid
         then
-            return false
-        end
+            result.preferredIDIndex = _BILI_DEFAULT_VIDEO_INDEX
+            table.insert(result.videoIDs, cid)
+            table.insert(result.videoTitles, string.format(_BILI_FMT_SEARCH_CID_TITLE, cid))
+        else
+            local avID, index = __getVideoIDAndIndex(keyword)
+            if not avID
+            then
+                return false
+            end
+            result.preferredIDIndex = index
 
-        local conn = self._mApplication:getNetworkConnection()
-        conn:resetParams()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
-        conn:setCompressed(true)
+            local conn = self._mApplication:getNetworkConnection()
+            conn:resetParams()
+            conn:addHeader(pluginbase._HEADER_USER_AGENT)
+            conn:setCompressed(true)
 
-        --TODO cid
+            local data = conn:receive(string.format(_BILI_FMT_URL_VIDEO_1P, avID))
+            if not data
+            then
+                return false
+            end
 
-        local data = conn:receive(string.format(_BILI_FMT_URL_VIDEO_1P, avID))
-        if not data
-        then
-            return false
-        end
+            -- 分P视频
+            local partIdx = 1
+            for partName in data:gmatch(_BILI_PATTERN_TITLE_NP)
+            do
+                partName = __sanitizeString(partName)
+                if partIdx == 1
+                then
+                    __parseCID(data, result.videoIDs)
+                else
+                    local url = string.format(_BILI_FMT_URL_VIDEO_NP, avID, partIdx)
+                    conn:receiveLater(url, __parseCID, result.videoIDs)
+                end
+                partIdx = partIdx + 1
+                table.insert(result.videoTitles, partName)
+            end
+            conn:flushReceiveQueue()
 
-        -- 分P视频
-        local partIdx = 1
-        for partName in data:gmatch(_BILI_PATTERN_TITLE_NP)
-        do
-            partName = __sanitizeString(partName)
+            -- 单P视频
             if partIdx == 1
             then
+                local title = data:match(_BILI_PATTERN_TITLE_1P)
+                title = __sanitizeString(title)
+                table.insert(result.videoTitles, title)
                 __parseCID(data, result.videoIDs)
-            else
-                local url = string.format(_BILI_FMT_URL_VIDEO_NP, avID, partIdx)
-                conn:receiveLater(url, __parseCID, result.videoIDs)
             end
-            partIdx = partIdx + 1
-            table.insert(result.videoTitles, partName)
-        end
-        conn:flushReceiveQueue()
-
-        -- 单P视频
-        if partIdx == 1
-        then
-            local title = data:match(_BILI_PATTERN_TITLE_1P)
-            title = __sanitizeString(title)
-            table.insert(result.videoTitles, title)
-            __parseCID(data, result.videoIDs)
         end
 
         result.isSplited = true
         result.videoTitleColumnCount = 1
-        result.preferredIDIndex = index
         return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
     end,
 

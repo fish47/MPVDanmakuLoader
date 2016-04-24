@@ -43,12 +43,14 @@ TestDanmakuSourceManager =
     _mApplication           = nil,
     _mDanmakuSourceManager  = nil,
     _mRandomSourceIDCount   = nil,
+    _mRandomFilePathCount   = nil,
 
     setUp = function(self)
         self._mApplication = mocks.MockApplication:new()
         self._mDanmakuSourceManager = mocks.MockDanmakuSourceManager:new()
         self._mDanmakuSourceManager:setApplication(self._mApplication)
         self._mRandomSourceIDCount = 0
+        self._mRandomFilePathCount = 0
     end,
 
     tearDown = function(self)
@@ -56,10 +58,27 @@ TestDanmakuSourceManager =
         self._mDanmakuSourceManager:dispose()
     end,
 
-    _getRandomSourceID = function(self)
+    _createRandomFiles = function(self, count, outPaths)
+        local app = self._mApplication
+        local dir = "/test/random_files"
+        app:createDir(dir)
+        for i = 1, count
+        do
+            local idx = self._mRandomFilePathCount
+            local fullPath = unportable.joinPath(dir, string.format("file_%d", idx))
+            self._mRandomFilePathCount = idx + 1
+
+            local f = app:writeFile(fullPath)
+            f:write("")
+            f:close()
+            table.insert(outPaths, fullPath)
+        end
+    end,
+
+    _getRandomVideoID = function(self)
         local id = self._mRandomSourceIDCount
         self._mRandomSourceIDCount = id + 1
-        return string.format("SourceID_%d", id)
+        return string.format("VideoID_%d", id)
     end,
 
     _getRandomDanmakuSourceParams = function(self, ids, offsets, count)
@@ -68,34 +87,20 @@ TestDanmakuSourceManager =
         count = count or math.random(10)
         for i = 1, count
         do
-            table.insert(ids, self:_getRandomSourceID())
+            table.insert(ids, self:_getRandomVideoID())
             table.insert(offsets, math.random(1000))
         end
         return ids, offsets
     end,
 
 
-    _writeEmptyFiles = function(self, dir, fileNames, outFullPaths)
-        local app = self._mApplication
-        app:createDir(dir)
-        for _, fileName in ipairs(fileNames)
-        do
-            local fullPath = unportable.joinPath(dir, fileName)
-            local file = app:writeFile(fullPath)
-            local ret = utils.writeAndCloseFile(file, constants.STR_EMPTY)
-            lu.assertTrue(ret)
-            table.insert(outFullPaths, fullPath)
-        end
-    end,
-
-
-    testAddAndRemoveSource = function(self)
+    testAddAndRemoveCachedSource = function(self)
         local app = self._mApplication
         local manager = self._mDanmakuSourceManager
         local dir = app:getDanmakuSourceRawDataDirPath()
 
         local plugins = {}
-        local pluginCount = math.random(5)
+        local pluginCount = math.random(50)
         for i = 1, pluginCount
         do
             local plugin = MockPlugin:new(string.format("Plugin_%d", i))
@@ -106,7 +111,8 @@ TestDanmakuSourceManager =
         local srcIDs = {}
         local srcOffsets = {}
         local srcPlugins = {}
-        local sourceCount = math.random(100)
+        local sources = {}
+        local sourceCount = math.random(5)
         for i = 1, sourceCount
         do
             local ids, offsets = self:_getRandomDanmakuSourceParams()
@@ -116,12 +122,12 @@ TestDanmakuSourceManager =
             table.insert(srcOffsets, offsets)
 
             -- 每次添加都会写一次序列化文件
-            local source = manager:addCachedDanmakuSource(plugin, tostring(i), ids, offsets)
+            -- 因为不保证反序列化后的顺序，所以这里用描述来指定原始数据的索引
+            local source = manager:addCachedDanmakuSource(sources, plugin, tostring(i), ids, offsets)
             lu.assertNotNil(source)
-            manager:recycleDanmakuSource(source)
         end
 
-        local function __assertDanmakuSources(sources, plugins, ids, offsets)
+        local function __assertDanmakuSourcesValid(sources, plugins, ids, offsets)
             for _, source in ipairs(sources)
             do
                 local idx = tonumber(source:getDescription())
@@ -147,9 +153,9 @@ TestDanmakuSourceManager =
         end
 
         -- 看一下反序列化正不正确
-        local sources = {}
+        manager:recycleDanmakuSources(sources)
         manager:listDanmakuSources(sources)
-        __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets)
+        __assertDanmakuSourcesValid(sources, srcPlugins, srcIDs, srcOffsets)
 
         -- 测一下删除弹幕源
         local filePaths = {}
@@ -162,16 +168,19 @@ TestDanmakuSourceManager =
             end
 
             -- 删除对应文件
-            local removeSource = table.remove(sources, math.random(count))
-            utils.appendArrayElements(utils.clearTable(filePaths), removeSource._mFilePaths)
-            manager:deleteDanmakuSource(removeSource)
+            local removeIdx = math.random(count)
+            local removeSource = sources[removeIdx]
+            utils.clearTable(filePaths)
+            utils.appendArrayElements(filePaths, removeSource._mFilePaths)
+            manager:deleteDanmakuSourceByIndex(sources, removeIdx)
             for _, filePath in ipairs(filePaths)
             do
                 lu.assertFalse(app:isExistedFile(filePath))
             end
 
-            manager:listDanmakuSources(utils.clearTable(sources))
-            __assertDanmakuSources(sources, srcPlugins, srcIDs, srcOffsets)
+            manager:recycleDanmakuSources(sources)
+            manager:listDanmakuSources(sources)
+            __assertDanmakuSourcesValid(sources, srcPlugins, srcIDs, srcOffsets)
             lu.assertEquals(#sources, count - 1)
         end
     end,
@@ -185,21 +194,20 @@ TestDanmakuSourceManager =
 
         local ids = {}
         local offsets = {}
-        local filePaths = {}
         local sources = {}
+        local filePaths1 = {}
+        local filePaths2 = {}
         for i = 1, 10
         do
-            local urlCount = 5
+            local urlCount = math.random(30)
             self:_getRandomDanmakuSourceParams(ids, offsets, urlCount)
 
-            local source = manager:addCachedDanmakuSource(plugin, nil, ids, offsets)
+            local source = manager:addCachedDanmakuSource(sources, plugin, nil, ids, offsets)
             lu.assertNotNil(source)
 
             -- 因为某些文件下载不来，应该是更新失败的
             local orgDownloadFunc = plugin.downloadDanmakuRawDatas
             plugin.downloadDanmakuRawDatas = constants.FUNC_EMPTY
-            utils.clearTable(sources)
-            table.insert(sources, source)
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 1)
 
@@ -208,21 +216,19 @@ TestDanmakuSourceManager =
             manager:updateDanmakuSources(sources, sources)
             lu.assertEquals(#sources, 2)
 
-            local source2 = sources[2]
-            for j, filePath in ipairs(source2._mFilePaths)
+            -- 更新失败的临时文件应该被删除
+            utils.clearTable(filePaths1)
+            utils.clearTable(filePaths2)
+            app:listFiles(app:getDanmakuSourceRawDataDirPath(), filePaths1)
+            for i, source in utils.reverseIterateArray(sources)
             do
-                local content = utils.readAndCloseFile(app:readFile(filePath))
-                lu.assertNotNil(content)
-                lu.assertEquals(content, source2._mVideoIDs[j])
+                utils.appendArrayElements(filePaths2, source._mFilePaths)
+                manager:deleteDanmakuSourceByIndex(sources, i)
             end
 
-            -- 更新失败的临时文件应该被删除
-            manager:deleteDanmakuSource(source)
-            manager:deleteDanmakuSource(source2)
-
-            utils.clearTable(filePaths)
-            app:listFiles(app:getDanmakuSourceRawDataDirPath(), filePaths)
-            lu.assertTrue(types.isEmptyTable(filePaths))
+            table.sort(filePaths1)
+            table.sort(filePaths2)
+            lu.assertEquals(filePaths1, filePaths2)
         end
     end,
 
@@ -233,8 +239,9 @@ TestDanmakuSourceManager =
         local plugin = MockPlugin:new("mock_plugin")
         app:_addDanmakuSourcePlugin(plugin)
 
+        local sources = {}
         local ids, offsets = self:_getRandomDanmakuSourceParams({}, {}, 5)
-        local source1 = manager:addCachedDanmakuSource(plugin, nil, ids, offsets)
+        local source1 = manager:addCachedDanmakuSource(sources, plugin, nil, ids, offsets)
         lu.assertNotNil(source1)
 
         local function __swapArraysElement(idx1, idx2, ...)
@@ -250,17 +257,56 @@ TestDanmakuSourceManager =
         __swapArraysElement(1, 5, ids, offsets)
 
         -- 不阻止重复添加，因为下载的内容可能有变化，但来源确定是相同的
-        local source2 = manager:addCachedDanmakuSource(plugin, "clone", ids, offsets)
+        local source2 = manager:addCachedDanmakuSource(sources, plugin, "clone", ids, offsets)
         lu.assertNotNil(source2)
         lu.assertTrue(source1:_isDuplicated(source2))
 
         -- 既然有 2 个来源相同，那么只更新一次
-        local sources = { source1, source2 }
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 3)
         lu.assertTrue(source1:_isDuplicated(sources[3]))
 
         manager:recycleDanmakuSources(sources)
+    end,
+
+
+    testAddAndRemoveLocalSource = function(self)
+        local function __assertLocalSourcesValid(sources, localFiles)
+            lu.assertEquals(#sources, #localFiles)
+            for i, source in ipairs(sources)
+            do
+                lu.assertEquals(source._mFilePath, localFiles[i])
+            end
+        end
+
+        local app = self._mApplication
+        local manager = self._mDanmakuSourceManager
+        local plugin = MockPlugin:new("mock_plugin")
+        app:_addDanmakuSourcePlugin(plugin)
+
+        local sourceCount = math.random(10, 30)
+        local localFiles = {}
+        local sources = {}
+        self:_createRandomFiles(sourceCount, localFiles)
+        for i = 1, sourceCount
+        do
+            local newSource = manager:addLocalDanmakuSource(sources, plugin, localFiles[i])
+            lu.assertNotNil(newSource)
+        end
+
+        -- 添加本地弹幕也有记录，反序列化时应该能找到回来
+        manager:recycleDanmakuSources(sources)
+        manager:listDanmakuSources(sources)
+        __assertLocalSourcesValid(sources, localFiles)
+
+        -- 删除也有记录
+        for i, _ in utils.reverseIterateArray(sources)
+        do
+            manager:deleteDanmakuSourceByIndex(sources, i)
+        end
+        lu.assertTrue(types.isEmptyTable(sources))
+        manager:listDanmakuSources(sources)
+        lu.assertTrue(types.isEmptyTable(sources))
     end,
 }
 

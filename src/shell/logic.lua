@@ -92,8 +92,7 @@ local MPVDanmakuLoaderShell =
             local sourceMgr = self._mDanmakuSourceManager
             for _, path in ipairs(paths)
             do
-                local source = sourceMgr:addLocalDanmakuSource(sources, plugin, path)
-                table.insert(sources, source)
+                sourceMgr:addLocalDanmakuSource(sources, plugin, path)
             end
         end
 
@@ -177,9 +176,9 @@ local MPVDanmakuLoaderShell =
         local offsets = utils.clearTable(self.__mStartTimeOffsets)
         __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
+        local sources = self._mDanmakuSources
         local sourceMgr = self._mDanmakuSourceManager
-        local source = sourceMgr:addCachedDanmakuSource(plugin, desc, videoIDs, offsets)
-        table.insert(self._mDanmakuSources, source)
+        local source = sourceMgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
 
         return self:_showMain()
     end,
@@ -263,7 +262,7 @@ local MPVDanmakuLoaderShell =
 
     _showDeleteDanmakuSource = function(self)
         local function __deleteSource(self, sources, idx)
-            if self._mDanmakuSourceManager:deleteDanmakuSource(sources[idx])
+            if self._mDanmakuSourceManager:deleteDanmakuSourceByIndex(sources, idx)
             then
                 table.remove(sources, idx)
             end

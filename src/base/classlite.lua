@@ -10,7 +10,6 @@ local _METHOD_NAME_DECONSTRUCT          = "dispose"
 local _METHOD_NAME_CLONE                = "clone"
 local _METHOD_NAME_RESET                = "reset"
 local _METHOD_NAME_GET_CLASS            = "getClass"
-local _METHOD_NAME_GET_PARENT           = "getParent"
 local _METHOD_NAME_INIT_FIELDS          = "__classlite_init_fields"
 local _METHOD_NAME_DEINIT_FIELDS        = "__classlite_deinit_fields"
 
@@ -488,7 +487,6 @@ local function declareClass(clzDef, baseClz)
     clzDef[_METHOD_NAME_RESET]          = _createFieldsResetMethod(clzDef)
     clzDef[_METHOD_NAME_DECONSTRUCT]    = _createDeconstructor(clzDef)
     clzDef[_METHOD_NAME_GET_CLASS]      = _createGetClassMethod(clzDef)
-    clzDef[_METHOD_NAME_GET_PARENT]     = _createGetClassMethod(baseClz)
 
     utils.mergeTable(clzDef, baseClz, true)
     _createClassMetatable(clzDef)
