@@ -4,7 +4,7 @@ local types     = require("src/base/types")
 local constants = require("src/base/constants")
 
 
-local function invokeSafelly(func, ...)
+local function invokeSafely(func, ...)
     if types.isFunction(func)
     then
         -- 即使可能是最后一句，但明确 return 才是尾调用
@@ -17,7 +17,7 @@ local function __createSafeInvokeWrapper(funcName)
     local ret = function(obj)
         if types.isTable(obj)
         then
-            invokeSafelly(obj[funcName], obj)
+            invokeSafely(obj[funcName], obj)
         end
     end
 
@@ -47,7 +47,7 @@ end
 
 local __exports =
 {
-    invokeSafelly       = invokeSafelly,
+    invokeSafely        = invokeSafely,
     closeSafely         = __createSafeInvokeWrapper("close"),
     disposeSafely       = __createSafeInvokeWrapper("dispose"),
 

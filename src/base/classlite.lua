@@ -34,7 +34,7 @@ local __gFieldDeclartionID      = 0
 
 
 local function __invokeInstanceMethod(obj, methodName, ...)
-    return utils.invokeSafelly(obj[methodName], obj, ...)
+    return utils.invokeSafely(obj[methodName], obj, ...)
 end
 
 

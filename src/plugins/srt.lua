@@ -17,10 +17,10 @@ local _SRT_PATTERN_TIME_SPAN        = _SRT_PATTERN_TIME
                                       .. " %-%-%> "
                                       .. _SRT_PATTERN_TIME
 
+local __readLine                    = nil
 local __readSubtitleIdxOrEmptyLines = nil
 local __readSubtitleTimeSpan        = nil
 local __readSubtitleContent         = nil
-local __readLine                    = nil
 
 
 __readLine = function(f)
@@ -68,7 +68,7 @@ __readSubtitleTimeSpan = function(cfg, p, f, line, src, idx, offset, danmakuData
 
     if not line
     then
-        -- 只有字幕编号没有时间段
+        -- 只有字幕编号但没有时间段
         return false
     end
 

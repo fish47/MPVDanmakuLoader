@@ -48,8 +48,8 @@ local MPVDanmakuLoaderApp =
     __attachMethodLoggingHooks = function(self)
         local function __patchFunction(orgFunc, patchFunc)
             local ret = function(...)
-                utils.invokeSafelly(patchFunc, ...)
-                return utils.invokeSafelly(orgFunc, ...)
+                utils.invokeSafely(patchFunc, ...)
+                return utils.invokeSafely(orgFunc, ...)
             end
             return ret
         end

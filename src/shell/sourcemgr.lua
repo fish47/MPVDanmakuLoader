@@ -491,6 +491,7 @@ local DanmakuSourceManager =
         for _, pool in pairs(self._mDanmakuSourcePools)
         do
             utils.forEachArrayElement(pool, utils.disposeSafely)
+            utils.clearTable(pool)
         end
     end,
 
@@ -647,6 +648,7 @@ local DanmakuSourceManager =
         local outDanmakuSources = utils.clearTable(self.__mDeserializedSources)
         self:_doReadMetaFile(self.__mReadMetaFileCallback)
         utils.appendArrayElements(outList, outDanmakuSources)
+        utils.clearTable(outDanmakuSources)
     end,
 
 
