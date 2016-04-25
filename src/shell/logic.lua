@@ -310,15 +310,6 @@ local MPVDanmakuLoaderShell =
     end,
 
 
-    _showHelp = function(self)
-        local props = self._mTextInfoProperties
-        props:reset()
-        self:__initWindowProperties(props, self._mUISizes.help)
-        self._mGUIBuilder:showTextInfo(props, self._mUIStrings.option_main_show_help)
-        return self:_showMain()
-    end,
-
-
     _showMain = function(self)
         local uiStrings = self._mUIStrings
         local props = self._mListBoxProperties
@@ -334,7 +325,6 @@ local MPVDanmakuLoaderShell =
         table.insert(options, uiStrings.option_main_update_danmaku_source)
         table.insert(options, uiStrings.option_main_delete_danmaku_source)
         table.insert(options, uiStrings.option_main_generate_ass_file)
-        table.insert(options, uiStrings.option_main_show_help)
         utils.appendArrayElements(props.listBoxElements, options)
 
         local selectedIndexes = self.__mSelectedIndexes
@@ -357,9 +347,6 @@ local MPVDanmakuLoaderShell =
         elseif optionString == uiStrings.option_main_delete_danmaku_source
         then
             return self:_showDeleteDanmakuSource()
-        elseif optionString == uiStrings.option_main_show_help
-        then
-            return self:_showHelp()
         end
     end,
 

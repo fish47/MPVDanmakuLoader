@@ -2,7 +2,6 @@ local UI_STRINGS_CN =
 {
     title_app                               = "MPVDanmakuLoader",
     title_main                              = "选择操作",
-    title_help                              = "帮助",
     title_select_plugin                     = "选择插件",
     title_search_danmaku_source             = "输入搜索内容",
     title_select_new_danmaku_source         = "选择添加弹幕源",
@@ -19,7 +18,6 @@ local UI_STRINGS_CN =
     option_main_update_danmaku_source       = "更新弹幕源",
     option_main_generate_ass_file           = "生成弹幕",
     option_main_delete_danmaku_source       = "删除弹幕源",
-    option_main_show_help                   = "帮助",
 
     datetime_unknown                        = "N/A",
 
@@ -38,7 +36,6 @@ local UI_STRINGS_CN =
 local UI_SIZES_ZENITY =
 {
     main                        = { 280, 280 },
-    help                        = { 400, 300 },
     select_new_danmaku_source   = { 500, 600 },
     show_danmaku_sources        = { 500, 600 },
     select_plugin               = { 300, 400 },
