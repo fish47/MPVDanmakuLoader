@@ -187,11 +187,17 @@ local MPVDanmakuLoaderApp =
     end,
 
     setSubtitleFile = function(self, path)
-        mp.commandv("sub_add ", path)
+        if self:isExistedFile(path)
+        then
+            mp.commandv("sub_add ", path)
+        end
     end,
 
     setSubtitleData = function(self, data)
-        mp.commandv("sub_add", "memory://" .. data)
+        if not types.isNilOrEmpty(data)
+        then
+            mp.commandv("sub_add", "memory://" .. data)
+        end
     end,
 
     listFiles = function(self, dir, outList)

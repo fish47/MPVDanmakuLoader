@@ -229,16 +229,22 @@ local MPVDanmakuLoaderShell =
         if assFilePath
         then
             local file = app:writeFile(assFilePath, constants.FILE_MODE_WRITE_ERASE)
-            pools:writeDanmakus(app, file)
+            local hasContent = pools:writeDanmakus(app, file)
             pools:clear()
             app:closeFile(file)
-            app:setSubtitleFile(assFilePath)
+            if hasContent
+            then
+                app:setSubtitleFile(assFilePath)
+            end
         else
             local file = app:createTempFile()
-            pools:writeDanmakus(app, file)
+            local hasContent = pools:writeDanmakus(app, file)
             pools:clear()
             file:seek(constants.SEEK_MODE_BEGIN)
-            app:setSubtitleData(file:read(constants.READ_MODE_ALL))
+            if hasContent
+            then
+                app:setSubtitleData(file:read(constants.READ_MODE_ALL))
+            end
             app:closeFile(file)
         end
     end,
