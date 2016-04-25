@@ -30,8 +30,8 @@ local _ACFUN_PATTERN_VID_AND_TITLE      = '<a%s+data%-vid="(%d+)".->(.-)</a>'
 local _ACFUN_PATTERN_SANITIZE_TITLE     = "<i.-</i>"
 
 local _ACFUN_PATTERN_SEARCH_URL         = "http://www.acfun.tv/v/ac([%d_]+)"
-local _ACFUN_PATTERN_SEARCH_ACID        = "ac([%d_]+)"
-local _ACFUN_PATTERN_SEARCH_VID         = "vid(%d+)"
+local _ACFUN_PATTERN_SEARCH_ACID        = "acfun:ac([%d_]+)"
+local _ACFUN_PATTERN_SEARCH_VID         = "acfun:vid(%d+)"
 local _ACFUN_PATTERN_SEARCH_PART_INDEX  = "^%d*_(%d+)$"
 
 local _ACFUN_FMT_URL_VIDEO              = "http://www.acfun.tv/v/ac%s"

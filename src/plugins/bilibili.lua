@@ -34,8 +34,8 @@ local _BILI_FMT_URL_VIDEO_INFO  = "http://interface.bilibili.com/player?id=cid:%
 
 local _BILI_PATTERN_SEARCH_URL_1P   = "www%.bilibili%.[^/]*/video/av(%d+)"
 local _BILI_PATTERN_SERCH_URL_NP    = "www%.bilibili%.[^/]*/video/av(%d+)/index_(%d*).html"
-local _BILI_PATTERN_SEARCH_AVID     = "av(%d+)"
-local _BILI_PATTERN_SEARCH_CID      = "cid(%d+)"
+local _BILI_PATTERN_SEARCH_AVID     = "bili:av(%d+)"
+local _BILI_PATTERN_SEARCH_CID      = "bili:cid(%d+)"
 
 local _BILI_FMT_SEARCH_CID_TITLE    = "cid%s"
 
