@@ -68,7 +68,7 @@ local function _addValue(arguments, val)
 end
 
 local function _addOptionAndValue(arguments, optionName, val)
-    if optionName ~= nil and val ~= nil
+    if optionName and val
     then
         _addOption(arguments, optionName)
         _addValue(arguments, val)
@@ -436,7 +436,7 @@ local ZenityGUIBuilder =
             do
                 local idx = (i - 1) * columnCount + j
                 local element = props.listBoxElements[idx]
-                element = element ~= nil and element or constants.STR_EMPTY
+                element = element and element or constants.STR_EMPTY
                 _addValue(arguments, element)
             end
         end
@@ -543,10 +543,7 @@ local _NetworkConnectionBase =
     _readConnection = constants.FUNC_EMPTY,
 
     setTimeout = function(self, timeout)
-        if types.isNumber(timeout) and timeout > 0 and timeout
-        then
-            self._mTimeoutSeconds = timeout
-        end
+        self._mTimeoutSeconds = types.isNumber(timeout) and timeout > 0 and timeout
     end,
 
     receive = function(self, url)
