@@ -364,8 +364,7 @@ local _CachedRemoteDanmakuSource =
 
     _deserialize = function(self, deserializer)
         local function __readFilePaths(deserializer, filePaths, dir)
-            local succeed = deserializer:readArray(filePaths)
-            if succeed
+            if deserializer:readArray(filePaths)
             then
                 for i, relPath in ipairs(filePaths)
                 do
@@ -530,8 +529,7 @@ local DanmakuSourceManager =
             if sourceClz
             then
                 local source = self:_obtainDanmakuSource(sourceClz)
-                local succeed = source:_deserialize(deserializer)
-                if succeed
+                if source:_deserialize(deserializer)
                 then
                     return source
                 end
