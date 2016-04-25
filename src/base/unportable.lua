@@ -655,9 +655,7 @@ local UniquePathGenerator =
             local pathID = self._mUniquePathID
             self._mUniquePathID = pathID + 1
 
-            local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME,
-                                           prefix, timeStr, pathID, suffix)
-
+            local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME, prefix, timeStr, pathID, suffix)
             local fullPath = joinPath(dir, fileName)
             if not isExistedFunc(funcArg, fullPath)
             then
