@@ -51,14 +51,29 @@ end
 
 
 
-local _ASS_STYLE_HEADERNAME                     = "V4+ Styles"
-local _ASS_STYLE_KEYNAME_FORMAT                 = "Format"
-local _ASS_STYLE_KEYNAME_STYLE                  = "Style"
-local _ASS_STYLE_FIELDNAME_FORMAT_STYLE_NAME    = "Name"
-local _ASS_STYLE_FIELDNAME_FORMAT_FONT_NAME     = "Fontname"
-local _ASS_STYLE_FIELDNAME_FORMAT_FONT_SIZE     = "Fontsize"
-local _PAIRS_BASE_STYLE                         =
+local _ASS_STYLE_HEADERNAME             = "V4+ Styles"
+local _ASS_STYLE_KEYNAME_FORMAT         = "Format"
+local _ASS_STYLE_KEYNAME_STYLE          = "Style"
+
+local _ASS_STYLE_NAME_DEFAULT           = "_mdl_default"
+local _ASS_STYLE_NAME_SUBTITLE          = "_mdl_subtitle"
+
+
+local _ASSStyleFieldBase =
+{}
+
+classlite.declareClass(_ASSStyleFieldBase)
+
+
+local _ASSStyleFieldBase
+
+
+
+local _ASS_STYLE_DEFINITIONS =
 {
+    "Name",
+    "Fontname",
+    "Fontsize",
     "PrimaryColour",        "&H33FFFFFF",
     "SecondaryColour",      "&H33FFFFFF",
     "OutlineColour",        "&H33000000",
@@ -79,6 +94,45 @@ local _PAIRS_BASE_STYLE                         =
     "MarginR",              "0",
     "MarginV",              "0",
     "Encoding",             "0",
+}
+
+local _ASS_STYLE_DEFAULT =
+{
+    _ASS_STYLE_NAME_DEFAULT,
+    "sans-serif",
+    34,
+    0x33FFFFFF,
+    0x33FFFFFF,
+    0x33000000,
+    0x33000000,
+    0, 0, 0, 0,
+    100, 100,
+    0,
+    0,
+    1, 1, 0,
+    5,
+    0, 0, 0,
+    0,
+}
+
+-- 从 http://www.zimuku.net/detail/45087.html 抄过来的
+local _ASS_STYLE_SUBTITLE =
+{
+    _ASS_STYLE_NAME_SUBTITLE,
+    "mono",
+    34,
+    0x00FFFFFF,
+    0xFF000000,
+    0x006C3300,
+    0x00000000,
+    0, 0, 0, 0,
+    100, 100,
+    0,
+    0,
+    1, 2, 1,
+    5,
+    5, 5, 8,
+    0,
 }
 
 
@@ -102,24 +156,10 @@ local function __writeFields(f, array, startIdx, step)
 end
 
 
-local function writeStyle(f, fontName, fontSize)
-    __writeHeader(f, _ASS_STYLE_HEADERNAME)
+local function writeStylesHeader()
+end
 
-    f:write(_ASS_STYLE_KEYNAME_FORMAT, _ASS_SEP_KEY_VALUE)
-    f:write(_ASS_STYLE_FIELDNAME_FORMAT_STYLE_NAME, _ASS_SEP_FIELD)
-    f:write(_ASS_STYLE_FIELDNAME_FORMAT_FONT_NAME, _ASS_SEP_FIELD)
-    f:write(_ASS_STYLE_FIELDNAME_FORMAT_FONT_SIZE, _ASS_SEP_FIELD)
-    __writeFields(f, _PAIRS_BASE_STYLE, 1, 2)
-    f:write(_ASS_SEP_LINE)
-
-    f:write(_ASS_STYLE_KEYNAME_STYLE, _ASS_SEP_KEY_VALUE)
-    f:write(_STYLE_NAME_MDL, _ASS_SEP_FIELD)
-    f:write(fontName, _ASS_SEP_FIELD)
-    f:write(fontSize, _ASS_SEP_FIELD)
-    __writeFields(f, _PAIRS_BASE_STYLE, 2, 2)
-    f:write(_ASS_SEP_LINE)
-
-    f:write(_ASS_SEP_LINE)
+local function __createWriteStyleFunction()
 end
 
 
@@ -132,7 +172,7 @@ local _ARRAY_EVENTS_FORMAT          =
     "Layer", "Start", "End", "Style", "Text"
 }
 
-local function writeEvents(f)
+local function writeEventsHeader(f)
     __writeHeader(f, _ASS_EVENTS_HEADER_NAME)
 
     f:write(_ASS_EVENTS_KEYNAME_FORMAT, _ASS_SEP_KEY_VALUE)
@@ -300,7 +340,9 @@ classlite.declareClass(DialogueBuilder)
 return
 {
     writeScriptInfo         = writeScriptInfo,
-    writeStyle              = writeStyle,
-    writeEvents             = writeEvents,
+    writeStylesHeader       = writeStylesHeader,
+    writeDefaultStyle       = __createWriteStyleFunction(_ASS_STYLE_DEFAULT),
+    writeSubtitleStyle      = __createWriteStyleFunction(_ASS_STYLE_SUBTITLE),
+    writeEventsHeader       = writeEventsHeader,
     DialogueBuilder         = DialogueBuilder,
 }

@@ -389,14 +389,6 @@ local MockApplication =
         return string.rep("1", 32)
     end,
 
-    getVideoWidth = function(self)
-        return 800
-    end,
-
-    getVideoHeight = function(self)
-        return 600
-    end,
-
     setSubtitleFile = function(self, path)
         -- do nothing
     end,

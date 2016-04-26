@@ -34,18 +34,6 @@ local function __initTextInfoProps(textInfoProps)
     textInfoProps.windowHeight = 800
 end
 
-local function __patchApplication(app)
-    local function __createFunction(returnVal)
-        local ret = function()
-            return returnVal
-        end
-        return ret
-    end
-
-    app.getVideoWidth = __createFunction(800)
-    app.getVideoHeight = __createFunction(800)
-end
-
 
 local app = application.MPVDanmakuLoaderApp:new()
 local cfg = configuration.initConfiguration()
@@ -56,7 +44,6 @@ local guiBuilder = unportable.ZenityGUIBuilder:new()
 local outSelectedIndexes = {}
 local outSelectedFilePaths = {}
 
-__patchApplication(app)
 __initTextInfoProps(textInfoProps)
 __initPluginListBoxProps(listboxProps, app)
 __initFileSelectionProps(fileSelectionProps)

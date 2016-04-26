@@ -183,8 +183,8 @@ local DanmakuPools =
 
     writeDanmakus = function(self, app, f)
         local cfg = app:getConfiguration()
-        local width = app:getVideoWidth()
-        local height = app:getVideoHeight()
+        local width = cfg.danmakuResolutionX
+        local height = cfg.danmakuResolutionY
         return self._mWriter:writeDanmakus(self, cfg, width, height, f)
     end,
 

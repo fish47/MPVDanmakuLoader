@@ -6,16 +6,13 @@ local function initConfiguration(cfg)
     cfg = utils.clearTable(types.isTable(cfg) and cfg or {})
 
     -- 弹幕属性
-    cfg.bottomReservedHeight    = 30                -- 弹幕底部预留空间
-    cfg.danmakuFontSize         = 34                -- 弹幕默认字体大小
-    cfg.danmakuFontName         = "sans-serif"      -- 弹幕默认字体名
-    cfg.danmakuFontColor        = 0xFFFFFF          -- 弹幕默认颜色 RRGGBB
-    cfg.subtitleFontSize        = 34                -- 字幕默认字体大小
-    cfg.subtitleFontName        = "mono"            -- 字幕默认字体名
-    cfg.subtitleFontColor       = 0xFFFFFF          -- 字幕默认颜色 RRGGBB
-    cfg.subtitleASSStyleString  = nil               -- 字幕 ASS 特效
-    cfg.movingDanmakuLifeTime   = 8000              -- 滚动弹幕存活时间
-    cfg.staticDanmakuLIfeTime   = 5000              -- 固定位置弹幕存活时间
+    cfg.danmakuReservedBottomHeight     = 30                -- 弹幕底部预留空间
+    cfg.subtitleReservedBottomHeight    = 20                -- 字幕底部预留空间
+    cfg.movingDanmakuLifeTime           = 8000              -- 滚动弹幕存活时间
+    cfg.staticDanmakuLIfeTime           = 5000              -- 固定位置弹幕存活时间
+    cfg.danmakuResolutionX              = 1280              -- 弹幕分辨率
+    cfg.danmakuResolutionY              = 720
+
 
     -- 路径相关
     cfg.trashDirPath            = nil               -- 如果不为空，所有删除都替换成移动，前提是目录存在

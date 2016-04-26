@@ -314,14 +314,6 @@ local MPVDanmakuLoaderApp =
     getCurrentDateTime = function(self)
         return os.time()
     end,
-
-    getVideoWidth = function(self)
-        return mp.get_property_number("width", nil)
-    end,
-
-    getVideoHeight = function(self)
-        return mp.get_property_number("height", nil)
-    end,
 }
 
 classlite.declareClass(MPVDanmakuLoaderApp)
