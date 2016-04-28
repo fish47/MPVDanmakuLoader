@@ -235,7 +235,8 @@ local _LocalDanmakuSource =
     _serialize = function(self, serializer)
         if IDanmakuSource._serialize(self, serializer)
         then
-            serializer:writeElement(self._mFilePath)
+            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+            serializer:writeElement(unportable.getRelativePath(self._mFilePath, cacheDir))
             return true
         end
     end,
@@ -243,7 +244,9 @@ local _LocalDanmakuSource =
     _deserialize = function(self, deserializer)
         if IDanmakuSource._deserialize(self, deserializer)
         then
-            self._mFilePath = deserializer:readElement()
+            local relPath = deserializer:readElement()
+            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+            self._mFilePath = unportable.joinPath(cacheDir, relPath)
             return self:_isValid()
         end
     end,

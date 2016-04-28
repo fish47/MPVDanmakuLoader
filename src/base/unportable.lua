@@ -240,7 +240,7 @@ local function splitPath(fullPath)
     return dirName, baseName
 end
 
-
+可以加 .. 来表示相对路径！！！！！！！
 local function getRelativePath(dir, fullPath)
     local ret = nil
     local paths1 = utils.clearTable(__gPathElements1)

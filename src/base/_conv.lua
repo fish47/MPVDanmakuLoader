@@ -47,20 +47,26 @@ end
 
 
 
-local _COLOR_CONV_FMT_STR       = "%02X%02X%02X"
 local _COLOR_CONV_CHANNEL_MOD   = 256
+local _COLOR_CONV_MIN_VALUE     = 0
 
-local function convertRGBHexToBGRString(num)
-    num = math.floor(num)
-    local b = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
+local function splitARGBHex(num)
+    local function __popColorChannel(num)
+        local channel = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
+        local remaining = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
+        return remaining, channel
+    end
 
-    num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
-    local g = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
-    num = math.floor(num / _COLOR_CONV_CHANNEL_MOD)
-    local r = math.floor(num % _COLOR_CONV_CHANNEL_MOD)
-
-    return string.format(_COLOR_CONV_FMT_STR, b, g, r)
+    local a = _COLOR_CONV_MIN_VALUE
+    local r = _COLOR_CONV_MIN_VALUE
+    local g = _COLOR_CONV_MIN_VALUE
+    local b = _COLOR_CONV_MIN_VALUE
+    num = math.max(math.floor(num), _COLOR_CONV_MIN_VALUE)
+    num, b = __popColorChannel(num)
+    num, g = __popColorChannel(num)
+    num, r = __popColorChannel(num)
+    num, a = __popColorChannel(num)
+    return a, r, g, b
 end
 
 
@@ -193,5 +199,5 @@ return
     findJSONString              = findJSONString,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
-    convertRGBHexToBGRString    = convertRGBHexToBGRString,
+    splitARGBHex                = splitARGBHex,
 }

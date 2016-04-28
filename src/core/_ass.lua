@@ -4,21 +4,101 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local _ASS_SEP_FIELD            = ", "
-local _ASS_SEP_KEY_VALUE        = ": "
-local _ASS_SEP_LINE             = "\n"
-local _ASS_HEADER_NAME_START    = "["
-local _ASS_HEADER_NAME_END      = "]"
-local _ASS_STYLE_START          = "{"
-local _ASS_STYLE_END            = "}"
+local _ASS_CONST_SEP_FIELD              = ", "
+local _ASS_CONST_SEP_KEY_VALUE          = ": "
+local _ASS_CONST_SEP_LINE               = "\n"
+local _ASS_CONST_HEADER_NAME_START      = "["
+local _ASS_CONST_HEADER_NAME_END        = "]"
+local _ASS_CONST_STYLE_START            = "{"
+local _ASS_CONST_STYLE_END              = "}"
 
-local _STYLE_NAME_MDL           = "_mdl_style"
+local _ASS_CONST_BOOL_TRUE              = "-1"
+local _ASS_CONST_BOOL_FALSE             = "0"
+
+local _ASS_CONST_FMT_INT                = "%d"
+local _ASS_CONST_FMT_COLOR_ABGR         = "&H%02X%02X%02X%02X"
+local _ASS_CONST_FMT_DIALOGUE_TIME      = "%d:%02d:%05.02f"
+
+local _ASS_CONST_STYLENAME_DANMAKU      = "_mdl_default"
+local _ASS_CONST_STYLENAME_SUBTITLE     = "_mdl_subtitle"
+
+local _ASS_CONST_MOD_COLOR_RGB          = 0xFFFFFF + 1
+
+local _ASS_HEADERNAME_SCRIPT_INFO       = "Script Info"
+local _ASS_HEADERNAME_STYLES            = "V4+ Styles"
+local _ASS_HEADERNAME_EVENTS_           = "Events"
+
+local _ASS_KEYNAME_SCRIPTINFO_WIDTH     = "PlayResX"
+local _ASS_KEYNAME_SCRIPTINFO_HEIGHT    = "PlayResY"
+local _ASS_KEYNAME_STYLE_FORMAT         = "Format"
+local _ASS_KEYNAME_STYLE_STYLE          = "Style"
+local _ASS_KEYNAME_EVENTS_FORMAT        = "Format"
+local _ASS_KEYNAME_EVENTS_DIALOGUE      = "Dialogue"
+
+local _ASS_VALNAME_STYLE_STYLENAME      = "Name"
+local _ASS_VALNAME_STYLE_FONTNAME       = "Fontname"
+local _ASS_VALNAME_STYLE_FONTSIZE       = "Fontsize"
+local _ASS_VALNAME_STYLE_FONTCOLOR      = "PrimaryColour"
+
+local _ASS_ARRAY_EVENTS_KEYNAMES        = { "Layer", "Start", "End", "Style", "Text" }
+
+local __gStyleData      = {}
+local __gWriteFields    = {}
 
 
-local _ASS_SCRIPT_INFO_HEADERNAME       = "Script Info"
-local _ASS_SCRIPT_INFO_KEYNAME_WIDTH    = "PlayResX"
-local _ASS_SCRIPT_INFO_KEYNAME_HEIGHT   = "PlayResY"
-local _PAIRS_SCRIPT_INFO                =
+local function _convertARGBHexToABGRColorString(num)
+    local a, r, g, b = utils.splitARGBHex(num)
+    return string.format(_ASS_CONST_FMT_COLOR_ABGR, a, b, g, r)
+end
+
+local function _convertNumberToIntString(num)
+    return string.format(_ASS_CONST_FMT_INT, math.floor(num))
+end
+
+local function __createStringValidator(str)
+    local ret = function(val, default)
+        return types.isString(val) and #val > 0 and val or default
+    end
+    return ret
+end
+
+local function __createIntValidator(minVal, maxVal, hook)
+    local ret = function(val, default)
+        val = types.isNumber(val) and val or default
+        val = minVal and math.max(val, minVal) or val
+        val = maxVal and math.min(val, maxVal) or val
+        return hook and hook(val) or _convertNumberToIntString(val)
+    end
+    return ret
+end
+
+local function __createColorValidator()
+    return __createIntValidator(nil, nil, _convertARGBHexToABGRColorString)
+end
+
+local function __createBoolValidator()
+    local function __toBoolString(val)
+        if types.isBoolean(val)
+        then
+            return val and _ASS_CONST_BOOL_TRUE or _ASS_CONST_BOOL_FALSE
+        end
+    end
+
+    local ret = function(val, default)
+        return __toBoolString(val)
+            or __toBoolString(default)
+            or _ASS_CONST_BOOL_FALSE
+    end
+    return ret
+end
+
+
+local _ASS_CONST_STYLE_DEF_IDX_VALIDATOR    = 1
+local _ASS_CONST_STYLE_DEF_IDX_DANMAKU      = 2
+local _ASS_CONST_STYLE_DEF_IDX_SUBTITLE     = 3
+
+
+local _ASS_PAIRS_SCRIPT_INFO_CONTENT =
 {
     "Script Updated By",    "MPVDanmakuLoader",
     "ScriptType",           "v4.00+",
@@ -26,169 +106,133 @@ local _PAIRS_SCRIPT_INFO                =
     "WrapStyle",            "2",
 }
 
-local function __writeHeader(f, name)
-    f:write(_ASS_HEADER_NAME_START, name, _ASS_HEADER_NAME_END)
-    f:write(_ASS_SEP_LINE)
+
+-- 弹幕样式抄自 https://github.com/cnbeining/Biligrab/blob/master/danmaku2ass2.py
+-- 字幕样式抄自 http://www.zimuku.net/detail/45087.html
+local _ASS_PAIRS_STYLE_DEFINITIONS =
+{
+    _ASS_VALNAME_STYLE_STYLENAME,   { __createStringValidator(),        _ASS_CONST_STYLENAME_DANMAKU,   _ASS_CONST_STYLENAME_SUBTITLE, },
+    _ASS_VALNAME_STYLE_FONTNAME,    { __createStringValidator(),        "sans-serif",                   "mono",                        },
+    _ASS_VALNAME_STYLE_FONTSIZE,    { __createIntValidator(1),          34,                             34,                            },
+    _ASS_VALNAME_STYLE_FONTCOLOR,   { __createColorValidator(),         0x33FFFFFF,                     0x00FFFFFF,                    },
+    "SecondaryColour",              { __createColorValidator(),         0x33FFFFFF,                     0xFF000000,                    },
+    "OutlineColour",                { __createColorValidator(),         0x33000000,                     0x0000336C,                    },
+    "BackColour",                   { __createColorValidator(),         0x33000000,                     0x00000000,                    },
+    "Bold",                         { __createBoolValidator(),          false,                          false,                         },
+    "Italic",                       { __createBoolValidator(),          false,                          false,                         },
+    "Underline",                    { __createBoolValidator(),          false,                          false,                         },
+    "StrikeOut",                    { __createBoolValidator(),          false,                          false,                         },
+    "ScaleX",                       { __createIntValidator(0, 100),     100,                            100                            },
+    "ScaleY",                       { __createIntValidator(0, 100),     100,                            100                            },
+    "Spacing",                      { __createIntValidator(0),          0,                              0,                             },
+    "Angle",                        { __createIntValidator(0, 360),     0,                              0,                             },
+    "BorderStyle",                  { __createIntValidator(1, 3),       1,                              1,                             },
+    "Outline",                      { __createIntValidator(0, 4),       1,                              2,                             },
+    "Shadow",                       { __createIntValidator(0, 4),       0,                              1,                             },
+    "Alignment",                    { __createIntValidator(1, 9),       5,                              2,                             },
+    "MarginL",                      { __createIntValidator(0),          0,                              5,                             },
+    "MarginR",                      { __createIntValidator(0),          0,                              5,                             },
+    "MarginV",                      { __createIntValidator(0),          0,                              8,                             },
+    "Encoding",                     { __createIntValidator(0),          0,                              0,                             },
+}
+
+
+
+local function _writeKeyValue(f, k, v)
+    f:write(k, _ASS_CONST_SEP_KEY_VALUE, v, _ASS_CONST_SEP_LINE)
 end
 
-local function __writeKeyValue(f, k, v)
-    f:write(k, _ASS_SEP_KEY_VALUE, v, _ASS_SEP_LINE)
+
+local function _writeHeader(f, name)
+    f:write(_ASS_CONST_HEADER_NAME_START, name, _ASS_CONST_HEADER_NAME_END)
+    f:write(_ASS_CONST_SEP_LINE)
 end
+
 
 local function writeScriptInfo(f, width, height)
-    __writeHeader(f, _ASS_SCRIPT_INFO_HEADERNAME)
+    _writeHeader(f, _ASS_HEADERNAME_SCRIPT_INFO)
 
-    for _, k, v in utils.iteratePairsArray(_PAIRS_SCRIPT_INFO)
+    for _, k, v in utils.iteratePairsArray(_ASS_PAIRS_SCRIPT_INFO_CONTENT)
     do
-        __writeKeyValue(f, k, v)
+        _writeKeyValue(f, k, v)
     end
 
-    __writeKeyValue(f, _ASS_SCRIPT_INFO_KEYNAME_WIDTH, tostring(width))
-    __writeKeyValue(f, _ASS_SCRIPT_INFO_KEYNAME_HEIGHT, tostring(height))
+    _writeKeyValue(f, _ASS_KEYNAME_SCRIPTINFO_WIDTH, _convertNumberToIntString(width))
+    _writeKeyValue(f, _ASS_KEYNAME_SCRIPTINFO_HEIGHT, _convertNumberToIntString(height))
 
-    f:write(_ASS_SEP_LINE)
+    f:write(_ASS_CONST_SEP_LINE)
 end
 
 
-
-local _ASS_STYLE_HEADERNAME             = "V4+ Styles"
-local _ASS_STYLE_KEYNAME_FORMAT         = "Format"
-local _ASS_STYLE_KEYNAME_STYLE          = "Style"
-
-local _ASS_STYLE_NAME_DEFAULT           = "_mdl_default"
-local _ASS_STYLE_NAME_SUBTITLE          = "_mdl_subtitle"
-
-
-local _ASSStyleFieldBase =
-{}
-
-classlite.declareClass(_ASSStyleFieldBase)
-
-
-local _ASSStyleFieldBase
-
-
-
-local _ASS_STYLE_DEFINITIONS =
-{
-    "Name",
-    "Fontname",
-    "Fontsize",
-    "PrimaryColour",        "&H33FFFFFF",
-    "SecondaryColour",      "&H33FFFFFF",
-    "OutlineColour",        "&H33000000",
-    "BackColour",           "&H33000000",
-    "Bold",                 "0",
-    "Italic",               "0",
-    "Underline",            "0",
-    "StrikeOut",            "0",
-    "ScaleX",               "100",
-    "ScaleY",               "100",
-    "Spacing",              "0.00",
-    "Angle",                "0.00",
-    "BorderStyle",          "1",
-    "Outline",              "1",
-    "Shadow",               "0",
-    "Alignment",            "7",
-    "MarginL",              "0",
-    "MarginR",              "0",
-    "MarginV",              "0",
-    "Encoding",             "0",
-}
-
-local _ASS_STYLE_DEFAULT =
-{
-    _ASS_STYLE_NAME_DEFAULT,
-    "sans-serif",
-    34,
-    0x33FFFFFF,
-    0x33FFFFFF,
-    0x33000000,
-    0x33000000,
-    0, 0, 0, 0,
-    100, 100,
-    0,
-    0,
-    1, 1, 0,
-    5,
-    0, 0, 0,
-    0,
-}
-
--- 从 http://www.zimuku.net/detail/45087.html 抄过来的
-local _ASS_STYLE_SUBTITLE =
-{
-    _ASS_STYLE_NAME_SUBTITLE,
-    "mono",
-    34,
-    0x00FFFFFF,
-    0xFF000000,
-    0x006C3300,
-    0x00000000,
-    0, 0, 0, 0,
-    100, 100,
-    0,
-    0,
-    1, 2, 1,
-    5,
-    5, 5, 8,
-    0,
-}
-
-
-local function __writeFields(f, array, startIdx, step)
-    startIdx = startIdx or 1
-    step = step or 1
-
-    local isFirstElem = true
-    for i = startIdx, #array, step
+local function _writeFields(f, fields)
+    for i, field in ipairs(fields)
     do
-        -- 最前最后都不加上分割符
-        if isFirstElem
+        -- 仅在元素之前加分割符
+        if i ~= 1
         then
-            isFirstElem = false
-        else
-            f:write(_ASS_SEP_FIELD)
+            f:write(_ASS_CONST_SEP_FIELD)
         end
 
-        f:write(array[i])
+        f:write(field)
     end
+    f:write(_ASS_CONST_SEP_LINE)
 end
 
 
-local function writeStylesHeader()
+local function writeStyleHeader (f)
+    local styleNames = utils.clearTable(__gWriteFields)
+    for _, name in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
+    do
+        table.insert(styleNames, name)
+    end
+    _writeHeader(f, _ASS_HEADERNAME_STYLES)
+    f:write(_ASS_KEYNAME_STYLE_FORMAT)
+    f:write(_ASS_CONST_SEP_KEY_VALUE)
+    _writeFields(f, styleNames)
+    utils.clearTable(styleNames)
 end
 
-local function __createWriteStyleFunction()
-end
-
-
-
-local _ASS_EVENTS_HEADER_NAME       = "Events"
-local _ASS_EVENTS_KEYNAME_FORMAT    = "Format"
-local _ASS_EVENTS_KEYNAME_DIALOGUE  = "Dialogue"
-local _ARRAY_EVENTS_FORMAT          =
-{
-    "Layer", "Start", "End", "Style", "Text"
-}
 
 local function writeEventsHeader(f)
-    __writeHeader(f, _ASS_EVENTS_HEADER_NAME)
-
-    f:write(_ASS_EVENTS_KEYNAME_FORMAT, _ASS_SEP_KEY_VALUE)
-    __writeFields(f, _ARRAY_EVENTS_FORMAT)
-
-    f:write(_ASS_SEP_LINE)
+    f:write(_ASS_CONST_SEP_LINE)
+    _writeHeader(f, _ASS_HEADERNAME_EVENTS_)
+    f:write(_ASS_KEYNAME_EVENTS_FORMAT, _ASS_CONST_SEP_KEY_VALUE)
+    _writeFields(f, _ASS_ARRAY_EVENTS_KEYNAMES)
 end
 
 
-local _ASS_DIALOGUE_TIME_FORMAT     = "%d:%02d:%05.02f"
+local function __createWriteStyleFunction(styleIdx)
+    local ret = function(f, modifyHook, fontName, fontSize, fontColor)
+        local styleData = utils.clearTable(__gStyleData)
+        styleData[_ASS_VALNAME_STYLE_FONTNAME] = fontName
+        styleData[_ASS_VALNAME_STYLE_FONTCOLOR] = fontColor
+        styleData[_ASS_VALNAME_STYLE_FONTSIZE] = fontSize
+        utils.invokeSafely(modifyHook, styleData)
+
+        local styleValues = utils.clearTable(__gWriteFields)
+        for _, name, defData in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
+        do
+            local validator = defData[_ASS_CONST_STYLE_DEF_IDX_VALIDATOR]
+            local defaultValue = defData[styleIdx]
+            local value = validator(styleData[name], defaultValue)
+            table.insert(styleValues, value)
+        end
+
+        f:write(_ASS_KEYNAME_STYLE_STYLE)
+        f:write(_ASS_CONST_SEP_KEY_VALUE)
+        _writeFields(f, styleValues)
+        utils.clearTable(styleData)
+        utils.clearTable(styleValues)
+    end
+    return ret
+end
+
 
 local function __convertTimeToTimeString(builder, time)
     if types.isNumber(time)
     then
         local h, m, s = utils.convertTimeToHMS(time)
-        return string.format(_ASS_DIALOGUE_TIME_FORMAT, h, m, s)
+        return string.format(_ASS_CONST_FMT_DIALOGUE_TIME, h, m, s)
     end
 end
 
@@ -196,21 +240,24 @@ local function __toASSEscapedString(builder, val)
     return types.isString(val) and utils.escapeASSString(val)
 end
 
-local function __toNumberString(builder, val)
-    return types.isNumber(val) and tostring(math.floor(val))
+local function __toIntNumberString(builder, val)
+    return types.isNumber(val) and _convertNumberToIntString(val)
 end
 
 local function __toNonDefaultFontSize(builder, fontSize)
     return types.isNumber(fontSize)
         and fontSize ~= builder._mDefaultFontSize
-        and fontSize > 0
-        and fontSize
+        and _convertNumberToIntString(fontSize)
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
+    local function __getRGBHex(num)
+        return types.isNumber(num) and math.floor(num % _ASS_CONST_MOD_COLOR_RGB)
+    end
+
     return types.isNumber(fontColor)
-        and fontColor ~= builder._mDefaultFontColor
-        and utils.convertRGBHexToBGRString(fontColor)
+        and __getRGBHex(fontColor) ~= __getRGBHex(builder._mDefaultFontColor)
+        and _convertARGBHexToABGRColorString(fontColor)
 end
 
 
@@ -254,15 +301,27 @@ end
 local DialogueBuilder =
 {
     _mContent               = classlite.declareTableField(),
+    _mStyleName             = classlite.declareConstantField(nil),
     _mDefaultFontColor      = classlite.declareConstantField(nil),
     _mDefaultFontSize       = classlite.declareConstantField(nil),
 
-    setDefaultFontColor = function(self, fontColor)
-        self._mDefaultFontColor = fontColor
+    __doInitStyle = function(self, idx)
+        local function __getStyleDefinitionValue(name, styleIdx)
+            local found, idx = utils.linearSearchArray(_ASS_PAIRS_STYLE_DEFINITIONS, name)
+            return found and _ASS_PAIRS_STYLE_DEFINITIONS[idx + 1][styleIdx]
+        end
+
+        self._mStyleName        = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_STYLENAME, idx)
+        self._mDefaultFontColor = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTCOLOR, idx)
+        self._mDefaultFontSize  = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTSIZE, idx)
     end,
 
-    setDefaultFontSize = function(self, defaultFontSize)
-        self._mDefaultFontSize = defaultFontSize
+    initDanmakuStyle = function(self)
+        self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_DANMAKU)
+    end,
+
+    initSubtitleStyle = function(self)
+        self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE)
     end,
 
     clear = function(self)
@@ -279,23 +338,27 @@ local DialogueBuilder =
         end
     end,
 
+    startDialogue = function(self, layer, startTime, endTime)
+        return self:__doStartDialogue(layer, startTime, endTime, self._mStyleName)
+    end,
 
-    startDialogue           = __createBuilderMethod(_ASS_EVENTS_KEYNAME_DIALOGUE,
-                                                    _ASS_SEP_KEY_VALUE,
-                                                    __toNumberString,           -- layer
-                                                    _ASS_SEP_FIELD,
+
+    __doStartDialogue       = __createBuilderMethod(_ASS_KEYNAME_EVENTS_DIALOGUE,
+                                                    _ASS_CONST_SEP_KEY_VALUE,
+                                                    __toIntNumberString,        -- layer
+                                                    _ASS_CONST_SEP_FIELD,
                                                     __convertTimeToTimeString,  -- startTime
-                                                    _ASS_SEP_FIELD,
+                                                    _ASS_CONST_SEP_FIELD,
                                                     __convertTimeToTimeString,  -- endTime
-                                                    _ASS_SEP_FIELD,
-                                                    _STYLE_NAME_MDL,
-                                                    _ASS_SEP_FIELD),
+                                                    _ASS_CONST_SEP_FIELD,
+                                                    __toASSEscapedString,       -- styleName
+                                                    _ASS_CONST_SEP_FIELD),
 
-    endDialogue             = __createBuilderMethod(_ASS_SEP_LINE),
+    endDialogue             = __createBuilderMethod(_ASS_CONST_SEP_LINE),
 
-    startStyle              = __createBuilderMethod(_ASS_STYLE_START),
+    startStyle              = __createBuilderMethod(_ASS_CONST_STYLE_START),
 
-    endStyle                = __createBuilderMethod(_ASS_STYLE_END),
+    endStyle                = __createBuilderMethod(_ASS_CONST_STYLE_END),
 
     addText                 = __createBuilderMethod(__toASSEscapedString),
 
@@ -304,34 +367,27 @@ local DialogueBuilder =
     addBottomCenterAlign    = __createBuilderMethod("\\an2"),
 
     addMove                 = __createBuilderMethod("\\move(",
-                                                    __toNumberString,   -- startX
-                                                    _ASS_SEP_FIELD,
-                                                    __toNumberString,   -- startY
-                                                    _ASS_SEP_FIELD,
-                                                    __toNumberString,   -- endX
-                                                    _ASS_SEP_FIELD,
-                                                    __toNumberString,
+                                                    __toIntNumberString,        -- startX
+                                                    _ASS_CONST_SEP_FIELD,
+                                                    __toIntNumberString,        -- startY
+                                                    _ASS_CONST_SEP_FIELD,
+                                                    __toIntNumberString,        -- endX
+                                                    _ASS_CONST_SEP_FIELD,
+                                                    __toIntNumberString,
                                                     ")"),
 
     addPos                  = __createBuilderMethod("\\pos(",
-                                                    __toNumberString,   -- x
-                                                    _ASS_SEP_FIELD,
-                                                    __toNumberString,   -- y
+                                                    __toIntNumberString,        -- x
+                                                    _ASS_CONST_SEP_FIELD,
+                                                    __toIntNumberString,        -- y
                                                     ")"),
 
-    addFontColor            = __createBuilderMethod("\\c&H",
+    addFontColor            = __createBuilderMethod("\\c",
                                                     __toNonDefaultFontColor,    -- rgb
                                                     "&"),
 
     addFontSize             = __createBuilderMethod("\\fs",
                                                     __toNonDefaultFontSize),    -- fontSize
-
-    addStyleUnchecked       = function(self, style)
-        if types.isString(style)
-        then
-            table.insert(self._mContent, style)
-        end
-    end,
 }
 
 classlite.declareClass(DialogueBuilder)
@@ -340,9 +396,9 @@ classlite.declareClass(DialogueBuilder)
 return
 {
     writeScriptInfo         = writeScriptInfo,
-    writeStylesHeader       = writeStylesHeader,
-    writeDefaultStyle       = __createWriteStyleFunction(_ASS_STYLE_DEFAULT),
-    writeSubtitleStyle      = __createWriteStyleFunction(_ASS_STYLE_SUBTITLE),
+    writeStyleHeader        = writeStyleHeader,
+    writeDanmakuStyle       = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_DANMAKU),
+    writeSubtitleStyle      = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE),
     writeEventsHeader       = writeEventsHeader,
     DialogueBuilder         = DialogueBuilder,
 }
