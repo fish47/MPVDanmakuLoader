@@ -39,9 +39,8 @@ local MPVDanmakuLoaderApp =
 
 
     new = function(self)
-        self:_initDanmakuSourcePlugins()
-
         -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
+        self:_initDanmakuSourcePlugins()
         self:__attachMethodLoggingHooks()
     end,
 
