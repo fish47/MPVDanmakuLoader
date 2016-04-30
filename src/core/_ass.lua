@@ -129,7 +129,7 @@ local _ASS_PAIRS_STYLE_DEFINITIONS =
     "BorderStyle",                  { __createIntValidator(1, 3),       1,                              1,                             },
     "Outline",                      { __createIntValidator(0, 4),       1,                              2,                             },
     "Shadow",                       { __createIntValidator(0, 4),       0,                              1,                             },
-    "Alignment",                    { __createIntValidator(1, 9),       5,                              2,                             },
+    "Alignment",                    { __createIntValidator(1, 9),       7,                              2,                             },
     "MarginL",                      { __createIntValidator(0),          0,                              5,                             },
     "MarginR",                      { __createIntValidator(0),          0,                              5,                             },
     "MarginV",                      { __createIntValidator(0),          0,                              8,                             },

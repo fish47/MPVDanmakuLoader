@@ -236,7 +236,7 @@ local _LocalDanmakuSource =
         if IDanmakuSource._serialize(self, serializer)
         then
             local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
-            serializer:writeElement(unportable.getRelativePath(self._mFilePath, cacheDir))
+            serializer:writeElement(unportable.getRelativePath(cacheDir, self._mFilePath))
             return true
         end
     end,
@@ -358,8 +358,7 @@ local _CachedRemoteDanmakuSource =
             serializer:writeElement(self._mDate)
             serializer:writeElement(self._mDescription)
             serializer:writeArray(self._mVideoIDs)
-            serializer:writeArray(self._mVideoIDs, __getRelativePath, cacheDir)
-            serializer:writeArray(self._mFilePaths)
+            serializer:writeArray(self._mFilePaths, __getRelativePath, cacheDir)
             serializer:writeArray(self._mStartTimeOffsets)
             return true
         end
