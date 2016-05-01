@@ -10,10 +10,10 @@ local danmaku           = require("src/core/danmaku")
 
 local DanmakuPool =
 {
-    _mDanmakuDataArrays     = classlite.declareTableField(),
-    _mDanmakuIndexes        = classlite.declareTableField(),
-    _mAddDanmakuHook        = classlite.declareConstantField(nil),
-    __mCompareFunc          = classlite.declareConstantField(nil),
+    _mDanmakuDataArrays         = classlite.declareTableField(),
+    _mDanmakuIndexes            = classlite.declareTableField(),
+    _mModifyDanmakuDataHook     = classlite.declareConstantField(nil),
+    __mCompareFunc              = classlite.declareConstantField(nil),
 
     new = function(self)
         local arrays = self._mDanmakuDataArrays
@@ -39,7 +39,7 @@ local DanmakuPool =
             local sourceIDs = arrays[_coreconstants._DANMAKU_IDX_SOURCE_ID]
             local danmakuIDs = arrays[_coreconstants._DANMAKU_IDX_DANMAKU_ID]
             ret = ret ~= 0 and ret or startTimes[idx1] - startTimes[idx2]
-            ret = ret ~= 0 and ret or sourceIDs[idx1]._index - sourceIDs[idx2]._index
+            ret = ret ~= 0 and ret or sourceIDs[idx1]._value - sourceIDs[idx2]._value
             ret = ret ~= 0 and ret or __compareString(danmakuIDs[idx1], danmakuIDs[idx2])
             return ret < 0
         end
@@ -49,8 +49,8 @@ local DanmakuPool =
         self:clear()
     end,
 
-    setAddDanmakuHook = function(self, hook)
-        self._mAddDanmakuHook = types.isFunction(hook) and hook
+    setModifyDanmakuDataHook = function(self, hook)
+        self._mModifyDanmakuDataHook = types.isFunction(hook) and hook
     end,
 
     getDanmakuCount = function(self)
@@ -64,8 +64,9 @@ local DanmakuPool =
 
 
     addDanmaku = function(self, danmakuData)
-        local hook = self._mAddDanmakuHook
-        if hook and not hook(danmakuData)
+        -- 钩子函数返回 true 才认为是过滤，因为 pcall 返回 false 表示调用失败
+        local hook = self._mModifyDanmakuDataHook
+        if hook and pcall(hook, danmakuData)
         then
             return
         end
@@ -87,27 +88,23 @@ local DanmakuPool =
 
         -- 去重
         local writeIdx = 1
-        local prevSource = nil
         local prevDanmakuID = nil
-        for i, idx in ipairs(indexes)
+        local prevSourceIDValue = math.huge
+        for _, idx in ipairs(indexes)
         do
-            local curSource = sourceIDs[i]
-            local curDanmakuID = danmakuIDs[i]
-            if curSource ~= prevSource or curDanmakuID ~= prevDanmakuID
+            local curDanmakuID = danmakuIDs[idx]
+            local curSourceIDValue = sourceIDs[idx]._value
+            if curDanmakuID ~= prevDanmakuID or curSourceIDValue ~= prevSourceIDValue
             then
                 indexes[writeIdx] = idx
                 writeIdx = writeIdx + 1
-                prevSource = curSource
-                prevDanmakuID = prevDanmakuID
+                prevDanmakuID = curDanmakuID
+                prevSourceIDValue = curSourceIDValue
             end
         end
 
-        -- 如果有重复数组长度会比原来的短
+        -- 如果有重复数组长度会比原来的短，不要删平行数组的数据，因为索引没整理过
         utils.clearArray(indexes, writeIdx)
-        for i = 1, _coreconstants._DANMAKU_IDX_MAX
-        do
-            utils.clearArray(arrays[i], writeIdx)
-        end
     end,
 
 
@@ -122,10 +119,11 @@ classlite.declareClass(DanmakuPool)
 
 local DanmakuPools =
 {
-    _mPools         = classlite.declareTableField(),
-    _mWriter        = classlite.declareClassField(_writer.DanmakuWriter),
-    _mSourceIDPool  = classlite.declareTableField(),
-    _mSourceIDCount = classlite.declareConstantField(0),
+    _mPools                 = classlite.declareTableField(),
+    _mWriter                = classlite.declareClassField(_writer.DanmakuWriter),
+    _mSourceIDPool          = classlite.declareTableField(),
+    _mSourceIDCount         = classlite.declareConstantField(0),
+    _mCompareSourceIDHook    = classlite.declareConstantField(nil),
 
     new = function(self)
         local pools = self._mPools
@@ -142,6 +140,10 @@ local DanmakuPools =
         self:clear()
     end,
 
+    setCompareSourceIDHook = function(self, hook)
+        self._mCompareSourceIDHook = types.isFunction(hook) and hook
+    end,
+
     iteratePools = function(self)
         return ipairs(self._mPools)
     end,
@@ -151,33 +153,58 @@ local DanmakuPools =
     end,
 
     allocateDanmakuSourceID = function(self, pluginName, videoID, partIdx, offset, filePath)
-        local sourceIDPool = self._mSourceIDPool
-        local sourceIDCount = self._mSourceIDCount
-        local sourceID = sourceIDPool[sourceIDCount]
+        local function __iterateSourceIDs(pool, count, hook, arg, sourceID)
+            for i = 1, count
+            do
+                local iterSourceID = pool[i]
+                if hook(arg, sourceID, iterSourceID)
+                then
+                    sourceID._value = iterSourceID._value
+                    return iterSourceID
+                end
+            end
+        end
+
+        local function __checkIsSame(_, sourceID, iterSourceID)
+            return iterSourceID:_isSame(sourceID)
+        end
+
+        local function __checkIsSameByHook(hook, sourceID, iterSouceID)
+            return pcall(hook, sourceID, iterSouceID)
+        end
+
+
+        local pool = self._mSourceIDPool
+        local count = self._mSourceIDCount
+        local sourceID = pool[count]
         if not sourceID
         then
             sourceID = danmaku.DanmakuSourceID:new()
-            sourceIDPool[sourceIDCount] = sourceID
+            pool[count] = sourceID
         end
 
-        sourceID._index = sourceIDCount
         sourceID.pluginName = pluginName
         sourceID.videoID = videoID
         sourceID.videoPartIndex = partIdx
         sourceID.startTimeOffset = offset
         sourceID.filePath = filePath
 
-        -- 有可能之前就生成过
-        for i = 1, sourceIDCount
-        do
-            local iterSourceID = sourceIDPool[i]
-            if iterSourceID:_isSame(sourceID)
-            then
-                return iterSourceID
-            end
+        -- 有可能之前就构造过一模一样的实例
+        local ret1 = __iterateSourceIDs(pool, count, __checkIsSame, nil, sourceID)
+        if ret1
+        then
+            return ret1
         end
 
-        self._mSourceIDCount = sourceIDCount + 1
+        -- 例如同一个 cid 的不同历史版本，虽然文件路径不同，但也应被认为是同一个弹幕源
+        local hook = self._mCompareSourceIDHook
+        local ret2 = hook and __iterateSourceIDs(pool, count, __checkIsSameByHook, hook, sourceID)
+        if ret2
+        then
+            return ret2
+        end
+
+        self._mSourceIDCount = count + 1
         return sourceID
     end,
 

@@ -5,7 +5,7 @@ local classlite         = require("src/base/classlite")
 
 local DanmakuSourceID =
 {
-    _index          = classlite.declareConstantField(0),
+    _value          = classlite.declareConstantField(0),
     pluginName      = classlite.declareConstantField(nil),
     videoID         = classlite.declareConstantField(nil),
     videoPartIndex  = classlite.declareConstantField(1),

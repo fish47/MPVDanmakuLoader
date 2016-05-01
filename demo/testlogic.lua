@@ -142,6 +142,6 @@ classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 
 local shell = MockShell:new()
 local app = shell._mApplication
-local cfg = app:getConfiguration()
 app:setLogFunction(print)
-shell:show(cfg)
+app:init()
+shell:showMainWindow()

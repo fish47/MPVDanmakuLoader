@@ -372,6 +372,16 @@ local ProgressBarProperties =
 classlite.declareClass(ProgressBarProperties, _WidgetPropertiesBase)
 
 
+local QuestionProperties =
+{
+    questionText    = classlite.declareConstantField(nil),
+    labelTextOK     = classlite.declareConstantField(nil),
+    labelTextCancel = classlite.declareConstantField(nil),
+}
+
+classlite.declareClass(QuestionProperties, _WidgetPropertiesBase)
+
+
 local _ZENITY_RESULT_RSTRIP_COUNT       = 2
 local _ZENITY_DEFAULT_OUTPUT            = constants.STR_EMPTY
 local _ZENITY_SEP_LISTBOX_INDEX         = "|"
@@ -561,6 +571,16 @@ local ZenityGUIBuilder =
 
     finishProgressBar = function(self, handler)
         utils.readAndCloseFile(handler)
+    end,
+
+    showQuestion = function(self, props)
+        local arguments = self.__mArguments
+        self:__prepareZenityCommand(arguments, props)
+        _addOption(arguments, "--question")
+        _addOptionAndValue(arguments, "--text", props.questionText)
+        _addOptionAndValue(arguments, "--ok-label", props.labelTextOK)
+        _addOptionAndValue(arguments, "--cancel-label", props.labelTextCancel)
+        return self:_getZenityCommandResult(arguments)
     end,
 }
 
@@ -776,7 +796,7 @@ local function moveTree(fromPath, toPath, preserved)
         _addValue(arguments, fromPath)
         _addValue(arguments, toPath)
 
-        local succeed = _getCommandString(arguments)
+        local succeed = _getCommandResult(arguments)
         utils.clearTable(arguments)
         return succeed
     end
@@ -812,6 +832,8 @@ return
     ListBoxProperties           = ListBoxProperties,
     FileSelectionProperties     = FileSelectionProperties,
     ProgressBarProperties       = ProgressBarProperties,
+    QuestionProperties          = QuestionProperties,
+
     ZenityGUIBuilder            = ZenityGUIBuilder,
     CURLNetworkConnection       = CURLNetworkConnection,
     UniquePathGenerator         = UniquePathGenerator,
@@ -820,6 +842,7 @@ return
     calcFileMD5                 = calcFileMD5,
     createDir                   = createDir,
     deleteTree                  = deleteTree,
+    moveTree                    = moveTree,
     readUTF8File                = readUTF8File,
 
     normalizePath               = normalizePath,

@@ -20,9 +20,10 @@ local function initConfiguration(cfg)
     cfg.subtitleReservedBottomHeight    = 10                -- 字幕底部预留空间
 
     -- 钩子函数
-    cfg.addDanmakuHook                  = nil               -- 修改或过滤弹幕
+    cfg.modifyDanmakuDataHook           = nil               -- 修改或过滤弹幕
     cfg.modifyDanmakuStyleHook          = nil
     cfg.modifySubtitleStyleHook         = nil
+    cfg.compareSourceIDHook             = nil               -- 判断弹幕来源是否相同
 
     -- 路径相关
     cfg.trashDirPath                    = nil               -- 如果不为空，所有删除都替换成移动，前提是目录存在
@@ -34,6 +35,7 @@ local function initConfiguration(cfg)
     cfg.pauseWhileShowing               = true              -- 弹窗后是否暂停播放
     cfg.saveGeneratedASS                = false             -- 是否保存每次生成的弹幕文件
     cfg.networkTimeout                  = nil               -- 网络请求超时秒数
+    cfg.promptReplaceMainSubtitle       = true              -- 是否提示替换当前弹幕
 
     return cfg
 end

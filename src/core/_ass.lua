@@ -207,7 +207,7 @@ local function __createWriteStyleFunction(styleIdx)
         styleData[_ASS_VALNAME_STYLE_FONTNAME] = fontName
         styleData[_ASS_VALNAME_STYLE_FONTCOLOR] = fontColor
         styleData[_ASS_VALNAME_STYLE_FONTSIZE] = fontSize
-        utils.invokeSafely(modifyHook, styleData)
+        pcall(modifyHook, styleData)
 
         local styleValues = utils.clearTable(__gWriteFields)
         for _, name, defData in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)

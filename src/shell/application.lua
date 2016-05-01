@@ -16,12 +16,24 @@ local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
 local _APP_PRIVATE_DIR_NAME     = ".mpvdanmakuloader"
 local _APP_ASS_FILE_SUFFIX      = ".ass"
 
-
 local _TAG_LOG_WIDTH            = 14
 local _TAG_PLUGIN               = "plugin"
 local _TAG_NETWORK              = "network"
 local _TAG_FILESYSTEM           = "filesystem"
 local _TAG_SUBTITLE             = "subtitle"
+
+
+local _MPV_CMD_ADD_SUBTITLE             = "sub-add"
+local _MPV_CMD_DELETE_SUBTITLE          = "sub-remove"
+local _MPV_PROP_MAIN_SUBTITLE_ID        = "sid"
+local _MPV_PROP_SECONDARY_SUBTITLE_ID   = "secondary-sid"
+local _MPV_PROP_TRACK_COUNT             = "track-list/count"
+local _MPV_PROP_TRACK_ID                = "track-list/%d/id"
+local _MPV_ARG_READDIR_ONLY_FILES       = "files"
+local _MPV_ARG_READDIR_ONLY_DIRS        = "dirs"
+local _MPV_ARG_ADDSUB_AUTO              = "auto"
+local _MPV_CONST_NO_SUBTITLE_ID         = "no"
+local _MPV_CONST_MEMORY_FILE_PREFFIX    = "memory://"
 
 
 local MPVDanmakuLoaderApp =
@@ -36,6 +48,7 @@ local MPVDanmakuLoaderApp =
     __mVideoFileMD5                     = classlite.declareConstantField(nil),
     __mVideoFilePath                    = classlite.declareConstantField(nil),
     __mPrivateDirPath                   = classlite.declareConstantField(nil),
+    __mAddedMemorySubtitleID            = classlite.declareConstantField(nil),
 
 
     new = function(self)
@@ -124,22 +137,26 @@ local MPVDanmakuLoaderApp =
         func(string.format("[%s%s%s]  " .. fmt, leadingSpaces, tag, trailingSpaces, ...))
     end,
 
-    init = function(self, cfg, filePath)
-        self._mConfiguration = cfg
-        self._mNetworkConnection:reset()
-        self._mNetworkConnection:setTimeout(cfg.networkTimeout)
-
+    init = function(self, filePath)
         local dir = filePath and unportable.splitPath(filePath)
         self.__mPrivateDirPath = dir and unportable.joinPath(dir, _APP_PRIVATE_DIR_NAME)
         self.__mVideoFileMD5 = nil
         self.__mVideoFilePath = filePath
+        self.__mAddedMemorySubtitleID = nil
+        self._mNetworkConnection:reset()
+        self._mDanmakuPools:clear()
+    end,
 
+    setConfiguration = function(self, cfg)
         local pools = self._mDanmakuPools
-        pools:clear()
+        pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
         for _, pool in pools:iteratePools()
         do
-            pool:setAddDanmakuHook(cfg.addDanmakuHook)
+            pool:setModifyDanmakuDataHook(cfg.modifyDanmakuDataHook)
         end
+
+        self._mConfiguration = cfg
+        self._mNetworkConnection:setTimeout(cfg.networkTimeout)
     end,
 
     getPluginByName = function(self, name)
@@ -185,22 +202,78 @@ local MPVDanmakuLoaderApp =
         return self._mNetworkConnection
     end,
 
-    setSubtitleFile = function(self, path)
-        if self:isExistedFile(path)
+    __doAddSubtitle = function(self, arg)
+        local orgSID = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
+        local orgTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 0)
+        mp.commandv(_MPV_CMD_ADD_SUBTITLE, arg)
+        mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, orgSID)
+
+        local newTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 1)
+        if newTrackCount > orgTrackCount
         then
-            mp.commandv("sub_add ", path)
+            local prop = string.format(_MPV_PROP_TRACK_ID, newTrackCount - 1)
+            return mp.get_property(prop)
         end
     end,
 
-    setSubtitleData = function(self, data)
-        if not types.isNilOrEmpty(data)
+    addSubtitleFile = function(self, path)
+        if self:isExistedFile(path)
         then
-            mp.commandv("sub_add", "memory://" .. data)
+            return self:__doAddSubtitle(path)
         end
+    end,
+
+    addSubtitleData = function(self, data)
+        local function __unsetSID(propName, sid)
+            if mp.get_property(propName) == sid
+            then
+                mp.set_property(propName, _MPV_CONST_NO_SUBTITLE_ID)
+            end
+        end
+
+        if types.isNilOrEmpty(data)
+        then
+            return
+        end
+
+        local newSID = self:__doAddSubtitle(_MPV_CONST_MEMORY_FILE_PREFFIX .. data)
+        if newSID
+        then
+            -- 只保留一个内存字幕
+            local memorySID = self.__mAddedMemorySubtitleID
+            if memorySID
+            then
+                __unsetSID(_MPV_PROP_MAIN_SUBTITLE_ID, memorySID)
+                __unsetSID(_MPV_PROP_SECONDARY_SUBTITLE_ID, memorySID)
+                mp.commandv(_MPV_CMD_DELETE_SUBTITLE, memorySID)
+            end
+
+            self.__mAddedMemorySubtitleID = newSID
+            return newSID
+        end
+    end,
+
+    setMainSubtitleByID = function(self, sid)
+        if types.isString(sid)
+        then
+            mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, sid)
+        end
+    end,
+
+    setSecondarySubtitleByID = function(self, sid)
+        if types.isString(sid)
+        then
+            mp.set_property(_MPV_PROP_SECONDARY_SUBTITLE_ID, sid)
+        end
+    end,
+
+    getMainSubtitleID = function(self)
+        local sid = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
+        return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
     end,
 
     listFiles = function(self, dir, outList)
-        local files = mp.utils.readdir(dir, "files")
+        local files = mp.utils.readdir(dir, _MPV_ARG_READDIR_ONLY_FILES)
         utils.clearTable(outList)
         utils.appendArrayElements(outList, files)
     end,
@@ -245,7 +318,7 @@ local MPVDanmakuLoaderApp =
         if types.isString(fullPath)
         then
             local parentDir, dir = unportable.splitPath(fullPath)
-            local dirs = mp.utils.readdir(parentDir, "dirs")
+            local dirs = mp.utils.readdir(parentDir, _MPV_ARG_READDIR_ONLY_DIRS)
             ret = utils.linearSearchArray(dirs, dir)
         end
         return ret

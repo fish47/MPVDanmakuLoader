@@ -1,8 +1,9 @@
-local _gConfiguration   = nil
-local _gApplication     = nil
-local _gLoaderShell     = nil
-local _gOpenedURL       = nil
-local _gOpenedFilePath  = nil
+local _gConfiguration       = nil
+local _gApplication         = nil
+local _gLoaderShell         = nil
+local _gOpenedURL           = nil
+local _gOpenedFilePath      = nil
+local _gIsAppInitialized    = false
 
 
 local function __ensureConfiguration()
@@ -27,7 +28,7 @@ local function __ensureConfiguration()
 end
 
 
-local function __ensureApplication()
+local function __ensureApplication(cfg)
     local app = _gApplication
     if not app
     then
@@ -35,6 +36,15 @@ local function __ensureApplication()
         app = application.MPVDanmakuLoaderApp:new()
         _gApplication = app
     end
+
+    if not _gIsAppInitialized
+    then
+        _gIsAppInitialized = true
+        app:init(_gOpenedFilePath)
+    end
+
+    app:setConfiguration(cfg)
+    app:setLogFunction(cfg.showDebugLog and print)
     return app
 end
 
@@ -54,7 +64,7 @@ end
 
 local function __doRunKeyBindingCallback(func)
     local cfg = __ensureConfiguration()
-    local app = __ensureApplication()
+    local app = __ensureApplication(cfg)
     local shell = __ensureLoaderShell(app)
     local isPausedBefore = mp.get_property_native("pause")
     mp.set_property_native("pause", cfg.pauseWhileShowing and true or isPausedBefore)
@@ -63,10 +73,9 @@ local function __doRunKeyBindingCallback(func)
 end
 
 
-local function showMain()
+local function showMainWindow()
     local function __func(cfg, app, shell)
-        app:setLogFunction(cfg.showDebugLog and print)
-        shell:show(cfg, _gOpenedFilePath)
+        shell:showMainWindow()
     end
 
     if _gOpenedFilePath
@@ -78,7 +87,7 @@ end
 
 local function loadDanmakuFromURL()
     local function __func(cfg, app, shell)
-        shell:loadDanmakuFromURL(cfg, _gOpenedURL)
+        shell:loadDanmakuFromURL(_gOpenedURL)
     end
 
     if _gOpenedURL
@@ -89,15 +98,25 @@ end
 
 
 local function __markOpenedPath()
+    _gOpenedURL = nil
+    _gOpenedFilePath = nil
+    _gIsAppInitialized = false
+
     local path = mp.get_property("stream-open-filename")
     local isURL = path:match(".*://.*")
-    _gOpenedURL = isURL and path
-    _gOpenedFilePath = not isURL and path
+    if isURL
+    then
+        _gOpenedURL = path
+    else
+        local isFullPath = path:match("^/.+$")
+        local fullPath = isFullPath and path or mp.utils.join_path(mp.utils.getcwd(), path)
+        _gOpenedFilePath = fullPath
+    end
 end
 
 
 -- 如果传网址会经过 youtube-dl 分析并重定向，为了拿到最初的网址必须加回调
 mp.add_hook("on_load", 5, __markOpenedPath)
 
-mp.add_key_binding("1", "show", showMain)
+mp.add_key_binding("1", "show", showMainWindow)
 mp.add_key_binding("2", "load", loadDanmakuFromURL)

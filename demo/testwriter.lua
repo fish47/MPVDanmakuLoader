@@ -23,7 +23,7 @@ local function __initPluginListBoxProps(listboxProps, app)
 end
 
 local function __initFileSelectionProps(fileSelectionProps)
-    fileSelectionProps.isMultiSelectable = false
+    fileSelectionProps.isMultiSelectable = true
     fileSelectionProps.isDirectoryOnly = false
     fileSelectionProps.windowTitle = _TITLE_WINDOW
 end
@@ -32,6 +32,12 @@ local function __initTextInfoProps(textInfoProps)
     textInfoProps.windowTitle = _TITLE_WINDOW
     textInfoProps.windowWidth = 1024
     textInfoProps.windowHeight = 800
+end
+
+local function __initConfiguration(cfg)
+    cfg.compareSourceIDHook = function()
+        return true
+    end
 end
 
 
@@ -44,6 +50,7 @@ local guiBuilder = unportable.ZenityGUIBuilder:new()
 local outSelectedIndexes = {}
 local outSelectedFilePaths = {}
 
+__initConfiguration(cfg)
 __initTextInfoProps(textInfoProps)
 __initPluginListBoxProps(listboxProps, app)
 __initFileSelectionProps(fileSelectionProps)
@@ -56,21 +63,24 @@ do
         break
     end
 
-    local hasSelectedFile = guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
-    if hasSelectedFile
-    then
-        local filePath = outSelectedFilePaths[1]
+    app:init()
+    app:setConfiguration(cfg)
+
+    guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
+    for _, filePath in ipairs(outSelectedFilePaths)
+    do
         local selectedIdx = outSelectedIndexes[1]
         local plugin = app:getPluginByName(listboxProps.listBoxElements[selectedIdx])
-        app:init(cfg, nil)
-
         local sourceID = app:getDanmakuPools():allocateDanmakuSourceID()
         plugin:parseFile(filePath, sourceID, 0)
+    end
 
-        local tmpFile = app:createTempFile()
-        app:getDanmakuPools():writeDanmakus(app, tmpFile)
+    local tmpFile = app:createTempFile()
+    local hasContent = app:getDanmakuPools():writeDanmakus(app, tmpFile)
+    if hasContent
+    then
         tmpFile:seek(constants.SEEK_MODE_BEGIN)
         guiBuilder:showTextInfo(textInfoProps, tmpFile:read(constants.READ_MODE_ALL))
-        tmpFile:close()
     end
+    tmpFile:close()
 end

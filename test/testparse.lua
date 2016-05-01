@@ -13,10 +13,8 @@ local mocks         = require("test/mocks")
 local function __createSetUpMethod(pluginClz)
     local ret = function(self)
         local app = mocks.MockApplication:new()
-        local cfg = mocks.MockConfiguration:new()
-        app:init(cfg)
         self._mApplication = app
-        self._mConfiguration = cfg
+        self._mConfiguration = app:getConfiguration()
         self._mDanmakuData = danmaku.DanmakuData:new()
 
         if pluginClz
@@ -44,8 +42,6 @@ end
 
 local function _parseData(self, text)
     local app = self._mApplication
-    app:init(self._mConfiguration)
-
     local pools = app:getDanmakuPools()
     local sourceID = pools:allocateDanmakuSourceID()
     self._mPlugin:parseData(text, sourceID, 0)
