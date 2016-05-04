@@ -180,9 +180,9 @@ local MPVDanmakuLoaderApp =
         cfg.subtitleReservedBottomHeight    = 10                -- 字幕底部预留空间
 
         -- 钩子函数
-        cfg.modifyDanmakuDataHook           = nil               -- 修改或过滤弹幕
-        cfg.modifyDanmakuStyleHook          = nil
-        cfg.modifySubtitleStyleHook         = nil
+        cfg.modifyDanmakuDataHook           = nil               -- 修改或过滤此弹幕
+        cfg.modifyDanmakuStyleHook          = nil               -- 修改弹幕样式
+        cfg.modifySubtitleStyleHook         = nil               -- 作用同上，不过只作用于字幕
         cfg.compareSourceIDHook             = nil               -- 判断弹幕来源是否相同
 
         -- 路径相关
@@ -200,8 +200,11 @@ local MPVDanmakuLoaderApp =
 
     _updateConfiguration = function(self, cfg)
         local cfgFilePath = unportable.joinPath(self:_getPrivateDirPath(), _APP_CFG_FILE_NAME)
-        local func = loadfile(cfgFilePath)
-        pcall(func, cfg)
+        if self:isExistedFile(cfgFilePath)
+        then
+            local func = loadfile(cfgFilePath, constants.LOAD_MODE_CHUNKS, _ENV)
+            pcall(func, cfg)
+        end
     end,
 
     getPluginByName = function(self, name)

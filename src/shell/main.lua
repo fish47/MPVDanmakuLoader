@@ -52,26 +52,21 @@ local function __doRunKeyBindingCallback(func)
 end
 
 
-local function showMainWindow()
-    local function __func(cfg, app, shell)
+local function __onRequestDanmaku()
+    local function __func1(cfg, app, shell)
         shell:showMainWindow()
+    end
+
+    local function __func2(cfg, app, shell)
+        shell:loadDanmakuFromURL(_gOpenedURL)
     end
 
     if _gOpenedFilePath
     then
-        __doRunKeyBindingCallback(__func)
-    end
-end
-
-
-local function loadDanmakuFromURL()
-    local function __func(cfg, app, shell)
-        shell:loadDanmakuFromURL(_gOpenedURL)
-    end
-
-    if _gOpenedURL
+        __doRunKeyBindingCallback(__func1)
+    elseif _gOpenedURL
     then
-        __doRunKeyBindingCallback(__func)
+        __doRunKeyBindingCallback(__func2)
     end
 end
 
@@ -96,6 +91,4 @@ end
 
 -- 如果传网址会经过 youtube-dl 分析并重定向，为了拿到最初的网址必须加回调
 mp.add_hook("on_load", 5, __markOpenedPath)
-
-mp.add_key_binding("1", "show", showMainWindow)
-mp.add_key_binding("2", "load", loadDanmakuFromURL)
+mp.add_key_binding("Ctrl+d", "load", __onRequestDanmaku)

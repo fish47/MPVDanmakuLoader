@@ -1,15 +1,25 @@
 # MPVDanmakuLoader
 
-* [简介](#overview)
-* [环境要求](#requirement)
-* [使用方法](#usage)
-* [配置说明](#configuration)
-* [已知问题](#knownissues)
+* [ScreenShots](#sceenshots)
+* [Features](#features)
+* [Requirements](#requirements)
+* [Installation](#installation)
+* [SearchSyntax](#searchsyntax)
+* [Configuration](#configuration)
+* [KnownIssues](#knownissues)
 
-## 简介
-TODO
 
-## 环境要求
+## ScreenShots
+
+
+## Features
+* BiliBili / Acfun / DanDanPlay 弹幕解释
+* 多弹幕源同屏显示
+* 分P弹幕源合并
+* 自带简单的离线弹幕源管理
+
+
+## Requirements
 * Linux
 * coreutils
 * mpv
@@ -18,14 +28,65 @@ TODO
 * curl
 * enca
 
-## 使用方法
-TODO
 
-## 配置说明
-TODO
+## Installation
+下载源码并安装脚本
+```bash
+_PROJECT_PATH=/tmp/MPVDanmakuLoader
+git clone https://github.com/fish47/MPVDanmakuLoader.git "$_PROJECT_PATH"
 
-## 已知问题
-* 理论上用 python 重写所有非平台相关的代码，应该可以兼容更多平台，没需求所以没有做。
-* mkv 自带字幕不能和弹幕共存，貌似 mpv 对 ...... 支持得并不好，连基本的 srt + ass 播放也是不正确的。
-* 据闻 io.popen() 不支持读写方式，项目中也有这样的用例，但暂时没发现死锁。
-*
+pushd "$_PROJECT_PATH"
+mkdir -p  ~/.config/mpv/scripts/
+lua tool/mergefiles.lua > ~/.config/mpv/scripts/mpvdanmakuloader.lua
+popd
+```
+建议通过`~/.config/mpv/input.conf`来修改快捷键，例如
+```
+Ctrl+d script-binding mpvdanmakuloader/load
+```
+
+
+## SearchSyntax
+* 直接输入视频网址，目前只支持B站
+* 直接根据视频ID搜索，如 `acfun:acXXX` `acfun:vidXXX` `bili:avXXX` `bili:cidXXX`
+* 根据关键字搜索，如 `ddp:XXX`
+
+
+## Configuration
+配置文件在视频目录下的`.mpvdanmakuloader/cfg.lua`，如果没有需要自己创建一个。
+```lua
+local cfg = ...
+
+-- 其他字段详见 MPVDanmakuLoaderApp._initConfiguration()@src/shell/application.lua
+cfg.danmakuReservedBottomHeight = 30
+cfg.subtitleReservedBottomHeight = 10
+
+-- 修改或过滤弹幕，参数类型是 DanmakuData@src/core/danmaku.lua ，返回 true 过滤此弹幕
+cfg.modifyDanmakuDataHook = function(danmakuData)
+    if danmakuData.text:match("小埋色")
+    then
+        return true
+    end
+end
+
+-- 修改弹幕样式，样式定义详见 _ASS_PAIRS_STYLE_DEFINITIONS@src/base/_ass.lua
+cfg.modifyDanmakuStyleHook = function(styleData)
+    styleData["Underline"] = true
+end
+
+-- 比较弹幕来源是否相同，参数类型是 DanmakuSourceID@src/core/danmaku.lua
+cfg.compareSourceIDHook = function(sourceID1, sourceID2)
+    -- 例如某个目录下，保存了不同时期的弹幕 xml 文件，为了去除重复弹幕，可以认为弹幕来源是相同的
+    local dir1, fileName1 = mp.utils.split_path(sourceID1.filePath)
+    local dir2, fileName2 = mp.utils.split_path(sourceID2.filePath)
+    if dir1 == dir2 and fileName1 and fileName2
+    then
+        return fileName1:match(".*%.xml") and fileName2:match(".*%.xml")
+    end
+end
+```
+
+
+## KnownIssues
+* mkv 自带字幕不能和弹幕共存，貌似 mpv 对 `--secondary-sid` 支持不好，连基本的 SRT + ASS 播放也是不正确的。
+* 据闻 `io.popen()` 不支持读写方式，[官方邮件列表](http://lua-users.org/lists/lua-l/2007-10/msg00189.html)甚至有解释过。项目中有这样的用例，但暂时没发现死锁。
