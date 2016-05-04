@@ -39,6 +39,7 @@ local _BILI_PATTERN_SEARCH_CID      = "bili:cid(%d+)"
 
 local _BILI_FMT_SEARCH_CID_TITLE    = "cid%s"
 
+local _BILI_CONST_NEWLINE           = "/n"
 
 local _BILI_FACTOR_TIME_STAMP       = 1000
 local _BILI_FACTOR_FONT_SIZE        = 25
@@ -79,11 +80,13 @@ local BiliBiliDanmakuSourcePlugin =
         end
 
         local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize)
+        local text = utils.unescapeXMLString(__sanitizeString(text))
+        text = text:gsub(_BILI_CONST_NEWLINE, constants.STR_NEWLINE)
         danmakuData.fontSize = size
         danmakuData.fontColor = tonumber(fontColor)
         danmakuData.startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
         danmakuData.danmakuID = tonumber(danmakuID)
-        danmakuData.danmakuText = utils.unescapeXMLString(__sanitizeString(text))
+        danmakuData.danmakuText = text
         return _BILI_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
     end,
 
