@@ -643,7 +643,7 @@ local _NetworkConnectionBase =
         end
     end,
 
-    resetParams = function(self)
+    clearHeaders = function(self)
         self._mIsCompressed = false
         utils.clearTable(self._mHeaders)
         return self
@@ -757,49 +757,34 @@ local function calcFileMD5(fullPath, byteCount)
 end
 
 
-local function createDir(fullPath)
-    if types.isString(fullPath)
-    then
-        local arguments = utils.clearTable(__gCommandArguments)
-        _addCommand(arguments, "mkdir")
-        _addOption(arguments, "-p")
-        _addValue(arguments, fullPath)
-
-        local succeed = _getCommandResult(arguments)
-        utils.clearTable(arguments)
-        return succeed
+local function __executeSimpleCommand(...)
+    local arguments = utils.clearTable(__gCommandArguments)
+    for i = 1, utils.getVarArgCount(...)
+    do
+        local arg = select(i, ...)
+        table.insert(arguments, __quoteShellString(arg))
     end
+    table.insert(arguments, _SHELL_SYNTAX_NO_STDERR)
+
+    local succeed = _getCommandResult(arguments)
+    utils.clearTable(arguments)
+    return succeed
+end
+
+
+local function createDir(fullPath)
+    return types.isString(fullPath) and __executeSimpleCommand("mkdir", "-p", fullPath)
 end
 
 
 local function deleteTree(fullPath)
-    if types.isString(fullPath)
-    then
-        local arguments = utils.clearTable(__gCommandArguments)
-        _addCommand(arguments, "rm")
-        _addOption(arguments, "-rf")
-        _addValue(arguments, fullPath)
-
-        local succeed = _getCommandResult(arguments)
-        utils.clearTable(arguments)
-        return succeed
-    end
+    return types.isString(fullPath) and __executeSimpleCommand("rm", "-rf", fullPath)
 end
 
 
 local function moveTree(fromPath, toPath, preserved)
-    if types.isString(fromPath)
-    then
-        local arguments = utils.clearTable(__gCommandArguments)
-        _addCommand(arguments, "mv")
-        _addOption(arguments, preserved and "--backup=numbered" or "-f")
-        _addValue(arguments, fromPath)
-        _addValue(arguments, toPath)
-
-        local succeed = _getCommandResult(arguments)
-        utils.clearTable(arguments)
-        return succeed
-    end
+    local arg = preserved and "--backup=numbered" or "-f"
+    return types.isString(fromPath) and __executeSimpleCommand("mv", arg, fromPath, toPath)
 end
 
 

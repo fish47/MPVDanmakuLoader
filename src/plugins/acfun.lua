@@ -75,7 +75,7 @@ local AcfunDanmakuSourcePlugin =
             end
 
             local conn = self._mApplication:getNetworkConnection()
-            conn:resetParams()
+            conn:clearHeaders()
             conn:addHeader(pluginbase._HEADER_USER_AGENT)
 
             local url = string.format(_ACFUN_FMT_URL_VIDEO, acid)
@@ -180,7 +180,7 @@ local AcfunDanmakuSourcePlugin =
     end,
 
     __initNetworkConnection = function(self, conn)
-        conn:resetParams()
+        conn:clearHeaders()
         conn:addHeader(pluginbase._HEADER_USER_AGENT)
         conn:setCompressed(true)
     end,

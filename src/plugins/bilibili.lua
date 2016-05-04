@@ -119,7 +119,7 @@ local BiliBiliDanmakuSourcePlugin =
             result.preferredIDIndex = index
 
             local conn = self._mApplication:getNetworkConnection()
-            conn:resetParams()
+            conn:clearHeaders()
             conn:addHeader(pluginbase._HEADER_USER_AGENT)
             conn:setCompressed(true)
 
@@ -165,7 +165,7 @@ local BiliBiliDanmakuSourcePlugin =
     end,
 
     __initNetworkConnection = function(self, conn)
-        conn:resetParams()
+        conn:clearHeaders()
         conn:addHeader(pluginbase._HEADER_USER_AGENT)
         conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
         conn:setCompressed(true)
