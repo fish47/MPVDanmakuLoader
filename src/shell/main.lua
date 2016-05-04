@@ -6,29 +6,7 @@ local _gOpenedFilePath      = nil
 local _gIsAppInitialized    = false
 
 
-local function __ensureConfiguration()
-    -- 构造实例 or 恢复字段
-    local configuration = require("src/shell/configuration")
-    local cfg = configuration.initConfiguration(_gConfiguration)
-
-    -- 读取当前目录下的配置文件
-    if _gOpenedFilePath
-    then
-        local dir = mp.utils.split_path(_gOpenedFilePath)
-        local cfgPath = mp.utils.join_path(dir, "cfg.lua")
-        local func = loadfile(cfgPath)
-        if func
-        then
-            func(cfg)
-        end
-    end
-
-    _gConfiguration = cfg
-    return cfg
-end
-
-
-local function __ensureApplication(cfg)
+local function __ensureApplication()
     local app = _gApplication
     if not app
     then
@@ -43,8 +21,7 @@ local function __ensureApplication(cfg)
         app:init(_gOpenedFilePath)
     end
 
-    app:setConfiguration(cfg)
-    app:setLogFunction(cfg.showDebugLog and print)
+    app:updateConfiguration()
     return app
 end
 
@@ -63,8 +40,10 @@ end
 
 
 local function __doRunKeyBindingCallback(func)
-    local cfg = __ensureConfiguration()
-    local app = __ensureApplication(cfg)
+    local app = __ensureApplication()
+    local cfg = app:getConfiguration()
+    app:setLogFunction(cfg.showDebugLog and print)
+
     local shell = __ensureLoaderShell(app)
     local isPausedBefore = mp.get_property_native("pause")
     mp.set_property_native("pause", cfg.pauseWhileShowing and true or isPausedBefore)

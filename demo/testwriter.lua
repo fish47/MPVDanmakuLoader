@@ -1,12 +1,23 @@
 local utils         = require("src/base/utils")
+local classlite     = require("src/base/classlite")
 local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
 local application   = require("src/shell/application")
-local configuration = require("src/shell/configuration")
 
 
 local _TITLE_WINDOW     = "TestWriter"
 local _TITLE_LISTBOX    = "选择插件"
+
+local MPVDanmakuLoaderAppWithModifiedCfg =
+{
+    _updateConfiguration = function(self, cfg)
+        cfg.compareSourceIDHook = function()
+            return true
+        end
+    end,
+}
+
+classlite.declareClass(MPVDanmakuLoaderAppWithModifiedCfg, application.MPVDanmakuLoaderApp)
 
 
 local function __initPluginListBoxProps(listboxProps, app)
@@ -35,14 +46,11 @@ local function __initTextInfoProps(textInfoProps)
 end
 
 local function __initConfiguration(cfg)
-    cfg.compareSourceIDHook = function()
-        return true
-    end
+
 end
 
 
-local app = application.MPVDanmakuLoaderApp:new()
-local cfg = configuration.initConfiguration()
+local app = MPVDanmakuLoaderAppWithModifiedCfg:new()
 local listboxProps = unportable.ListBoxProperties:new()
 local textInfoProps = unportable.TextInfoProperties:new()
 local fileSelectionProps = unportable.FileSelectionProperties:new()
@@ -50,7 +58,6 @@ local guiBuilder = unportable.ZenityGUIBuilder:new()
 local outSelectedIndexes = {}
 local outSelectedFilePaths = {}
 
-__initConfiguration(cfg)
 __initTextInfoProps(textInfoProps)
 __initPluginListBoxProps(listboxProps, app)
 __initFileSelectionProps(fileSelectionProps)
@@ -64,7 +71,7 @@ do
     end
 
     app:init()
-    app:setConfiguration(cfg)
+    app:updateConfiguration()
 
     guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
     for _, filePath in ipairs(outSelectedFilePaths)

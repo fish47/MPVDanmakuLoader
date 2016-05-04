@@ -4,7 +4,6 @@ local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local danmakupool   = require("src/core/danmakupool")
-local configuration = require("src/shell/configuration")
 local pluginbase    = require("src/plugins/pluginbase")
 local srt           = require("src/plugins/srt")
 local acfun         = require("src/plugins/acfun")
@@ -14,6 +13,7 @@ local dandanplay    = require("src/plugins/dandanplay")
 
 local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
 local _APP_PRIVATE_DIR_NAME     = ".mpvdanmakuloader"
+local _APP_CFG_FILE_NAME        = "cfg.lua"
 local _APP_ASS_FILE_SUFFIX      = ".ass"
 
 local _TAG_LOG_WIDTH            = 14
@@ -38,7 +38,7 @@ local _MPV_CONST_MEMORY_FILE_PREFFIX    = "memory://"
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration                     = classlite.declareConstantField(nil),
+    _mConfiguration                     = classlite.declareTableField(),
     _mDanmakuPools                      = classlite.declareClassField(danmakupool.DanmakuPools),
     _mNetworkConnection                 = classlite.declareClassField(unportable.CURLNetworkConnection),
     _mDanmakuSourcePlugins              = classlite.declareTableField(),
@@ -147,16 +147,61 @@ local MPVDanmakuLoaderApp =
         self._mDanmakuPools:clear()
     end,
 
-    setConfiguration = function(self, cfg)
+
+    updateConfiguration = function(self)
+        local cfg = self._mConfiguration
+        self:_initConfiguration(cfg)
+        self:_updateConfiguration(cfg)
+
         local pools = self._mDanmakuPools
-        pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
         for _, pool in pools:iteratePools()
         do
             pool:setModifyDanmakuDataHook(cfg.modifyDanmakuDataHook)
         end
-
-        self._mConfiguration = cfg
+        pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
         self._mNetworkConnection:setTimeout(cfg.networkTimeout)
+    end,
+
+    _initConfiguration = function(self, cfg)
+        utils.clearTable(cfg)
+
+        -- 弹幕属性
+        cfg.danmakuFontSize                 = 34                -- 弹幕默认字体大小
+        cfg.danmakuFontName                 = "sans-serif"      -- 弹幕默认字体名
+        cfg.danmakuFontColor                = 0xFFFFFF          -- 弹幕默认颜色 RRGGBB
+        cfg.subtitleFontSize                = 34                -- 字幕默认字体大小
+        cfg.subtitleFontName                = "mono"            -- 字幕默认字体名
+        cfg.subtitleFontColor               = 0xFFFFFF          -- 字幕默认颜色 RRGGBB
+        cfg.movingDanmakuLifeTime           = 8000              -- 滚动弹幕存活时间
+        cfg.staticDanmakuLIfeTime           = 5000              -- 固定位置弹幕存活时间
+        cfg.danmakuResolutionX              = 1280              -- 弹幕分辨率
+        cfg.danmakuResolutionY              = 720
+        cfg.danmakuReservedBottomHeight     = 30                -- 弹幕底部预留空间
+        cfg.subtitleReservedBottomHeight    = 10                -- 字幕底部预留空间
+
+        -- 钩子函数
+        cfg.modifyDanmakuDataHook           = nil               -- 修改或过滤弹幕
+        cfg.modifyDanmakuStyleHook          = nil
+        cfg.modifySubtitleStyleHook         = nil
+        cfg.compareSourceIDHook             = nil               -- 判断弹幕来源是否相同
+
+        -- 路径相关
+        cfg.trashDirPath                    = nil               -- 如果不为空，所有删除都替换成移动，前提是目录存在
+        cfg.rawDataRelDirPath               = "rawdata"         -- 下载到本地的弹幕源原始数据目录
+        cfg.metaDataRelFilePath             = "sourcemeta.lua"  -- 记录弹幕源的原始信息
+
+        -- 设置
+        cfg.showDebugLog                    = true              -- 是否输出调试信息
+        cfg.pauseWhileShowing               = true              -- 弹窗后是否暂停播放
+        cfg.saveGeneratedASS                = false             -- 是否保存每次生成的弹幕文件
+        cfg.networkTimeout                  = nil               -- 网络请求超时秒数
+        cfg.promptReplaceMainSubtitle       = true              -- 是否提示替换当前弹幕
+    end,
+
+    _updateConfiguration = function(self, cfg)
+        local cfgFilePath = unportable.joinPath(self:_getPrivateDirPath(), _APP_CFG_FILE_NAME)
+        local func = loadfile(cfgFilePath)
+        pcall(func, cfg)
     end,
 
     getPluginByName = function(self, name)

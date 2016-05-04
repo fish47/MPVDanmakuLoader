@@ -759,7 +759,7 @@ end
 
 local function __executeSimpleCommand(...)
     local arguments = utils.clearTable(__gCommandArguments)
-    for i = 1, utils.getVarArgCount(...)
+    for i = 1, types.getVarArgCount(...)
     do
         local arg = select(i, ...)
         table.insert(arguments, __quoteShellString(arg))

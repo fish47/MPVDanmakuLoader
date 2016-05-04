@@ -6,7 +6,6 @@ local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
-local configuration = require("src/shell/configuration")
 local sourcemgr     = require("src/shell/sourcemgr")
 
 
@@ -357,29 +356,17 @@ local MockNetworkConnection =
 classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
 
 
-local MockConfiguration =
-{
-    new = function(self)
-        configuration.initConfiguration(self)
-        self.rawDataRelDirPath = "1/2/3/rawdata"
-        self.metaDataRelFilePath = "4/5/6/meta.lua"
-    end,
-}
-
-classlite.declareClass(MockConfiguration)
-
-
 local MockApplication =
 {
-    _mConfiguration     = classlite.declareClassField(MockConfiguration),
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
+
+
+    _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
     getMockFileSystem = function(self)
         return self._mMockFileSystem
     end,
-
-    _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 
     _getPrivateDirPath = function(self)
         return "/mpvdanmakuloader/private_dir/"
@@ -389,12 +376,9 @@ local MockApplication =
         return string.rep("1", 32)
     end,
 
-    setSubtitleFile = function(self, path)
-        -- do nothing
-    end,
-
-    setSubtitleData = function(self, data)
-        -- do nothing
+    _updateConfiguration = function(self, cfg)
+        cfg.rawDataRelDirPath = "1/2/3/rawdata"
+        cfg.metaDataRelFilePath = "4/5/6/meta.lua"
     end,
 }
 
@@ -434,7 +418,6 @@ return
 {
     MockFileSystem              = MockFileSystem,
     MockNetworkConnection       = MockNetworkConnection,
-    MockConfiguration           = MockConfiguration,
     MockApplication             = MockApplication,
     MockDanmakuSourceManager    = MockDanmakuSourceManager,
 

@@ -144,4 +144,5 @@ local shell = MockShell:new()
 local app = shell._mApplication
 app:setLogFunction(print)
 app:init()
+app:updateConfiguration()
 shell:showMainWindow()
