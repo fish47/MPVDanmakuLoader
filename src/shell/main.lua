@@ -42,7 +42,7 @@ end
 local function __doRunKeyBindingCallback(func)
     local app = __ensureApplication()
     local cfg = app:getConfiguration()
-    app:setLogFunction(cfg.showDebugLog and print)
+    app:setLogFunction(cfg.enableDebugLog and print)
 
     local shell = __ensureLoaderShell(app)
     local isPausedBefore = mp.get_property_native("pause")

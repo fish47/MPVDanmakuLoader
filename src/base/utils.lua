@@ -1,5 +1,6 @@
 local _algo     = require("src/base/_algo")
 local _conv     = require("src/base/_conv")
+local _validate = require("src/base/_validate")
 local types     = require("src/base/types")
 local constants = require("src/base/constants")
 
@@ -57,4 +58,5 @@ local __exports =
 
 _algo.mergeTable(__exports, _algo)
 _algo.mergeTable(__exports, _conv)
+_algo.mergeTable(__exports, _validate)
 return __exports

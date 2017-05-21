@@ -6,6 +6,7 @@ local serialize     = require("src/base/serialize")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
+local config        = require("src/shell/config")
 local sourcemgr     = require("src/shell/sourcemgr")
 
 
@@ -368,8 +369,8 @@ local MockApplication =
         return self._mMockFileSystem
     end,
 
-    _getPrivateDirPath = function(self)
-        return "/mpvdanmakuloader/private_dir/"
+    _getCurrentDirPath = function(self)
+        return "/mpvdanmakuloader/"
     end,
 
     getVideoFileMD5 = function(self)
@@ -377,8 +378,9 @@ local MockApplication =
     end,
 
     _updateConfiguration = function(self, cfg)
-        cfg.rawDataRelDirPath = "1/2/3/rawdata"
-        cfg.metaDataRelFilePath = "4/5/6/meta.lua"
+        config.updateConfiguration(self, nil, cfg, nil)
+        cfg.rawDataDirName = "1/2/3/rawdata"
+        cfg.metaDataFileName = "4/5/6/meta.lua"
     end,
 }
 

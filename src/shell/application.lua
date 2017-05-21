@@ -9,11 +9,10 @@ local srt           = require("src/plugins/srt")
 local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
+local config        = require("src/shell/config")
 
 
 local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
-local _APP_PRIVATE_DIR_NAME     = ".mpvdanmakuloader"
-local _APP_CFG_FILE_NAME        = "cfg.lua"
 local _APP_ASS_FILE_SUFFIX      = ".ass"
 
 local _TAG_LOG_WIDTH            = 14
@@ -21,10 +20,12 @@ local _TAG_PLUGIN               = "plugin"
 local _TAG_NETWORK              = "network"
 local _TAG_FILESYSTEM           = "filesystem"
 local _TAG_SUBTITLE             = "subtitle"
+local _TAG_EXT_COMMAND          = "extcommand"
 
 
 local _MPV_CMD_ADD_SUBTITLE             = "sub-add"
 local _MPV_CMD_DELETE_SUBTITLE          = "sub-remove"
+local _MPV_PROP_PAUSE                   = "pause"
 local _MPV_PROP_MAIN_SUBTITLE_ID        = "sid"
 local _MPV_PROP_SECONDARY_SUBTITLE_ID   = "secondary-sid"
 local _MPV_PROP_TRACK_COUNT             = "track-list/count"
@@ -47,14 +48,24 @@ local MPVDanmakuLoaderApp =
 
     __mVideoFileMD5                     = classlite.declareConstantField(nil),
     __mVideoFilePath                    = classlite.declareConstantField(nil),
-    __mPrivateDirPath                   = classlite.declareConstantField(nil),
+    __mCurrentDirPath                   = classlite.declareConstantField(nil),
     __mAddedMemorySubtitleID            = classlite.declareConstantField(nil),
+    __mConfigurationSchemeTable         = classlite.declareTableField(),
 
 
     new = function(self)
         -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
         self:_initDanmakuSourcePlugins()
         self:__attachMethodLoggingHooks()
+        self:__initConfigurationSchemeTable()
+    end,
+
+    __initConfigurationSchemeTable = function(self)
+        local scheme = self.__mConfigurationSchemeTable
+        for _, k in config.iterateConfigurationKeys()
+        do
+            scheme[k] = true
+        end
     end,
 
     __attachMethodLoggingHooks = function(self)
@@ -78,8 +89,8 @@ local MPVDanmakuLoaderApp =
         end
 
         local clzApp = self:getClass()
-        self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "read")
-        self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8")
+        self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "readFile")
+        self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8File")
         self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
         self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
         self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
@@ -116,9 +127,8 @@ local MPVDanmakuLoaderApp =
         end
     end,
 
-
     setLogFunction = function(self, func)
-        self._mLogFunction = types.isFunction(func) and func
+        self._mLogFunction = types.chooseValue(types.isFunction(func), func)
     end,
 
     _printLog = function(self, tag, fmt, ...)
@@ -139,7 +149,7 @@ local MPVDanmakuLoaderApp =
 
     init = function(self, filePath)
         local dir = filePath and unportable.splitPath(filePath)
-        self.__mPrivateDirPath = dir and unportable.joinPath(dir, _APP_PRIVATE_DIR_NAME)
+        self.__mCurrentDirPath = types.toValueOrNil(dir)
         self.__mVideoFileMD5 = nil
         self.__mVideoFilePath = filePath
         self.__mAddedMemorySubtitleID = nil
@@ -147,10 +157,18 @@ local MPVDanmakuLoaderApp =
         self._mDanmakuPools:clear()
     end,
 
+    _getCurrentDirPath = function(self)
+        return self.__mCurrentDirPath
+    end,
+
+    _updateConfiguration = function(self, cfg)
+        local path = self:_getCurrentDirPath()
+        local options = mp.options.read_options(self.__mConfigurationSchemeTable)
+        config.updateConfiguration(self, path, cfg, options)
+    end,
 
     updateConfiguration = function(self)
         local cfg = self._mConfiguration
-        self:_initConfiguration(cfg)
         self:_updateConfiguration(cfg)
 
         local pools = self._mDanmakuPools
@@ -160,51 +178,7 @@ local MPVDanmakuLoaderApp =
         end
         pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
         self._mNetworkConnection:setTimeout(cfg.networkTimeout)
-    end,
-
-    _initConfiguration = function(self, cfg)
-        utils.clearTable(cfg)
-
-        -- 弹幕属性
-        cfg.danmakuFontSize                 = 34                -- 弹幕默认字体大小
-        cfg.danmakuFontName                 = "sans-serif"      -- 弹幕默认字体名
-        cfg.danmakuFontColor                = 0xFFFFFF          -- 弹幕默认颜色 RRGGBB
-        cfg.subtitleFontSize                = 34                -- 字幕默认字体大小
-        cfg.subtitleFontName                = "mono"            -- 字幕默认字体名
-        cfg.subtitleFontColor               = 0xFFFFFF          -- 字幕默认颜色 RRGGBB
-        cfg.movingDanmakuLifeTime           = 8000              -- 滚动弹幕存活时间
-        cfg.staticDanmakuLIfeTime           = 5000              -- 固定位置弹幕存活时间
-        cfg.danmakuResolutionX              = 1280              -- 弹幕分辨率
-        cfg.danmakuResolutionY              = 720
-        cfg.danmakuReservedBottomHeight     = 30                -- 弹幕底部预留空间
-        cfg.subtitleReservedBottomHeight    = 10                -- 字幕底部预留空间
-
-        -- 钩子函数
-        cfg.modifyDanmakuDataHook           = nil               -- 修改或过滤此弹幕
-        cfg.modifyDanmakuStyleHook          = nil               -- 修改弹幕样式
-        cfg.modifySubtitleStyleHook         = nil               -- 作用同上，不过只作用于字幕
-        cfg.compareSourceIDHook             = nil               -- 判断弹幕来源是否相同
-
-        -- 路径相关
-        cfg.trashDirPath                    = nil               -- 如果不为空，所有删除都替换成移动，前提是目录存在
-        cfg.rawDataRelDirPath               = "rawdata"         -- 下载到本地的弹幕源原始数据目录
-        cfg.metaDataRelFilePath             = "sourcemeta.lua"  -- 记录弹幕源的原始信息
-
-        -- 设置
-        cfg.showDebugLog                    = true              -- 是否输出调试信息
-        cfg.pauseWhileShowing               = true              -- 弹窗后是否暂停播放
-        cfg.saveGeneratedASS                = false             -- 是否保存每次生成的弹幕文件
-        cfg.networkTimeout                  = nil               -- 网络请求超时秒数
-        cfg.promptReplaceMainSubtitle       = true              -- 是否提示替换当前弹幕
-    end,
-
-    _updateConfiguration = function(self, cfg)
-        local cfgFilePath = unportable.joinPath(self:_getPrivateDirPath(), _APP_CFG_FILE_NAME)
-        if self:isExistedFile(cfgFilePath)
-        then
-            local func = loadfile(cfgFilePath, constants.LOAD_MODE_CHUNKS, _ENV)
-            pcall(func, cfg)
-        end
+        self:setLogFunction(cfg.enableDebugLog and print)
     end,
 
     getPluginByName = function(self, name)
@@ -320,6 +294,14 @@ local MPVDanmakuLoaderApp =
         return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
     end,
 
+    isVideoPaused = function(self)
+        return mp.get_property_native(_MPV_PROP_PAUSE)
+    end,
+
+    setVideoPaused = function(self, val)
+        mp.set_property_native(_MPV_PROP_PAUSE, types.toBoolean(val))
+    end,
+
     listFiles = function(self, dir, outList)
         local files = mp.utils.readdir(dir, _MPV_ARG_READDIR_ONLY_FILES)
         utils.clearTable(outList)
@@ -404,23 +386,20 @@ local MPVDanmakuLoaderApp =
         return md5
     end,
 
-    _getPrivateDirPath = function(self)
-        return self.__mPrivateDirPath
-    end,
-
     __doGetConfigurationFullPath = function(self, relPath)
-        local dir = self:_getPrivateDirPath()
-        return dir and relPath and unportable.joinPath(dir, relPath)
+        local path = self:_getCurrentDirPath()
+        local dirName = self:getConfiguration().privateDataDirName
+        return path and dirName and unportable.joinPath(path, dirName)
     end,
 
     getDanmakuSourceRawDataDirPath = function(self)
-        local cfg = self:getConfiguration()
-        return cfg and self:__doGetConfigurationFullPath(cfg.rawDataRelDirPath)
+        local relPath = self:getConfiguration().rawDataDirName
+        return self:__doGetConfigurationFullPath(name)
     end,
 
     getDanmakuSourceMetaDataFilePath = function(self)
-        local cfg = self:getConfiguration()
-        return cfg and self:__doGetConfigurationFullPath(cfg.metaDataRelFilePath)
+        local relPath = self:getConfiguration().metaDataFileName
+        return self:__doGetConfigurationFullPath(relPath)
     end,
 
     getGeneratedASSFilePath = function(self)
@@ -433,6 +412,10 @@ local MPVDanmakuLoaderApp =
 
     getCurrentDateTime = function(self)
         return os.time()
+    end,
+
+    executeExternalCommand = function(self, cmds)
+        --TODOl
     end,
 }
 

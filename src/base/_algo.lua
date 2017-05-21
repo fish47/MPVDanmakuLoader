@@ -201,7 +201,7 @@ local function sortParallelArrays(...)
     local firstArg = select(1, ...)
     local hasCompareFunc = types.isFunction(firstArg)
     local compareFunc = hasCompareFunc and firstArg
-    local arrayStartIdx = 1 + types.toNumber(hasCompareFunc)
+    local arrayStartIdx = 1 + types.toZeroOrOne(hasCompareFunc)
 
     -- 以第一个数组内容作为排序关键词
     local firstArray = select(arrayStartIdx, ...)

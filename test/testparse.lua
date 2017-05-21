@@ -13,6 +13,7 @@ local mocks         = require("test/mocks")
 local function __createSetUpMethod(pluginClz)
     local ret = function(self)
         local app = mocks.MockApplication:new()
+        app:updateConfiguration()
         self._mApplication = app
         self._mConfiguration = app:getConfiguration()
         self._mDanmakuData = danmaku.DanmakuData:new()

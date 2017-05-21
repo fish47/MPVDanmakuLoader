@@ -116,8 +116,8 @@ local DanmakuWriter =
 
         _ass.writeScriptInfo(f, screenW, screenH)
         _ass.writeStyleHeader(f)
-        _ass.writeDanmakuStyle(f, cfg.modifyDanmakuStyleHook, cfg.danmakuFontName, cfg.danmakuFontSize, cfg.danmakuFontColor)
-        _ass.writeSubtitleStyle(f, cfg.modifySubtitleStyleHook, cfg.subtitleFontName, cfg.subtitleFontSize, cfg.subtitleFontColor)
+        _ass.writeDanmakuStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize, cfg.danmakuFontColor)
+        _ass.writeSubtitleStyle(f, cfg.subtitleFontName, cfg.subtitleFontSize, cfg.subtitleFontColor)
         _ass.writeEventsHeader(f)
 
 

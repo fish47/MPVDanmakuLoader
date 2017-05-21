@@ -249,7 +249,6 @@ local function joinPath(dirName, pathName)
         end
         utils.clearTable(paths)
     end
-
     return ret
 end
 
@@ -451,7 +450,7 @@ local ZenityGUIBuilder =
         end
 
         -- 加一列作为返回值
-        local hiddenIDColIdx = 1 + types.toNumber(isFirstColumnDummy)
+        local hiddenIDColIdx = 1 + types.toZeroOrOne(isFirstColumnDummy)
         _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
         _addOptionAndValue(arguments, "--print-column", hiddenIDColIdx)
         _addOptionAndValue(arguments, "--hide-column", hiddenIDColIdx)
@@ -600,7 +599,7 @@ local _NetworkConnectionBase =
     _readConnection = constants.FUNC_EMPTY,
 
     setTimeout = function(self, timeout)
-        self._mTimeoutSeconds = types.isNumber(timeout) and timeout > 0 and timeout
+        self._mTimeoutSeconds = types.chooseValue(types.isPositiveNumber(timeout), timeout)
     end,
 
     receive = function(self, url)

@@ -12,6 +12,10 @@ local function isString(obj)
     return type(obj) == _LUA_TYPE_STRING
 end
 
+local function isNonEmptyString(obj)
+    return isString(obj) and #obj > 0
+end
+
 local function isNumber(obj)
     return type(obj) == _LUA_TYPE_NUMBER
 end
@@ -69,22 +73,32 @@ local function isEmptyVarArgs(...)
     return (getVarArgCount(...) == 0)
 end
 
-local function toNumber(obj)
-    if not obj
-    then
-        return 0
-    elseif isNumber(obj)
-    then
-        return obj
-    else
-        return 1
-    end
+local function toInt(obj)
+    local val = tonumber(obj)
+    return val and math.floor(val) or nil
+end
+
+local function toZeroOrOne(obj)
+    return obj and 1 or 0
 end
 
 local function toBoolean(obj)
     return obj and true or false
 end
 
+local function chooseValue(val, trueVal, falseVal)
+    -- 注意选择的值可能就是 nil ，不要用简写为 A and B or C 的形式
+    if val
+    then
+        return trueVal
+    else
+        return falseVal
+    end
+end
+
+local function toValueOrNil(val)
+    return chooseValue(val, val)
+end
 
 local function getStringWithDefault(str, default)
     return isString(str) and str or default
@@ -98,6 +112,7 @@ end
 return
 {
     isString                = isString,
+    isNonEmptyString        = isNonEmptyString,
     isNumber                = isNumber,
     isPositiveNumber        = isPositiveNumber,
     isNonNegativeNumber     = isNonNegativeNumber,
@@ -111,8 +126,11 @@ return
     isEmptyTable            = isEmptyTable,
     isEmptyVarArgs          = isEmptyVarArgs,
     getVarArgCount          = getVarArgCount,
-    toNumber                = toNumber,
+    toInt                   = toInt,
+    toZeroOrOne             = toZeroOrOne,
     toBoolean               = toBoolean,
+    toValueOrNil            = toValueOrNil,
+    chooseValue             = chooseValue,
     getStringWithDefault    = getStringWithDefault,
     getNumberWithDefault    = getNumberWithDefault,
 }

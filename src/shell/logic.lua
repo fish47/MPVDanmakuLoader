@@ -262,7 +262,7 @@ local MPVDanmakuLoaderShell =
 
         local shouldReplace = false
         local mainSID = app:getMainSubtitleID()
-        if not app:getConfiguration().promptReplaceMainSubtitle and mainSID
+        if not app:getConfiguration().promptOnReplaceMainSubtitle and mainSID
         then
             local uiStrings = self._mUIStrings
             local questionProps = self.__mQuestionProperties

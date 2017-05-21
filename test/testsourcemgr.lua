@@ -47,6 +47,7 @@ TestDanmakuSourceManager =
 
     setUp = function(self)
         self._mApplication = mocks.MockApplication:new()
+        self._mApplication:updateConfiguration()
         self._mDanmakuSourceManager = mocks.MockDanmakuSourceManager:new()
         self._mDanmakuSourceManager:setApplication(self._mApplication)
         self._mRandomSourceIDCount = 0

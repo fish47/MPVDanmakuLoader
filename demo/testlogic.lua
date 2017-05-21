@@ -98,6 +98,7 @@ local MockShell =
         logic.MPVDanmakuLoaderShell.new(self)
 
         local app = self._mApplication
+        app:setLogFunction(print)
         self:setApplication(app)
 
         local plugin1 = MockRemoteDanmakuSourcePlugin:new("Plugin1")

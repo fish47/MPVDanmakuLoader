@@ -55,42 +55,24 @@ local function _convertNumberToIntString(num)
     return string.format(_ASS_CONST_FMT_INT, math.floor(num))
 end
 
-local function __createStringValidator(str)
-    local ret = function(val, default)
-        return types.isString(val) and #val > 0 and val or default
-    end
-    return ret
+local function _convertBoolToASSBoolString(val)
+    return types.chooseValue(val, _ASS_CONST_BOOL_TRUE, _ASS_CONST_BOOL_FALSE)
 end
 
-local function __createIntValidator(minVal, maxVal, hook)
-    local ret = function(val, default)
-        val = types.isNumber(val) and val or default
-        val = minVal and math.max(val, minVal) or val
-        val = maxVal and math.min(val, maxVal) or val
-        return hook and hook(val) or _convertNumberToIntString(val)
-    end
-    return ret
+local function _convertNonEmptyString(val)
+    return types.chooseValue(types.isNonEmptyString(val), val, nil)
 end
 
-local function __createColorValidator()
-    return __createIntValidator(nil, nil, _convertARGBHexToABGRColorString)
+local function _createIntValidator(minVal, maxVal)
+    return utils.createIntValidator(nil, nil, minVal, maxVal)
 end
 
-local function __createBoolValidator()
-    local function __toBoolString(val)
-        if types.isBoolean(val)
-        then
-            return val and _ASS_CONST_BOOL_TRUE or _ASS_CONST_BOOL_FALSE
-        end
-    end
 
-    local ret = function(val, default)
-        return __toBoolString(val)
-            or __toBoolString(default)
-            or _ASS_CONST_BOOL_FALSE
-    end
-    return ret
-end
+local _VALIDATOR_POSITIVE_INT   = utils.createIntValidator(nil, nil, 0)
+local _VALIDATOR_SCALE_PERCENT  = utils.createIntValidator(nil, nil, 0, 100)
+local _VALIDATOR_ASS_BOOL       = utils.createSimpleValidator(types.toBoolean, _convertBoolToASSBoolString)
+local _VALIDATOR_ASS_COLOR      = utils.createIntValidator(types.toInt, _convertNumberToIntString)
+local _VALIDATOR_STRING         = utils.createSimpleValidator(_convertNonEmptyString)
 
 
 local _ASS_CONST_STYLE_DEF_IDX_VALIDATOR    = 1
@@ -111,31 +93,30 @@ local _ASS_PAIRS_SCRIPT_INFO_CONTENT =
 -- 字幕样式抄自 http://www.zimuku.net/detail/45087.html
 local _ASS_PAIRS_STYLE_DEFINITIONS =
 {
-    _ASS_VALNAME_STYLE_STYLENAME,   { __createStringValidator(),        _ASS_CONST_STYLENAME_DANMAKU,   _ASS_CONST_STYLENAME_SUBTITLE, },
-    _ASS_VALNAME_STYLE_FONTNAME,    { __createStringValidator(),        "sans-serif",                   "mono",                        },
-    _ASS_VALNAME_STYLE_FONTSIZE,    { __createIntValidator(1),          34,                             34,                            },
-    _ASS_VALNAME_STYLE_FONTCOLOR,   { __createColorValidator(),         0x33FFFFFF,                     0x00FFFFFF,                    },
-    "SecondaryColour",              { __createColorValidator(),         0x33FFFFFF,                     0xFF000000,                    },
-    "OutlineColour",                { __createColorValidator(),         0x33000000,                     0x0000336C,                    },
-    "BackColour",                   { __createColorValidator(),         0x33000000,                     0x00000000,                    },
-    "Bold",                         { __createBoolValidator(),          false,                          false,                         },
-    "Italic",                       { __createBoolValidator(),          false,                          false,                         },
-    "Underline",                    { __createBoolValidator(),          false,                          false,                         },
-    "StrikeOut",                    { __createBoolValidator(),          false,                          false,                         },
-    "ScaleX",                       { __createIntValidator(0, 100),     100,                            100                            },
-    "ScaleY",                       { __createIntValidator(0, 100),     100,                            100                            },
-    "Spacing",                      { __createIntValidator(0),          0,                              0,                             },
-    "Angle",                        { __createIntValidator(0, 360),     0,                              0,                             },
-    "BorderStyle",                  { __createIntValidator(1, 3),       1,                              1,                             },
-    "Outline",                      { __createIntValidator(0, 4),       1,                              2,                             },
-    "Shadow",                       { __createIntValidator(0, 4),       0,                              1,                             },
-    "Alignment",                    { __createIntValidator(1, 9),       7,                              2,                             },
-    "MarginL",                      { __createIntValidator(0),          0,                              5,                             },
-    "MarginR",                      { __createIntValidator(0),          0,                              5,                             },
-    "MarginV",                      { __createIntValidator(0),          0,                              8,                             },
-    "Encoding",                     { __createIntValidator(0),          0,                              0,                             },
+    _ASS_VALNAME_STYLE_STYLENAME,   { _VALIDATOR_STRING,                _ASS_CONST_STYLENAME_DANMAKU,   _ASS_CONST_STYLENAME_SUBTITLE, },
+    _ASS_VALNAME_STYLE_FONTNAME,    { _VALIDATOR_STRING,                "sans-serif",                   "mono",                        },
+    _ASS_VALNAME_STYLE_FONTSIZE,    { _createIntValidator(1),           34,                             34,                            },
+    _ASS_VALNAME_STYLE_FONTCOLOR,   { _VALIDATOR_ASS_COLOR,             0x33FFFFFF,                     0x00FFFFFF,                    },
+    "SecondaryColour",              { _VALIDATOR_ASS_COLOR,             0x33FFFFFF,                     0xFF000000,                    },
+    "OutlineColour",                { _VALIDATOR_ASS_COLOR,             0x33000000,                     0x0000336C,                    },
+    "BackColour",                   { _VALIDATOR_ASS_COLOR,             0x33000000,                     0x00000000,                    },
+    "Bold",                         { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
+    "Italic",                       { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
+    "Underline",                    { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
+    "StrikeOut",                    { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
+    "ScaleX",                       { _VALIDATOR_SCALE_PERCENT,         100,                            100                            },
+    "ScaleY",                       { _VALIDATOR_SCALE_PERCENT,         100,                            100                            },
+    "Spacing",                      { _VALIDATOR_POSITIVE_INT,          0,                              0,                             },
+    "Angle",                        { _createIntValidator(0, 360),      0,                              0,                             },
+    "BorderStyle",                  { _createIntValidator(1, 3),        1,                              1,                             },
+    "Outline",                      { _createIntValidator(0, 4),        1,                              2,                             },
+    "Shadow",                       { _createIntValidator(0, 4),        0,                              1,                             },
+    "Alignment",                    { _createIntValidator(1, 9),        7,                              2,                             },
+    "MarginL",                      { _VALIDATOR_POSITIVE_INT,          0,                              5,                             },
+    "MarginR",                      { _VALIDATOR_POSITIVE_INT,          0,                              5,                             },
+    "MarginV",                      { _VALIDATOR_POSITIVE_INT,          0,                              8,                             },
+    "Encoding",                     { _VALIDATOR_POSITIVE_INT,          0,                              0,                             },
 }
-
 
 
 local function _writeKeyValue(f, k, v)
@@ -179,7 +160,7 @@ local function _writeFields(f, fields)
 end
 
 
-local function writeStyleHeader (f)
+local function writeStyleHeader(f)
     local styleNames = utils.clearTable(__gWriteFields)
     for _, name in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
     do
@@ -202,12 +183,11 @@ end
 
 
 local function __createWriteStyleFunction(styleIdx)
-    local ret = function(f, modifyHook, fontName, fontSize, fontColor)
+    local ret = function(f, fontName, fontSize, fontColor)
         local styleData = utils.clearTable(__gStyleData)
         styleData[_ASS_VALNAME_STYLE_FONTNAME] = fontName
         styleData[_ASS_VALNAME_STYLE_FONTCOLOR] = fontColor
         styleData[_ASS_VALNAME_STYLE_FONTSIZE] = fontSize
-        pcall(modifyHook, styleData)
 
         local styleValues = utils.clearTable(__gWriteFields)
         for _, name, defData in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
