@@ -61,8 +61,26 @@ local function isEmptyTable(obj)
     return (isTable(obj) and next(obj) == nil)
 end
 
+local function isNonEmptyTable(obj)
+    return (isTable(obj) and next(obj) ~= nil)
+end
+
+local function isNonEmptyArray(obj)
+    return (isTable(obj) and obj[1] ~= nil)
+end
+
 local function isNilOrEmpty(obj)
     return (obj == nil or obj == constants.STR_EMPTY or isEmptyTable(obj))
+end
+
+local function chooseValue(val, trueVal, falseVal)
+    -- 注意选择的值可能就是 nil ，不要用简写为 A and B or C 的形式
+    if val
+    then
+        return trueVal
+    else
+        return falseVal
+    end
 end
 
 local function getVarArgCount(...)
@@ -75,7 +93,7 @@ end
 
 local function toInt(obj)
     local val = tonumber(obj)
-    return val and math.floor(val) or nil
+    return chooseValue(val, math.floor(val), nil)
 end
 
 local function toZeroOrOne(obj)
@@ -84,16 +102,6 @@ end
 
 local function toBoolean(obj)
     return obj and true or false
-end
-
-local function chooseValue(val, trueVal, falseVal)
-    -- 注意选择的值可能就是 nil ，不要用简写为 A and B or C 的形式
-    if val
-    then
-        return trueVal
-    else
-        return falseVal
-    end
 end
 
 local function toValueOrNil(val)
@@ -124,6 +132,7 @@ return
     isClosedFile            = isClosedFile,
     isNilOrEmpty            = isNilOrEmpty,
     isEmptyTable            = isEmptyTable,
+    isNonEmptyTable         = isNonEmptyTable,
     isEmptyVarArgs          = isEmptyVarArgs,
     getVarArgCount          = getVarArgCount,
     toInt                   = toInt,

@@ -1,0 +1,2 @@
+local _SNIPPETS_DOCUMENT_START  = "{"
+local _SNIPPETS_DOCUMENT_END    = "}"

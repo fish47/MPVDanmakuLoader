@@ -13,6 +13,8 @@ local _SERIALIZE_SEP_LINE                   = "\n"
 local _SERIALIZE_QUOTE_STRING_FORMAT        = "%q"
 local _SERIALIZE_CONST_NIL                  = "nil"
 
+local __gLoadEnv    = {}
+
 
 local function _doSerialize(isArray, file, ...)
     if not types.isOpenedFile(file)
@@ -72,7 +74,8 @@ end
 
 
 local function __doDeserialize(input, isFilePath, callback)
-    local loadEnv = { [_SERIALIZE_FUNC_NAME] = callback }
+    local loadEnv = utils.clear(__gLoadEnv)
+    loadEnv[_SERIALIZE_FUNC_NAME] = callback
     local compiledChunks = isFilePath
                            and loadfile(input, constants.LOAD_MODE_CHUNKS, loadEnv)
                            or load(input, nil, constants.LOAD_MODE_CHUNKS, loadEnv)
@@ -82,7 +85,7 @@ local function __doDeserialize(input, isFilePath, callback)
         pcall(compiledChunks)
     end
 
-    loadEnv = nil
+    utils.clear(loadEnv)
     compiledChunks = nil
 end
 
