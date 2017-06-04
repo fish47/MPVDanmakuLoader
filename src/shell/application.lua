@@ -39,21 +39,26 @@ local _MPV_CONST_MEMORY_FILE_PREFFIX    = "memory://"
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration                     = classlite.declareTableField(),
-    _mDanmakuPools                      = classlite.declareClassField(danmakupool.DanmakuPools),
-    _mNetworkConnection                 = classlite.declareClassField(unportable.CURLNetworkConnection),
-    _mDanmakuSourcePlugins              = classlite.declareTableField(),
-    _mUniquePathGenerator               = classlite.declareClassField(unportable.UniquePathGenerator),
-    _mLogFunction                       = classlite.declareConstantField(nil),
+    _mConfiguration             = classlite.declareTableField(),
+    _mDanmakuPools              = classlite.declareClassField(danmakupool.DanmakuPools),
+    _mNetworkConnection         = classlite.declareClassField(unportable.CURLNetworkConnection),
+    _mUnportableCmdExecutor     = classlite.declareClassField(unportable.UnportableCommandExecutor),
+    _mDanmakuSourcePlugins      = classlite.declareTableField(),
+    _mUniquePathGenerator       = classlite.declareClassField(unportable.UniquePathGenerator),
+    _mLogFunction               = classlite.declareConstantField(nil),
 
-    __mVideoFileMD5                     = classlite.declareConstantField(nil),
-    __mVideoFilePath                    = classlite.declareConstantField(nil),
-    __mCurrentDirPath                   = classlite.declareConstantField(nil),
-    __mAddedMemorySubtitleID            = classlite.declareConstantField(nil),
-    __mConfigurationSchemeTable         = classlite.declareTableField(),
+    __mVideoFileMD5             = classlite.declareConstantField(nil),
+    __mVideoFilePath            = classlite.declareConstantField(nil),
+    __mCurrentDirPath           = classlite.declareConstantField(nil),
+    __mAddedMemorySubtitleID    = classlite.declareConstantField(nil),
+    __mCfgSchemeTable           = classlite.declareTableField(),
+
+    __mSubprocessArguments      = classlite.declareTableField(),
 
 
     new = function(self)
+        self._mUnportableCmdExecutor:setApplication(self)
+
         -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
         self:_initDanmakuSourcePlugins()
         self:__attachMethodLoggingHooks()
@@ -61,7 +66,7 @@ local MPVDanmakuLoaderApp =
     end,
 
     __initConfigurationSchemeTable = function(self)
-        local scheme = self.__mConfigurationSchemeTable
+        local scheme = self.__mCfgSchemeTable
         for _, k in config.iterateConfigurationKeys()
         do
             scheme[k] = true
@@ -94,7 +99,7 @@ local MPVDanmakuLoaderApp =
         self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
         self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
         self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
-        self.deleteTree     = __createPatchedFSFunction(clzApp.deleteTree,      "deleteTree")
+        self.deletePath     = __createPatchedFSFunction(clzApp.deletePath,      "deletePath")
         self.createTempFile = __createPatchedFSFunction(clzApp.createTempFile,  "createTempFile")
 
         local function __printNetworkLog(_, url)
@@ -163,7 +168,7 @@ local MPVDanmakuLoaderApp =
 
     _updateConfiguration = function(self, cfg)
         local path = self:_getCurrentDirPath()
-        local options = mp.options.read_options(self.__mConfigurationSchemeTable)
+        local options = mp.options.read_options(self.__mCfgSchemeTable)
         config.updateConfiguration(self, path, cfg, options)
     end,
 
@@ -309,17 +314,11 @@ local MPVDanmakuLoaderApp =
     end,
 
     createDir = function(self, dir)
-        return types.isString(dir) and unportable.createDir(dir)
+        return self._mUnportableCmdExecutor:createDirs(dir)
     end,
 
-    deleteTree = function(self, fullPath)
-        if types.isString(fullPath)
-        then
-            local trashDirPath = self._mConfiguration.trashDirPath
-            return types.isString(trashDirPath)
-                and unportable.moveTree(fullPath, trashDirPath, true)
-                or unportable.deleteTree(fullPath)
-        end
+    deletePath = function(self, fullPath)
+        return self._mUnportableCmdExecutor:deletePath(fullPath)
     end,
 
     createTempFile = function(self)
@@ -331,7 +330,7 @@ local MPVDanmakuLoaderApp =
     end,
 
     readUTF8File = function(self, fullPath)
-        return types.isString(fullPath) and unportable.readUTF8File(fullPath)
+        return self._mUnportableCmdExecutor:readUTF8File(fullPath)
     end,
 
     writeFile = function(self, fullPath, mode)
@@ -375,14 +374,13 @@ local MPVDanmakuLoaderApp =
 
     getVideoFileMD5 = function(self)
         local md5 = self.__mVideoFileMD5
-        if md5
+        if not md5
         then
-            return md5
+            local fullPath = self.__mVideoFilePath
+            local executor = self._mUnportableCmdExecutor
+            md5 = executor:calculateFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
+            self.__mVideoFileMD5 = md5
         end
-
-        local fullPath = self.__mVideoFilePath
-        md5 = fullPath and unportable.calcFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
-        self.__mVideoFileMD5 = md5
         return md5
     end,
 
@@ -414,8 +412,28 @@ local MPVDanmakuLoaderApp =
         return os.time()
     end,
 
-    executeExternalCommand = function(self, cmds)
-        --TODOl
+    executeExternalCommand = function(self, cmdArgs, stdin)
+        local function __isSucceed(ret)
+            return types.isTable(ret)
+                and not ret.error
+                and types.isNumber(ret.status)
+        end
+        if types.isString(stdin)
+        then
+            local excutor = self._mUnportableCmdExecutor
+            return excutor:redirectExternalCommand(cmdArgs, stdin)
+        else
+            local args = utils.clearTable(self.__mSubprocessArguments)
+            args.args = cmdArgs
+            args.cancellable = true
+            local ret = mp.utils.subprocess(args)
+            local succeed = __isSucceed(ret)
+            local ret = types.chooseValue(succeed, ret.status)
+            local stdout = types.chooseValue(succeed, ret.stdout)
+            ret = nil
+            utils.clearTable(args)
+            return ret, stdout
+        end
     end,
 }
 

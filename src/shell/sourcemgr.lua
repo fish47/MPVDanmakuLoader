@@ -16,7 +16,7 @@ local _DEFAULT_START_TIME_OFFSET    = 0
 
 local function __deleteDownloadedFiles(app, filePaths)
     local function __deleteFile(fullPath, _, __, app)
-        app:deleteTree(fullPath)
+        app:deletePath(fullPath)
     end
     utils.forEachArrayElement(filePaths, __deleteFile, app)
     utils.clearTable(filePaths)
@@ -395,7 +395,7 @@ local _CachedRemoteDanmakuSource =
         local app = self._mApplication
         for _, path in utils.iterateArray(self._mFilePaths)
         do
-            app:deleteTree(path)
+            app:deletePath(path)
         end
         return true
     end,

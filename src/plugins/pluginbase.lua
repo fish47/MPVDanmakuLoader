@@ -6,10 +6,6 @@ local danmaku       = require("src/core/danmaku")
 local danmakupool   = require("src/core/danmakupool")
 
 
-local _HEADER_USER_AGENT    = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:44.0) Gecko/20100101 Firefox/44.0"
-local _HEADER_ACCEPT_XML    = "Accept: application/xml"
-
-
 local IDanmakuSourcePlugin =
 {
     _mApplication   = classlite.declareConstantField(nil),
@@ -141,9 +137,6 @@ classlite.declareClass(DanmakuSourceSearchResult)
 
 return
 {
-    _HEADER_USER_AGENT                  = _HEADER_USER_AGENT,
-    _HEADER_ACCEPT_XML                  = _HEADER_ACCEPT_XML,
-
     IDanmakuSourcePlugin                = IDanmakuSourcePlugin,
     _AbstractDanmakuSourcePlugin        = _AbstractDanmakuSourcePlugin,
     _PatternBasedDanmakuSourcePlugin    = _PatternBasedDanmakuSourcePlugin,

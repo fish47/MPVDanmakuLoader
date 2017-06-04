@@ -179,12 +179,6 @@ local AcfunDanmakuSourcePlugin =
         return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
     end,
 
-    __initNetworkConnection = function(self, conn)
-        conn:clearHeaders()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
-        conn:setCompressed(true)
-    end,
-
 
     _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
         self:__initNetworkConnection(conn)
@@ -205,7 +199,6 @@ local AcfunDanmakuSourcePlugin =
         end
 
         local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
-        self:__initNetworkConnection(conn)
         conn:receiveLater(url, __parseDuration, outDurations)
     end,
 }

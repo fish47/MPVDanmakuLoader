@@ -233,7 +233,7 @@ local MPVDanmakuLoaderShell =
         local pools = app:getDanmakuPools()
         if assFilePath
         then
-            app:deleteTree(assFilePath)
+            app:deletePath(assFilePath)
 
             local file = app:writeFile(assFilePath, constants.FILE_MODE_WRITE_ERASE)
             local hasContent = pools:writeDanmakus(app, file)

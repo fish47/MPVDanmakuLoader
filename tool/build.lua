@@ -1,4 +1,6 @@
-local _STR_READ_MODE_LINE_WITH_EOL      = "*L"
+local _filelist     = require("tool/_filelist")
+
+
 local _STR_MODULE_FUNC_NAME_PATTERN     = "[/%.]"
 local _STR_MODULE_FUNC_NAME_REPLACE     = "_"
 local _STR_PATTERN_STRIP_SUFFIX         = "(.*)%.[^%.]-"
@@ -82,94 +84,128 @@ local function _writeFileTag(outFile, tag)
 end
 
 
-local function __doWriteModule(outFile, path, isMainFile)
-    local moduleFile = io.open(path)
-    if not moduleFile
-    then
-        return
-    end
+local function __doAppendFile(outFile, path, content)
+    _writeFileTag(outFile, _STR_FMT_FILE_SEPARATOR_TAG_STRAT:format(path))
+    outFile:write(content)
+    _writeFileTag(outFile, _STR_FMT_FILE_SEPARATOR_TAG_END:format(path))
+end
 
-    local funcName = nil
-    if not isMainFile
+
+local function __readFile(path)
+    local f = io.open(path)
+    if f
+    then
+        local content = f:read("*a")
+        f:close()
+        return content
+    end
+end
+
+local function __writeModuleString(outFile, path, content)
+    if path and content
     then
         local requirePath = path:match(_STR_PATTERN_STRIP_SUFFIX)
         funcName = path:gsub(_STR_MODULE_FUNC_NAME_PATTERN, _STR_MODULE_FUNC_NAME_REPLACE)
-        outFile:write(string.format(_STR_MODULE_CONTENT_START, requirePath, funcName))
-    end
-
-    local startTag = string.format(_STR_FMT_FILE_SEPARATOR_TAG_STRAT, path)
-    _writeFileTag(outFile, startTag)
-
-    while true
-    do
-        local line = moduleFile:read(_STR_READ_MODE_LINE_WITH_EOL)
-        if not line
-        then
-            moduleFile:close()
-            break
-        end
-
-        outFile:write(line)
-    end
-
-    local endTag = string.format(_STR_FMT_FILE_SEPARATOR_TAG_END, path)
-    _writeFileTag(outFile, endTag)
-
-    if not isMainFile
-    then
-        outFile:write(string.format(_STR_MODULE_CONTENT_END, funcName))
+        local startTag = _STR_MODULE_CONTENT_START:format(requirePath, funcName)
+        local endTag = _STR_MODULE_CONTENT_END:format(funcName)
+        outFile:write(startTag)
+        __doAppendFile(outFile, path, content)
+        outFile:write(endTag)
     end
 end
 
-
-local function _writeModule(outFile, path)
-    return __doWriteModule(outFile, path, false)
+local function __writeModuleFile(outFile, path)
+    __writeModuleString(outFile, path, __readFile(path))
 end
 
 local function _writeMain(outFile, path)
-    return __doWriteModule(outFile, path, true)
+    local content = __readFile(path)
+    if content
+    then
+        __doAppendFile(outFile, path, content)
+    end
+end
+
+local function _writeTemplate(outFile, path, substitutions)
+    local function __compareReplaceItem(item1, item2)
+        local start1 = item1[3]
+        local start2 = item2[3]
+        local end1 = item1[4]
+        local end2 = item2[4]
+        return (start1 < start2 or end1 < end2)
+    end
+
+    local function __appendStringPiece(buf, piece, startIdx, endIdx)
+        if not piece
+        then
+            return
+        end
+
+        if startIdx and endIdx
+        then
+            if startIdx >= endIdx
+            then
+                return
+            else
+                piece = piece:sub(startIdx, endIdx - 1)
+            end
+        end
+
+        table.insert(buf, piece)
+    end
+
+    local replaceItems = {}
+    local content = __readFile(path)
+    if content
+    then
+        for k, v in pairs(substitutions)
+        do
+            local startIdx, lastIdx = content:find(k, 0, true)
+            if startIdx
+            then
+                table.insert(replaceItems, { k, v, startIdx, lastIdx + 1 })
+            end
+        end
+
+        local lastEndIdx = 0
+        local buf = {}
+        table.sort(replaceItems, __compareReplaceItem)
+        for _, item in ipairs(replaceItems)
+        do
+            local _, path, itemStart, itemEnd = table.unpack(item)
+            if itemStart >= lastEndIdx
+            then
+                __appendStringPiece(buf, content, lastEndIdx, itemStart)
+                __appendStringPiece(buf, __readFile(path))
+                lastEndIdx = itemEnd
+            end
+        end
+        __appendStringPiece(buf, content, lastEndIdx, #content + 1)
+        __writeModuleString(outFile, path, table.concat(buf))
+    end
 end
 
 local function main()
+    local function __writeFiles(f, func, paths)
+        for _, v in ipairs(paths)
+        do
+            func(f, v)
+        end
+    end
+
+    local function __writeTemplates(f, paths)
+        for path, substitutions in pairs(paths)
+        do
+            _writeTemplate(f, path, substitutions)
+        end
+    end
+
     local destFile = io.stdout
-    local function _addModule(path)
-        _writeModule(destFile, path)
-    end
-
-    local function _addMain(path)
-        _writeMain(destFile, path)
-    end
-
     destFile:write(_STR_MERGE_FILES_START)
-    _addModule("src/base/_algo.lua")
-    _addModule("src/base/_conv.lua")
-    _addModule("src/base/classlite.lua")
-    _addModule("src/base/constants.lua")
-    _addModule("src/base/serialize.lua")
-    _addModule("src/base/types.lua")
-    _addModule("src/base/unportable.lua")
-    _addModule("src/base/utf8.lua")
-    _addModule("src/base/utils.lua")
-    _addModule("src/core/_ass.lua")
-    _addModule("src/core/_coreconstants.lua")
-    _addModule("src/core/_layer.lua")
-    _addModule("src/core/_poscalc.lua")
-    _addModule("src/core/_writer.lua")
-    _addModule("src/core/danmaku.lua")
-    _addModule("src/core/danmakupool.lua")
-    _addModule("src/plugins/acfun.lua")
-    _addModule("src/plugins/bilibili.lua")
-    _addModule("src/plugins/dandanplay.lua")
-    _addModule("src/plugins/pluginbase.lua")
-    _addModule("src/plugins/srt.lua")
-    _addModule("src/shell/application.lua")
-    _addModule("src/shell/config.lua")
-    _addModule("src/shell/logic.lua")
-    _addModule("src/shell/sourcemgr.lua")
-    _addModule("src/shell/uiconstants.lua")
-    destFile:write(_STR_MERGE_FILES_END)
-
-    _addMain("src/shell/main.lua")
+    -- __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PRIVATE)
+    -- __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PUBLIC)
+    -- __writeFiles(destFile, _writeMain, _filelist.FILE_LIST_SRC_MAIN)
+    __writeTemplates(destFile, _filelist.FILE_LIST_TEMPLATE)
     destFile:close()
 end
 

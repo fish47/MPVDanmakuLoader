@@ -297,7 +297,7 @@ local MockFileSystem =
         end
     end,
 
-    deleteTree = function(self, fullPath)
+    deletePath = function(self, fullPath)
         local dirNode, node = self:_seekToNode(fullPath)
         if dirNode and node
         then
@@ -391,7 +391,7 @@ for _, methodName in ipairs({ "isExistedDir",
                               "readFile",
                               "writeFile",
                               "createDir",
-                              "deleteTree",
+                              "deletePath",
                               "listFiles" })
 do
     MockApplication[methodName] = function(self, ...)

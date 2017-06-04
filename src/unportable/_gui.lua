@@ -4,6 +4,43 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
+local function __addRawArgument(arguments, arg)
+    if not types.types.isNil(arg)
+    then
+        table.insert(arguments, tostring(arg))
+    end
+end
+
+local function _addOption(arguments, arg)
+    __addRawArgument(arguments, arg)
+end
+
+local function _addCommand(arguments, cmd)
+    __addRawArgument(arguments, cmd)
+end
+
+local function _addValue(arguments, val)
+    if types.isString(val) or types.isNumber(val)
+    then
+        -- 标准命令行中，为了避免值与选项混淆，如果带 - 号还要加一个 -- 来转义
+        val = tostring(val)
+        if val:match(_SHELL_PATTERN_STARTS_WITH_DASH)
+        then
+            table.insert(arguments, _SHELL_CONST_DOUBLE_DASH)
+        end
+        table.insert(arguments, __quoteShellString(val))
+    end
+end
+
+local function _addOptionAndValue(arguments, optionName, val)
+    if not types.isNil(optionName) and not types.isNil(val)
+    then
+        _addOption(arguments, optionName)
+        _addValue(arguments, val)
+    end
+end
+
+
 local _WidgetPropertiesBase =
 {
     windowTitle     = classlite.declareConstantField(nil),
@@ -49,11 +86,7 @@ local FileSelectionProperties =
 classlite.declareClass(FileSelectionProperties, _WidgetPropertiesBase)
 
 
-local ProgressBarProperties =
-{
-    isAutoClose     = classlite.declareConstantField(false),
-}
-
+local ProgressBarProperties ={}
 classlite.declareClass(ProgressBarProperties, _WidgetPropertiesBase)
 
 
@@ -72,57 +105,69 @@ local _ZENITY_DEFAULT_OUTPUT            = constants.STR_EMPTY
 local _ZENITY_SEP_LISTBOX_INDEX         = "|"
 local _ZENITY_SEP_FILE_SELECTION        = "//.//"
 local _ZENITY_PATTERN_SPLIT_INDEXES     = "(%d+)"
-local _ZENITY_PREFFIX_PROGRESS_MESSAGE  = "# "
 
 local ZenityGUIBuilder =
 {
+    _mApplication   = classlite.declareConstantField(nil),
     __mArguments    = classlite.declareTableField(),
 
-    __prepareZenityCommand = function(self, arguments, props)
-        utils.clearTable(arguments)
-        _addCommand(arguments, "zenity")
-        _addOptionAndValue(arguments, "--title", props.windowTitle)
-        _addOptionAndValue(arguments, "--width", props.windowWidth)
-        _addOptionAndValue(arguments, "--height", props.windowHeight)
+    __prepareZenityCommand = function(self, props)
+        local app = self._mApplication
+        local cfg = app and app:getConfiguration()
+        local path = cfg and cfg.zenityBinPath
+        if path
+        then
+            local arguments = utils.clearTable(self.__mArguments)
+            _addCommand(arguments, "zenity")
+            _addOptionAndValue(arguments, "--title", props.windowTitle)
+            _addOptionAndValue(arguments, "--width", props.windowWidth)
+            _addOptionAndValue(arguments, "--height", props.windowHeight)
+            return arguments
+        end
     end,
 
-    _getZenityCommandResult = function(self, arguments)
-        _addSyntax(arguments, _SHELL_SYNTAX_NO_STDERR)
-        local succeed, output = _getCommandResult(arguments)
-        return succeed and output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
+    __getZenityCommandResult = function(self, arguments, stdin)
+        local app = self._mApplication
+        local succeed, output = app and app:executeExternalCommand(arguments, stdin)
+        if succeed
+        then
+            return output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
+        end
     end,
 
 
     showTextInfo = function(self, props, content)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
-        _addOption(arguments, "--text-info")
-        _addOption(arguments, _SHELL_SYNTAX_NO_STDERR)
-
-        local cmdStr = _getCommandString(arguments)
-        local f = io.popen(cmdStr, constants.FILE_MODE_WRITE_ERASE)
-        utils.clearTable(arguments)
-        f:write(content)
-        utils.readAndCloseFile(f)
+        local arguments = self:__prepareZenityCommand(props)
+        if arguments
+        then
+            _addOption(arguments, "--text-info")
+            self:__getZenityCommandResult(arguments, content)
+        end
     end,
 
 
     showEntry = function(self, props)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
-        _addOption(arguments, "--entry")
-        _addOptionAndValue(arguments, "--text", props.entryTitle)
-        _addOptionAndValue(arguments, "--entry-text", props.entryText)
-        return self:_getZenityCommandResult(arguments)
+        local arguments = self:__prepareZenityCommand(props)
+        if arguments
+        then
+            _addOption(arguments, "--entry")
+            _addOptionAndValue(arguments, "--text", props.entryTitle)
+            _addOptionAndValue(arguments, "--entry-text", props.entryText)
+            return self:__getZenityCommandResult(arguments)
+        end
     end,
 
 
     showListBox = function(self, props, outIndexes)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
+        local arguments = self:__prepareZenityCommand(props)
+        if not arguments
+        then
+            return
+        end
+
         _addOption(arguments, "--list")
         _addOptionAndValue(arguments, "--text", props.listBoxTitle)
-        _addOption(arguments, props.isHeaderHidden and "--hide-header")
+        _addOption(arguments, types.chooseValue(props.isHeaderHidden, "--hide-header"))
 
         local isFirstColumnDummy = false
         if props.isMultiSelectable
@@ -175,8 +220,8 @@ local ZenityGUIBuilder =
 
         -- 返回点击的行索引
         utils.clearTable(outIndexes)
-        local resultStr = self:_getZenityCommandResult(arguments)
-        if not types.isNilOrEmpty(resultStr) and types.isTable(outIndexes)
+        local resultStr = self:__getZenityCommandResult(arguments)
+        if not types.isNonEmptyString(resultStr) and types.isTable(outIndexes)
         then
             for idx in resultStr:gmatch(_ZENITY_PATTERN_SPLIT_INDEXES)
             do
@@ -184,20 +229,24 @@ local ZenityGUIBuilder =
             end
         end
 
-        return not types.isEmptyTable(outIndexes)
+        return types.isNonEmptyTable(outIndexes)
     end,
 
 
     showFileSelection = function(self, props, outPaths)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
+        local arguments = self:__prepareZenityCommand(props)
+        if not arguments
+        then
+            return
+        end
+
         _addOption(arguments, "--file-selection")
         _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_FILE_SELECTION)
-        _addOption(arguments, props.isMultiSelectable and "--multiple")
-        _addOption(arguments, props.isDirectoryOnly and "--directory")
+        _addOption(arguments, types.chooseValue(props.isMultiSelectable, "--multiple"))
+        _addOption(arguments, types.chooseValue(props.isDirectoryOnly, "--directory"))
 
         utils.clearTable(outPaths)
-        local resultStr = self:_getZenityCommandResult(arguments)
+        local resultStr = self:__getZenityCommandResult(arguments)
         if types.isNilOrEmpty(resultStr)
         then
             return
@@ -216,56 +265,29 @@ local ZenityGUIBuilder =
 
             startIdx = pathEndIdx + #_ZENITY_SEP_FILE_SELECTION + 1
         end
-
-        return not types.isEmptyTable(outPaths)
+        return types.isNonEmptyTable(outPaths)
     end,
 
 
     showProgressBar = function(self, props)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
-        _addOption(arguments, "--progress")
-        _addOption(arguments, props.isAutoClose and "--auto-close")
-        _addSyntax(arguments, _SHELL_SYNTAX_NO_STDERR)
-
-        local cmdStr = _getCommandString(arguments)
-        local handler = io.popen(cmdStr, constants.FILE_MODE_WRITE_ERASE)
-        utils.clearTable(arguments)
-        return handler
+        --TODO
     end,
 
-
     advanceProgressBar = function(self, handler, percentage, message)
-        if types.isOpenedFile(handler) and percentage > 0
-        then
-            -- 进度
-            handler:write(tostring(math.floor(percentage)))
-            handler:write(constants.STR_NEWLINE)
-
-            -- 提示字符
-            if types.isString(message)
-            then
-                handler:write(_ZENITY_PREFFIX_PROGRESS_MESSAGE)
-                handler:write(message)
-                handler:write(constants.STR_NEWLINE)
-            end
-
-            handler:flush()
-        end
+        --TODO
     end,
 
     finishProgressBar = function(self, handler)
-        utils.readAndCloseFile(handler)
+        --TODO
     end,
 
     showQuestion = function(self, props)
-        local arguments = self.__mArguments
-        self:__prepareZenityCommand(arguments, props)
+        local arguments = self:__prepareZenityCommand(props)
         _addOption(arguments, "--question")
         _addOptionAndValue(arguments, "--text", props.questionText)
         _addOptionAndValue(arguments, "--ok-label", props.labelTextOK)
         _addOptionAndValue(arguments, "--cancel-label", props.labelTextCancel)
-        return self:_getZenityCommandResult(arguments)
+        return self:__getZenityCommandResult(arguments)
     end,
 }
 
@@ -280,6 +302,5 @@ return
     FileSelectionProperties     = FileSelectionProperties,
     ProgressBarProperties       = ProgressBarProperties,
     QuestionProperties          = QuestionProperties,
-
     ZenityGUIBuilder            = ZenityGUIBuilder,
 }

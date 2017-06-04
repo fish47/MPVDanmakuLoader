@@ -95,13 +95,13 @@ TestMockFileSystem =
     end,
 
 
-    testDeleteTree = function(self)
+    testDeletePath = function(self)
         local fs = self._mFileSystem
         local filePaths = {}
         local assertEmptyDirs = { "/a/c", "/a/b", "/b", "/a" }
         for _, dir in ipairs(assertEmptyDirs)
         do
-            fs:deleteTree(dir)
+            fs:deletePath(dir)
             fs:listFiles(dir, filePaths)
             lu.assertTrue(types.isEmptyTable(filePaths))
         end

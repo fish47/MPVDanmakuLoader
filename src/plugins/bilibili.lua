@@ -122,10 +122,6 @@ local BiliBiliDanmakuSourcePlugin =
             result.preferredIDIndex = index
 
             local conn = self._mApplication:getNetworkConnection()
-            conn:clearHeaders()
-            conn:addHeader(pluginbase._HEADER_USER_AGENT)
-            conn:setCompressed(true)
-
             local data = conn:receive(string.format(_BILI_FMT_URL_VIDEO_1P, avID))
             if not data
             then
@@ -167,16 +163,7 @@ local BiliBiliDanmakuSourcePlugin =
         return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
     end,
 
-    __initNetworkConnection = function(self, conn)
-        conn:clearHeaders()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
-        conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
-        conn:setCompressed(true)
-    end,
-
-
     _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
-        self:__initNetworkConnection(conn)
         return string.format(_BILI_FMT_URL_DAMAKU, videoID)
     end,
 
@@ -202,7 +189,6 @@ local BiliBiliDanmakuSourcePlugin =
         end
 
         local url = string.format(_BILI_FMT_URL_VIDEO_INFO, videoID)
-        self:__initNetworkConnection(conn)
         conn:receiveLater(url, __parseDuration, outDurations)
     end,
 }
