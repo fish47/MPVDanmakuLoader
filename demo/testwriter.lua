@@ -45,10 +45,6 @@ local function __initTextInfoProps(textInfoProps)
     textInfoProps.windowHeight = 800
 end
 
-local function __initConfiguration(cfg)
-
-end
-
 
 local app = MPVDanmakuLoaderAppWithModifiedCfg:new()
 local listboxProps = unportable.ListBoxProperties:new()

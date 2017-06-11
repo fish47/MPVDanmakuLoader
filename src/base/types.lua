@@ -93,7 +93,7 @@ end
 
 local function toInt(obj)
     local val = tonumber(obj)
-    return chooseValue(val, math.floor(val), nil)
+    return chooseValue(val, math.floor, constants.FUNC_EMPTY)(val)
 end
 
 local function toZeroOrOne(obj)
@@ -106,14 +106,6 @@ end
 
 local function toValueOrNil(val)
     return chooseValue(val, val)
-end
-
-local function getStringWithDefault(str, default)
-    return isString(str) and str or default
-end
-
-local function getNumberWithDefault(num, default)
-    return isNumber(num) and num or default
 end
 
 
@@ -140,6 +132,4 @@ return
     toBoolean               = toBoolean,
     toValueOrNil            = toValueOrNil,
     chooseValue             = chooseValue,
-    getStringWithDefault    = getStringWithDefault,
-    getNumberWithDefault    = getNumberWithDefault,
 }

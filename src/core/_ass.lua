@@ -284,91 +284,91 @@ local DialogueBuilder =
     _mStyleName             = classlite.declareConstantField(nil),
     _mDefaultFontColor      = classlite.declareConstantField(nil),
     _mDefaultFontSize       = classlite.declareConstantField(nil),
-
-    __doInitStyle = function(self, idx)
-        local function __getStyleDefinitionValue(name, styleIdx)
-            local found, idx = utils.linearSearchArray(_ASS_PAIRS_STYLE_DEFINITIONS, name)
-            return found and _ASS_PAIRS_STYLE_DEFINITIONS[idx + 1][styleIdx]
-        end
-
-        self._mStyleName        = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_STYLENAME, idx)
-        self._mDefaultFontColor = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTCOLOR, idx)
-        self._mDefaultFontSize  = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTSIZE, idx)
-    end,
-
-    initDanmakuStyle = function(self)
-        self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_DANMAKU)
-    end,
-
-    initSubtitleStyle = function(self)
-        self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE)
-    end,
-
-    clear = function(self)
-        utils.clearTable(self._mContent)
-    end,
-
-    flushContent = function(self, f)
-        local content = self._mContent
-        local contentLen = #content
-        for i = 1, contentLen
-        do
-            f:write(content[i])
-            content[i] = nil
-        end
-    end,
-
-    startDialogue = function(self, layer, startTime, endTime)
-        return self:__doStartDialogue(layer, startTime, endTime, self._mStyleName)
-    end,
-
-
-    __doStartDialogue       = __createBuilderMethod(_ASS_KEYNAME_EVENTS_DIALOGUE,
-                                                    _ASS_CONST_SEP_KEY_VALUE,
-                                                    __toIntNumberString,        -- layer
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __convertTimeToTimeString,  -- startTime
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __convertTimeToTimeString,  -- endTime
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __toASSEscapedString,       -- styleName
-                                                    _ASS_CONST_SEP_FIELD),
-
-    endDialogue             = __createBuilderMethod(_ASS_CONST_SEP_LINE),
-
-    startStyle              = __createBuilderMethod(_ASS_CONST_STYLE_START),
-
-    endStyle                = __createBuilderMethod(_ASS_CONST_STYLE_END),
-
-    addText                 = __createBuilderMethod(__toASSEscapedString),
-
-    addTopCenterAlign       = __createBuilderMethod("\\an8"),
-
-    addBottomCenterAlign    = __createBuilderMethod("\\an2"),
-
-    addMove                 = __createBuilderMethod("\\move(",
-                                                    __toIntNumberString,        -- startX
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __toIntNumberString,        -- startY
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __toIntNumberString,        -- endX
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __toIntNumberString,
-                                                    ")"),
-
-    addPos                  = __createBuilderMethod("\\pos(",
-                                                    __toIntNumberString,        -- x
-                                                    _ASS_CONST_SEP_FIELD,
-                                                    __toIntNumberString,        -- y
-                                                    ")"),
-
-    addFontColor            = __createBuilderMethod("\\c",
-                                                    __toNonDefaultFontColor,    -- rgb
-                                                    "&"),
-
-    addFontSize             = __createBuilderMethod("\\fs",
-                                                    __toNonDefaultFontSize),    -- fontSize
 }
+
+DialogueBuilder.endDialogue             = __createBuilderMethod(_ASS_CONST_SEP_LINE)
+DialogueBuilder.startStyle              = __createBuilderMethod(_ASS_CONST_STYLE_START)
+DialogueBuilder.endStyle                = __createBuilderMethod(_ASS_CONST_STYLE_END)
+DialogueBuilder.addText                 = __createBuilderMethod(__toASSEscapedString)
+DialogueBuilder.addTopCenterAlign       = __createBuilderMethod("\\an8")
+DialogueBuilder.addBottomCenterAlign    = __createBuilderMethod("\\an2")
+
+DialogueBuilder.__doStartDialogue   = __createBuilderMethod(
+    _ASS_KEYNAME_EVENTS_DIALOGUE,
+    _ASS_CONST_SEP_KEY_VALUE,
+    __toIntNumberString,        -- layer
+    _ASS_CONST_SEP_FIELD,
+    __convertTimeToTimeString,  -- startTime
+    _ASS_CONST_SEP_FIELD,
+    __convertTimeToTimeString,  -- endTime
+    _ASS_CONST_SEP_FIELD,
+    __toASSEscapedString,       -- styleName
+    _ASS_CONST_SEP_FIELD)
+
+DialogueBuilder.addMove             = __createBuilderMethod(
+    "\\move(",
+    __toIntNumberString,        -- startX
+    _ASS_CONST_SEP_FIELD,
+    __toIntNumberString,        -- startY
+    _ASS_CONST_SEP_FIELD,
+    __toIntNumberString,        -- endX
+    _ASS_CONST_SEP_FIELD,
+    __toIntNumberString,
+    ")")
+
+DialogueBuilder.addPos              = __createBuilderMethod(
+    "\\pos(",
+    __toIntNumberString,        -- x
+    _ASS_CONST_SEP_FIELD,
+    __toIntNumberString,        -- y
+    ")")
+
+
+DialogueBuilder.addFontColor        = __createBuilderMethod(
+    "\\c",
+    __toNonDefaultFontColor,    -- rgb
+    "&")
+
+DialogueBuilder.addFontSize         = __createBuilderMethod(
+    "\\fs",
+    __toNonDefaultFontSize)    -- fontSize
+
+function DialogueBuilder:startDialogue(layer, startTime, endTime)
+    return self:__doStartDialogue(layer, startTime, endTime, self._mStyleName)
+end
+
+function DialogueBuilder:__doInitStyle(idx)
+    local function __getStyleDefinitionValue(name, styleIdx)
+        local found, idx = utils.linearSearchArray(_ASS_PAIRS_STYLE_DEFINITIONS, name)
+        return found and _ASS_PAIRS_STYLE_DEFINITIONS[idx + 1][styleIdx]
+    end
+
+    self._mStyleName        = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_STYLENAME, idx)
+    self._mDefaultFontColor = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTCOLOR, idx)
+    self._mDefaultFontSize  = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTSIZE, idx)
+end
+
+function DialogueBuilder:initDanmakuStyle()
+    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_DANMAKU)
+end
+
+function DialogueBuilder:initSubtitleStyle()
+    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE)
+end
+
+function DialogueBuilder:clear()
+    utils.clearTable(self._mContent)
+end
+
+function DialogueBuilder:flushContent(f)
+    local content = self._mContent
+    local contentLen = #content
+    for i = 1, contentLen
+    do
+        f:write(content[i])
+        content[i] = nil
+    end
+end
 
 classlite.declareClass(DialogueBuilder)
 

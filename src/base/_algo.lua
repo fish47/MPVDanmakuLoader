@@ -48,6 +48,16 @@ local function mergeTable(destTbl, srcTbl, ignoreExisted)
     return destTbl
 end
 
+local function _mergeModuleTables(dstTbl, srcTbl, ...)
+    if srcTbl
+    then
+        mergeTable(dstTbl, srcTbl)
+        return _mergeModuleTables(dstTbl, ...)
+    else
+        return dstTbl
+    end
+end
+
 
 local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
     if types.isTable(destArray) and types.isTable(srcArray)
@@ -349,6 +359,7 @@ end
 
 return
 {
+    _mergeModuleTables          = _mergeModuleTables,
     clearTable                  = clearTable,
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,

@@ -27,7 +27,7 @@ classlite.declareClass(IDanmakuSourcePlugin)
 
 local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
     local function __appendResult(ret, outList)
-        table.insert(outList, ret)
+        utils.pushArrayElement(outList, ret)
     end
 
     if types.isTable(videoIDs) and types.isTable(outList)

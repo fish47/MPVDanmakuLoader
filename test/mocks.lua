@@ -344,17 +344,16 @@ local MockNetworkConnection =
         utils.clearTable(self._mResponseMap)
     end,
 
-    _createConnection = function(self, url)
-        local content = types.isString(url) and self._mResponseMap[url]
-        return types.toBoolean(content), content
-    end,
-
-    _readConnection = function(self, conn)
-        return conn
+    _requestURLs = function(self, urls, results)
+        for idx, url in utils.iterateArray(urls)
+        do
+            local content = self._mResponseMap[url]
+            table.insert(results, content)
+        end
     end,
 }
 
-classlite.declareClass(MockNetworkConnection, unportable._NetworkConnectionBase)
+classlite.declareClass(MockNetworkConnection, unportable.NetworkConnection)
 
 
 local MockApplication =

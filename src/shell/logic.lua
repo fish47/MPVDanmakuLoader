@@ -77,7 +77,7 @@ local MPVDanmakuLoaderShell =
         end
     end,
 
-    __showSelectFiles = function(self, outPaths)
+    _showSelectFiles = function(self, outPaths)
         local props = self.__mFileSelectionProperties
         props:reset()
         self:__initWindowProperties(props)
@@ -88,7 +88,7 @@ local MPVDanmakuLoaderShell =
     _showAddLocalDanmakuSource = function(self)
         local paths = utils.clearTable(self.__mSelectedFilePaths)
         local plugin = self:__showSelectPlugins()
-        local hasSelectedFile = plugin and self:__showSelectFiles(paths)
+        local hasSelectedFile = plugin and self:_showSelectFiles(paths)
         if hasSelectedFile
         then
             local sources = self._mDanmakuSources

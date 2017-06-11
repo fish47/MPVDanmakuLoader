@@ -75,97 +75,96 @@ local DanmakuWriter =
     _mCalculators       = classlite.declareTableField(),
     _mWritePosFunctions = classlite.declareTableField(),
     _mDialogueBuilder   = classlite.declareClassField(_ass.DialogueBuilder),
-
-
-    new = function(self)
-        local calcs = self._mCalculators
-        calcs[_coreconstants.LAYER_MOVING_L2R]      = _poscalc.MovingPosCalculator:new()
-        calcs[_coreconstants.LAYER_MOVING_R2L]      = _poscalc.MovingPosCalculator:new()
-        calcs[_coreconstants.LAYER_STATIC_TOP]      = _poscalc.StaticPosCalculator:new()
-        calcs[_coreconstants.LAYER_STATIC_BOTTOM]   = _poscalc.StaticPosCalculator:new()
-        calcs[_coreconstants.LAYER_SUBTITLE]        = _poscalc.StaticPosCalculator:new()
-
-        local posFuncs = self._mWritePosFunctions
-        posFuncs[_coreconstants.LAYER_MOVING_L2R]       = _writeMovingL2RPos
-        posFuncs[_coreconstants.LAYER_MOVING_R2L]       = _writeMovingR2LPos
-        posFuncs[_coreconstants.LAYER_STATIC_TOP]       = _writeStaticTopPos
-        posFuncs[_coreconstants.LAYER_STATIC_BOTTOM]    = _writeStaticBottomPos
-        posFuncs[_coreconstants.LAYER_SUBTITLE]         = _writeBottomSubtitlePos
-    end,
-
-
-    dispose = function(self)
-        utils.forEachTableValue(self._mCalculators, utils.disposeSafely)
-    end,
-
-
-    writeDanmakus = function(self, pools, cfg, screenW, screenH, f)
-        local hasDanmaku = false
-        local calculators = self._mCalculators
-        for layer, calc in pairs(calculators)
-        do
-            local pool = pools:getDanmakuPoolByLayer(layer)
-            pool:freeze()
-            hasDanmaku = hasDanmaku or pool:getDanmakuCount() > 0
-        end
-
-        if not hasDanmaku
-        then
-            return false
-        end
-
-        _ass.writeScriptInfo(f, screenW, screenH)
-        _ass.writeStyleHeader(f)
-        _ass.writeDanmakuStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize, cfg.danmakuFontColor)
-        _ass.writeSubtitleStyle(f, cfg.subtitleFontName, cfg.subtitleFontSize, cfg.subtitleFontColor)
-        _ass.writeEventsHeader(f)
-
-
-        local danmakuData = self.__mDanmakuData
-        local writePosFuncs = self._mWritePosFunctions
-        local builder = self._mDialogueBuilder
-        builder:clear()
-
-        for layer, calc in pairs(calculators)
-        do
-            if layer == _coreconstants.LAYER_SUBTITLE
-            then
-                builder:initSubtitleStyle()
-                calc:init(screenW, screenH - cfg.subtitleReservedBottomHeight)
-            else
-                builder:initDanmakuStyle()
-                calc:init(screenW, screenH - cfg.danmakuReservedBottomHeight)
-            end
-
-            local writePosFunc = writePosFuncs[layer]
-            local pool = pools:getDanmakuPoolByLayer(layer)
-            for i = 1, pool:getDanmakuCount()
-            do
-                utils.clearTable(danmakuData)
-                pool:getDanmakuByIndex(i, danmakuData)
-
-                local startTime = danmakuData.startTime
-                local lifeTime = danmakuData.lifeTime
-                local fontSize = danmakuData.fontSize
-                local danmakuText = danmakuData.danmakuText
-                local w, h = _measureDanmakuText(danmakuText, fontSize)
-                local y = calc:calculate(w, h, startTime, lifeTime)
-
-                builder:startDialogue(layer, startTime, startTime + lifeTime)
-                builder:startStyle()
-                builder:addFontColor(danmakuData.fontColor)
-                builder:addFontSize(fontSize)
-                writePosFunc(cfg, builder, screenW, screenH, w, y)
-                builder:endStyle()
-                builder:addText(danmakuText)
-                builder:endDialogue()
-                builder:flushContent(f)
-            end
-        end
-
-        return true
-    end,
 }
+
+function DanmakuWriter:new()
+    local calcs = self._mCalculators
+    calcs[_coreconstants.LAYER_MOVING_L2R]      = _poscalc.MovingPosCalculator:new()
+    calcs[_coreconstants.LAYER_MOVING_R2L]      = _poscalc.MovingPosCalculator:new()
+    calcs[_coreconstants.LAYER_STATIC_TOP]      = _poscalc.StaticPosCalculator:new()
+    calcs[_coreconstants.LAYER_STATIC_BOTTOM]   = _poscalc.StaticPosCalculator:new()
+    calcs[_coreconstants.LAYER_SUBTITLE]        = _poscalc.StaticPosCalculator:new()
+
+    local posFuncs = self._mWritePosFunctions
+    posFuncs[_coreconstants.LAYER_MOVING_L2R]       = _writeMovingL2RPos
+    posFuncs[_coreconstants.LAYER_MOVING_R2L]       = _writeMovingR2LPos
+    posFuncs[_coreconstants.LAYER_STATIC_TOP]       = _writeStaticTopPos
+    posFuncs[_coreconstants.LAYER_STATIC_BOTTOM]    = _writeStaticBottomPos
+    posFuncs[_coreconstants.LAYER_SUBTITLE]         = _writeBottomSubtitlePos
+end
+
+
+function DanmakuWriter:dispose()
+    utils.forEachTableValue(self._mCalculators, utils.disposeSafely)
+end
+
+
+function DanmakuWriter:writeDanmakus(pools, cfg, screenW, screenH, f)
+    local hasDanmaku = false
+    local calculators = self._mCalculators
+    for layer, calc in pairs(calculators)
+    do
+        local pool = pools:getDanmakuPoolByLayer(layer)
+        pool:freeze()
+        hasDanmaku = hasDanmaku or pool:getDanmakuCount() > 0
+    end
+
+    if not hasDanmaku
+    then
+        return false
+    end
+
+    _ass.writeScriptInfo(f, screenW, screenH)
+    _ass.writeStyleHeader(f)
+    _ass.writeDanmakuStyle(f, cfg.danmakuFontName, cfg.danmakuFontSize, cfg.danmakuFontColor)
+    _ass.writeSubtitleStyle(f, cfg.subtitleFontName, cfg.subtitleFontSize, cfg.subtitleFontColor)
+    _ass.writeEventsHeader(f)
+
+
+    local danmakuData = self.__mDanmakuData
+    local writePosFuncs = self._mWritePosFunctions
+    local builder = self._mDialogueBuilder
+    builder:clear()
+
+    for layer, calc in pairs(calculators)
+    do
+        if layer == _coreconstants.LAYER_SUBTITLE
+        then
+            builder:initSubtitleStyle()
+            calc:init(screenW, screenH - cfg.subtitleReservedBottomHeight)
+        else
+            builder:initDanmakuStyle()
+            calc:init(screenW, screenH - cfg.danmakuReservedBottomHeight)
+        end
+
+        local writePosFunc = writePosFuncs[layer]
+        local pool = pools:getDanmakuPoolByLayer(layer)
+        for i = 1, pool:getDanmakuCount()
+        do
+            utils.clearTable(danmakuData)
+            pool:getDanmakuByIndex(i, danmakuData)
+
+            local startTime = danmakuData.startTime
+            local lifeTime = danmakuData.lifeTime
+            local fontSize = danmakuData.fontSize
+            local danmakuText = danmakuData.danmakuText
+            local w, h = _measureDanmakuText(danmakuText, fontSize)
+            local y = calc:calculate(w, h, startTime, lifeTime)
+
+            builder:startDialogue(layer, startTime, startTime + lifeTime)
+            builder:startStyle()
+            builder:addFontColor(danmakuData.fontColor)
+            builder:addFontSize(fontSize)
+            writePosFunc(cfg, builder, screenW, screenH, w, y)
+            builder:endStyle()
+            builder:addText(danmakuText)
+            builder:endDialogue()
+            builder:flushContent(f)
+        end
+    end
+
+    return true
+end
 
 classlite.declareClass(DanmakuWriter)
 

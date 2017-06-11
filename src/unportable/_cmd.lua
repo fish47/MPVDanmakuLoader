@@ -4,6 +4,9 @@ local classlite = require("src/base/classlite")
 local serialize = require("src/base/serialize")
 
 
+local REQ_URL_ARG_UNCOMPRESS        = 1
+local REQ_URL_ARG_ACCEPT_XML        = 2
+
 local _IMPL_FUNC_SCRIPT_CONTENT     = [[ __SCRIPT_CONTENT__ ]]
 
 
@@ -19,7 +22,10 @@ local function _appendKeyArray(args, key, value)
     if types.isString(key) and types.isNonEmptyTable(value)
     then
         table.insert(args, key)
-        utils.appendArrayElements(args, value)
+        for _, v in ipairs(value)
+        do
+            table.insert(args, tostring(v))
+        end
     end
 end
 
@@ -36,7 +42,7 @@ local function __isNilOrPositiveInt(num)
 end
 
 
-local UnportableCommandExecutor =
+local PyScriptCommandExecutor =
 {
     _mLoadEnv               = classlite.declareTableField(),
     _mArguments             = classlite.declareTableField(),
@@ -154,20 +160,23 @@ local UnportableCommandExecutor =
         return self:__execute(_check, _build, __project2, path, byteCount)
     end,
 
-    requestURLs = function(self, urls, timeout, outArray)
+    requestURLs = function(self, urls, timeout, reqArgs, outArray)
         local function __isNotString(str)
             return not types.isString(str)
         end
-        local function _check(urls, timeout, outArray)
+        local function _check(urls, timeout, reqArgs, outArray)
             return types.isNonEmptyArray(urls)
+                and types.isNonEmptyArray(reqArgs)
+                and #urls == #reqArgs
                 and not utils.linearSearchArrayIf(urls, __isNotString)
                 and __isNilOrPositiveInt(timeout)
                 and types.isTable(outArray)
         end
-        local function _build(args, rets, urls, timeout, outArray)
+        local function _build(args, rets, urls, timeout, reqArgs, outArray)
             table.insert(args, "request_urls")
             _appendKeyArray("urls", urls)
             _appendKeyValue("timeout", timeout)
+            _appendKeyArray("args", reqArgs)
             table.insert(rets, urls)
             table.insert(rets, outArray)
         end
@@ -181,8 +190,13 @@ local UnportableCommandExecutor =
     end,
 }
 
+classlite.declareClass(PyScriptCommandExecutor)
+
 
 return
 {
-    UnportableCommandExecutor   = UnportableCommandExecutor,
+    PyScriptCommandExecutor     = PyScriptCommandExecutor,
+
+    REQ_URL_ARG_UNCOMPRESS      = REQ_URL_ARG_UNCOMPRESS,
+    REQ_URL_ARG_ACCEPT_XML      = REQ_URL_ARG_ACCEPT_XML,
 }

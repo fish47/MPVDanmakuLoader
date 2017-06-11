@@ -11,6 +11,9 @@ local _PATH_PARENT_DIR                  = ".."
 local _PATH_PATTERN_ELEMENT             = "[^/]+"
 local _PATH_PATTERN_STARTS_WITH_ROOT    = "^/"
 
+local __gPathElements1      = {}
+local __gPathElements2      = {}
+
 
 local function __splitPathElements(fullPath, paths)
     utils.clearTable(paths)
@@ -177,7 +180,6 @@ local function splitPath(fullPath)
         baseName = utils.popArrayElement(paths)
         dirName = __joinPathElements(paths)
     end
-
     utils.clearTable(paths)
     return dirName, baseName
 end
@@ -232,9 +234,39 @@ local function getRelativePath(dir, fullPath)
 end
 
 
+local _UNIQUE_PATH_FMT_FILE_NAME    = "%s%s%03d%s"
+local _UNIQUE_PATH_FMT_TIME_PREFIX  = "%y%m%d%H%M"
+
+local UniquePathGenerator =
+{
+    _mUniquePathID      = classlite.declareConstantField(1),
+
+    getUniquePath = function(self, dir, prefix, suffix, isExistedFunc, funcArg)
+        local timeStr = os.date(_UNIQUE_PATH_FMT_TIME_PREFIX)
+        prefix = types.isString(prefix) and prefix or constants.STR_EMPTY
+        suffix = types.isString(suffix) and suffix or constants.STR_EMPTY
+        while true
+        do
+            local pathID = self._mUniquePathID
+            self._mUniquePathID = pathID + 1
+
+            local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME, prefix, timeStr, pathID, suffix)
+            local fullPath = joinPath(dir, fileName)
+            if not isExistedFunc(funcArg, fullPath)
+            then
+                return fullPath
+            end
+        end
+    end,
+}
+
+classlite.declareClass(UniquePathGenerator)
+
+
 return
 {
     PathElementIterator         = PathElementIterator,
+    UniquePathGenerator         = UniquePathGenerator,
 
     normalizePath               = normalizePath,
     joinPath                    = joinPath,

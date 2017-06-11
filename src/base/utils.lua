@@ -45,18 +45,12 @@ local function readAndCloseFile(f)
 end
 
 
+return _algo._mergeModuleTables(
+    {
+        invokeSafely        = invokeSafely,
+        closeSafely         = __createSafeInvokeWrapper("close"),
+        disposeSafely       = __createSafeInvokeWrapper("dispose"),
 
-local __exports =
-{
-    invokeSafely        = invokeSafely,
-    closeSafely         = __createSafeInvokeWrapper("close"),
-    disposeSafely       = __createSafeInvokeWrapper("dispose"),
-
-    writeAndCloseFile   = writeAndCloseFile,
-    readAndCloseFile    = readAndCloseFile,
-}
-
-_algo.mergeTable(__exports, _algo)
-_algo.mergeTable(__exports, _conv)
-_algo.mergeTable(__exports, _validate)
-return __exports
+        writeAndCloseFile   = writeAndCloseFile,
+        readAndCloseFile    = readAndCloseFile,
+    }, _algo, _conv, _validate)

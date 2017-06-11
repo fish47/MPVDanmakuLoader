@@ -23,7 +23,7 @@ local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+),"     -- 出现时间
                                           .. "(%d+),"      -- 字体大小
                                           .. "[^,]+,"      -- 用户 ID ？
                                           .. "(%d+),"      -- 弹幕 ID ？
-                                          .. "[^,]+"        -- hash ？
+                                          .. "[^,]+"       -- hash ？
 
 local _ACFUN_PATTERN_TITLE_1P           = "<h2>(.-)</h2>"
 local _ACFUN_PATTERN_VID_AND_TITLE      = '<a%s+data%-vid="(%d+)".->(.-)</a>'
@@ -75,9 +75,6 @@ local AcfunDanmakuSourcePlugin =
             end
 
             local conn = self._mApplication:getNetworkConnection()
-            conn:clearHeaders()
-            conn:addHeader(pluginbase._HEADER_USER_AGENT)
-
             local url = string.format(_ACFUN_FMT_URL_VIDEO, acid)
             local data = conn:receive(url)
             if not data

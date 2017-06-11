@@ -74,7 +74,7 @@ end
 
 
 local function __doDeserialize(input, isFilePath, callback)
-    local loadEnv = utils.clear(__gLoadEnv)
+    local loadEnv = utils.clearTable(__gLoadEnv)
     loadEnv[_SERIALIZE_FUNC_NAME] = callback
     local compiledChunks = isFilePath
                            and loadfile(input, constants.LOAD_MODE_CHUNKS, loadEnv)
@@ -85,7 +85,7 @@ local function __doDeserialize(input, isFilePath, callback)
         pcall(compiledChunks)
     end
 
-    utils.clear(loadEnv)
+    utils.clearTable(loadEnv)
     compiledChunks = nil
 end
 

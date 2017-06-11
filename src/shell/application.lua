@@ -41,8 +41,8 @@ local MPVDanmakuLoaderApp =
 {
     _mConfiguration             = classlite.declareTableField(),
     _mDanmakuPools              = classlite.declareClassField(danmakupool.DanmakuPools),
-    _mNetworkConnection         = classlite.declareClassField(unportable.CURLNetworkConnection),
-    _mUnportableCmdExecutor     = classlite.declareClassField(unportable.UnportableCommandExecutor),
+    _mNetworkConnection         = classlite.declareClassField(unportable.NetworkConnection),
+    _mPyScriptCmdExecutor       = classlite.declareClassField(unportable.PyScriptCommandExecutor),
     _mDanmakuSourcePlugins      = classlite.declareTableField(),
     _mUniquePathGenerator       = classlite.declareClassField(unportable.UniquePathGenerator),
     _mLogFunction               = classlite.declareConstantField(nil),
@@ -57,7 +57,9 @@ local MPVDanmakuLoaderApp =
 
 
     new = function(self)
-        self._mUnportableCmdExecutor:setApplication(self)
+        local cmdExecutor = self._mPyScriptCmdExecutor
+        cmdExecutor:setApplication(self)
+        self._mNetworkConnection:setPyScriptCommandExecutor(cmdExecutor)
 
         -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
         self:_initDanmakuSourcePlugins()
@@ -314,11 +316,11 @@ local MPVDanmakuLoaderApp =
     end,
 
     createDir = function(self, dir)
-        return self._mUnportableCmdExecutor:createDirs(dir)
+        return self._mPyScriptCmdExecutor:createDirs(dir)
     end,
 
     deletePath = function(self, fullPath)
-        return self._mUnportableCmdExecutor:deletePath(fullPath)
+        return self._mPyScriptCmdExecutor:deletePath(fullPath)
     end,
 
     createTempFile = function(self)
@@ -330,7 +332,7 @@ local MPVDanmakuLoaderApp =
     end,
 
     readUTF8File = function(self, fullPath)
-        return self._mUnportableCmdExecutor:readUTF8File(fullPath)
+        return self._mPyScriptCmdExecutor:readUTF8File(fullPath)
     end,
 
     writeFile = function(self, fullPath, mode)
@@ -377,7 +379,7 @@ local MPVDanmakuLoaderApp =
         if not md5
         then
             local fullPath = self.__mVideoFilePath
-            local executor = self._mUnportableCmdExecutor
+            local executor = self._mPyScriptCmdExecutor
             md5 = executor:calculateFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
             self.__mVideoFileMD5 = md5
         end
@@ -420,7 +422,7 @@ local MPVDanmakuLoaderApp =
         end
         if types.isString(stdin)
         then
-            local excutor = self._mUnportableCmdExecutor
+            local excutor = self._mPyScriptCmdExecutor
             return excutor:redirectExternalCommand(cmdArgs, stdin)
         else
             local args = utils.clearTable(self.__mSubprocessArguments)
@@ -428,11 +430,11 @@ local MPVDanmakuLoaderApp =
             args.cancellable = true
             local ret = mp.utils.subprocess(args)
             local succeed = __isSucceed(ret)
-            local ret = types.chooseValue(succeed, ret.status)
+            local retCode = types.chooseValue(succeed, ret.status)
             local stdout = types.chooseValue(succeed, ret.stdout)
             ret = nil
             utils.clearTable(args)
-            return ret, stdout
+            return retCode, stdout
         end
     end,
 }

@@ -1,78 +1,126 @@
+local _cmd      = require("src/unportable/_cmd")
+local utils     = require("src/base/utils")
+local types     = require("src/base/types")
+local classlite = require("src/base/classlite")
+
+
 local NetworkConnection =
 {
-    _mIsCompressed      = classlite.declareConstantField(false),
-    _mHeaders           = classlite.declareTableField(),
-    _mCallbacks         = classlite.declareTableField(),
-    _mCallbackArgs      = classlite.declareTableField(),
-    _mConnections       = classlite.declareTableField(),
-    _mTimeoutSeconds    = classlite.declareConstantField(nil),
+    _mRequestURLs           = classlite.declareTableField(),
+    _mCallbacks             = classlite.declareTableField(),
+    _mCallbackArgs          = classlite.declareTableField(),
+    _mTimeoutSeconds        = classlite.declareConstantField(nil),
+    _mRequestURLArgs        = classlite.declareTableField(),
+    __mTmpRequestFlag       = classlite.declareConstantField(0),
+    __mPyScriptCmdExecutor  = classlite.declareConstantField(nil),
+    __mTmpRequestURLs       = classlite.declareTableField(),
+    __mRequestOutArray      = classlite.declareTableField(),
+    __mTmpRequestResult     = classlite.declareTableField(),
+}
 
-    _createConnection = constants.FUNC_EMPTY,
-    _readConnection = constants.FUNC_EMPTY,
+classlite.declareClass(NetworkConnection)
 
 
+function NetworkConnection:setPyScriptCommandExecutor(executor)
+    self.__mPyScriptCmdExecutor = executor
+end
 
-    setTimeout = function(self, timeout)
-        local val = types.chooseValue(types.isPositiveNumber(timeout), timeout)
-        self._mTimeoutSeconds = val
-    end,
+function NetworkConnection:__getConnectionCount()
+    return #self._mRequestURLs
+end
 
-    receive = function(self, url)
-        if types.isString(url)
-        then
-            local succeed, conn = self:_createConnection(url)
-            local content = succeed and self:_readConnection(conn)
-            return content
+function NetworkConnection:_requestURLs(urls, results)
+    local executor = self.__mPyScriptCmdExecutor
+    return exexecutor and executor:requestURLs(urls, results) or false
+end
+
+function NetworkConnection:_createConnection(url, callback, arg,
+                                             isAcceptXML, isUncompress)
+    if types.isString(url)
+    then
+        -- 注意回调和参数有可能为空
+        local idx = self:__getConnectionCount() + 1
+        self._mRequestURLs[idx] = url
+        self._mCallbacks[idx] = callback
+        self._mCallbackArgs[idx] = arg
+        return true
+    end
+    return false
+end
+
+function NetworkConnection:__readConnections(startIdx, lastIdx)
+    local succeed = false
+    if startIdx <= lastIdx
+    then
+        local urls = self._mRequestURLs
+        local urlArgs = utils.clearTable(self.__mTmpRequestURLs)
+        for i = startIdx, lastIdx
+        do
+            urlArgs[i - startIdx] = urls[i]
         end
-    end,
 
-    receiveLater = function(self, url, callback, arg)
-        if types.isString(url) and types.isFunction(callback)
-        then
-            local succeed, conn = self:_createConnection(url)
-            if succeed
-            then
-                -- 注意参数有可能为空
-                local newCount = #self._mConnections + 1
-                self._mConnections[newCount] = conn
-                self._mCallbacks[newCount] = callback
-                self._mCallbackArgs[newCount] = arg
-                return true
-            end
-        end
-    end,
+        local results = utils.clearTable(self.__mRequestOutArray)
+        succeed = self:_requestURLs(urls, results)
 
-    flushReceiveQueue = function(self, url)
-        local conns = self._mConnections
         local callbacks = self._mCallbacks
         local callbackArgs = self._mCallbackArgs
-        local callbackCount = #callbacks
-        for i = 1, callbackCount
+        for i = startIdx, lastIdx
         do
-            local content = self:_readConnection(conns[i])
-            callbacks[i](content, callbackArgs[i])
-            conns[i] = nil
+            local cb = callbacks[i]
+            if succeed and types.isFunction(cb)
+            then
+                cb(result, results[i - startIdx])
+            end
+
+            -- 内部实现要保证请求以栈式增删，不然数组会有空洞
+            urls[i] = nil
             callbacks[i] = nil
             callbackArgs[i] = nil
         end
-    end,
 
-    clearHeaders = function(self)
-        self._mIsCompressed = false
-        utils.clearTable(self._mHeaders)
-        return self
-    end,
+        utils.clearTable(urlArgs)
+        utils.clearTable(results)
+    end
+    return succeed
+end
 
-    setCompressed = function(self, val)
-        self._mIsCompressed = types.toBoolean(val)
-    end,
+function NetworkConnection:setTimeout(timeout)
+    local val = types.chooseValue(types.isPositiveNumber(timeout), timeout)
+    self._mTimeoutSeconds = val
+end
 
-    addHeader = function(self, val)
-        if types.isString(val)
+function NetworkConnection:receive(url)
+    local function __getResult(content, tbl)
+        utils.clearTable(tbl)
+        table.insert(tbl, content)
+    end
+
+    local result = nil
+    if types.isString(url)
+    then
+        local idx = self:__getConnectionCount() + 1
+        local resultTable = utils.clearTable(self.__mTmpRequestResult)
+        local succeed = self:_createConnection(url, __getResult, resultTable)
+        if succeed
         then
-            table.insert(self._mHeaders, val)
+            self:__readConnections(idx, idx)
+            result = resultTable[0]
+            utils.clearTable(resultTable)
         end
-    end,
-}
+    end
+    return result
+end
 
-classlite.declareClass(_NetworkConnectionBase)
+function NetworkConnection:receiveLater(url, callback, arg)
+    return self:_createConnection(url, callback, arg)
+end
+
+function NetworkConnection:flushReceiveQueue()
+    return self:__readConnections(1, self:__getConnectionCount())
+end
+
+
+return
+{
+    NetworkConnection   = NetworkConnection,
+}

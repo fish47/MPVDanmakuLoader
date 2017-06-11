@@ -1,7 +1,5 @@
 return
 {
-    LUA_VERSION                 = tonumber(_VERSION:match("(%d+%.%d)") or 5),
-
     FILE_MODE_READ              = "r",
     FILE_MODE_WRITE_ERASE       = "w",
     FILE_MODE_WRITE_APPEND      = "a",

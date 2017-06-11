@@ -103,8 +103,6 @@ local DanDanPlayDanmakuSourcePlugin =
         end
 
         local conn = self._mApplication:getNetworkConnection()
-        self:__initNetworkConnection(conn)
-
         local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
         local data = conn:receive(url)
         if types.isNilOrEmpty(data)
@@ -152,15 +150,7 @@ local DanDanPlayDanmakuSourcePlugin =
     end,
 
 
-    __initNetworkConnection = function(self, conn)
-        conn:clearHeaders()
-        conn:addHeader(pluginbase._HEADER_USER_AGENT)
-        conn:addHeader(pluginbase._HEADER_ACCEPT_XML)
-    end,
-
-
     _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
-        self:__initNetworkConnection(conn)
         return string.format(_DDP_FMT_URL_DANMAKU, videoID)
     end,
 }

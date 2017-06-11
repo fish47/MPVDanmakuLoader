@@ -35,6 +35,9 @@ _IMPL_FUNC_RET_CODE_SUCCEED = 0
 _IMPL_FUNC_RET_CODE_UNKNOWN_ERROR = 1
 _IMPL_FUNC_RET_CODE_ASSERT_FAILED = 2
 
+_REQUEST_ARG_UNCOMPRESS = 1
+_REQUEST_ARG_ACCEPT_XML = 2
+
 _REQUEST_HEADER_USER_AGENT = ("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:44.0) Gecko/20100101 Firefox/44.0")
 _REQUEST_HEADER_ACCEPT_XML = ("Accept", "application/xml")
 
@@ -89,8 +92,7 @@ def _create_int_arg(name):
             return 1, None
     return name, _convert
 
-
-def _create_str_tuple_arg(name):
+def __do_create_tuple_arg(name, hook=None):
     def _convert(args, idx):
         ret = []
         count = 1
@@ -98,11 +100,22 @@ def _create_str_tuple_arg(name):
             count += int(args[idx])
             limit = max(len(args), count)
             for i in xrange(idx + 1, limit):
-                ret.append(args[i])
+                val = args[i]
+                if hook and callable(hook):
+                    val = hook(val)
+                ret.append(val)
         except:
             pass
         return count, tuple(ret)
     return name, _convert
+
+
+def _create_str_tuple_arg(name):
+    return __do_create_tuple_arg(name)
+
+
+def _create_int_tuple_arg(name):
+    return __do_create_tuple_arg(name, lambda arg: int(arg))
 
 
 def __convert_to_impl_func_args(argv, arg_decls):
@@ -229,16 +242,24 @@ def calculate_file_md5(args):
 
 
 @_impl_func(_create_str_tuple_arg("urls"),
-            _create_int_arg("timeout"))
+            _create_int_arg("timeout"),
+            _create_int_tuple_arg("args"))
 def request_urls(args):
-    def __do_request_url(idx, req_url, req_timeout, l, req_results):
+    def __do_request_url(idx, req_url, req_timeout, req_args, l, req_results):
+        req_arg_bits = req_args[idx]
+        is_accept_xml = (req_arg_bits & _REQUEST_ARG_ACCEPT_XML)
+        is_uncompress = (req_arg_bits & _REQUEST_ARG_UNCOMPRESS)
+
         req = urllib2.Request(req_url)
         req.add_header(*_REQUEST_HEADER_USER_AGENT)
-        req.add_header(*_REQUEST_HEADER_ACCEPT_XML)
+        if is_accept_xml:
+            req.add_header(*_REQUEST_HEADER_ACCEPT_XML)
+
         response = urllib2.urlopen(req, timeout=req_timeout)
         content = response.read()
-        if response.info().get('Content-Encoding') == 'gzip':
+        if is_uncompress and response.info().get('Content-Encoding') == 'gzip':
             content = zlib.decompress(content)
+
         l.acquire()
         req_results[idx] = content
         l.release()
@@ -249,10 +270,14 @@ def request_urls(args):
 
     urls = args[0]
     timeout = args[1] or socket._GLOBAL_DEFAULT_TIMEOUT
+    request_args = args[2]
+    url_count = len(urls)
+    __assert_equals(url_count, len(request_args))
+
     threads = []
-    results = [None] * len(urls)
+    results = [None] * url_count
     for i, url in enumerate(urls):
-        thread_args = (i, url, timeout, lock, results)
+        thread_args = (i, url, timeout, request_args, lock, results)
         t = threading.Thread(target=__do_request_url, args=thread_args)
         t.start()
         threads.append(t)
