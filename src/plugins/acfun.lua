@@ -52,153 +52,153 @@ local _ACFUN_POS_TO_LAYER_MAP   =
 local AcfunDanmakuSourcePlugin =
 {
     __mVideoTitles      = classlite.declareTableField(),
+}
 
 
-    getName = function(self)
-        return _ACFUN_PLUGIN_NAME
-    end,
+function AcfunDanmakuSourcePlugin:getNam()
+    return _ACFUN_PLUGIN_NAME
+end
 
-    search = function(self, input, result)
-        local vid = input:match(_ACFUN_PATTERN_SEARCH_VID)
-        if vid
+function AcfunDanmakuSourcePlugin:search(input, result)
+    local vid = input:match(_ACFUN_PATTERN_SEARCH_VID)
+    if vid
+    then
+        result.isSplited = false
+        result.preferredIDIndex = _ACFUN_DEFAULT_DURATION
+        table.insert(result.videoIDs, vid)
+        table.insert(result.videoTitles, string.format(_ACFUN_FMT_SEARCH_VID_TITLE, vid))
+    else
+        local acid = input:match(_ACFUN_PATTERN_SEARCH_URL)
+        acid = acid or input:match(_ACFUN_PATTERN_SEARCH_ACID)
+        if not acid
         then
-            result.isSplited = false
-            result.preferredIDIndex = _ACFUN_DEFAULT_DURATION
+            return false
+        end
+
+        local conn = self._mApplication:getNetworkConnection()
+        local url = string.format(_ACFUN_FMT_URL_VIDEO, acid)
+        local data = conn:receive(url)
+        if not data
+        then
+            return false
+        end
+
+
+        local partCount = 0
+        local titles = utils.clearTable(self.__mVideoTitles)
+        for vid, title in data:gmatch(_ACFUN_PATTERN_VID_AND_TITLE)
+        do
+            title = title:gsub(_ACFUN_PATTERN_SANITIZE_TITLE, constants.STR_EMPTY)
+            title = utils.unescapeXMLString(title)
+            partCount = partCount + 1
+            table.insert(titles, title)
             table.insert(result.videoIDs, vid)
-            table.insert(result.videoTitles, string.format(_ACFUN_FMT_SEARCH_VID_TITLE, vid))
+        end
+
+        if partCount <= 0
+        then
+            return false
+        elseif partCount == 1
+        then
+            local title = data:match(_ACFUN_PATTERN_TITLE_1P)
+            if not title
+            then
+                return false
+            end
+
+            title = utils.unescapeXMLString(title)
+            table.insert(result.videoTitles, title)
         else
-            local acid = input:match(_ACFUN_PATTERN_SEARCH_URL)
-            acid = acid or input:match(_ACFUN_PATTERN_SEARCH_ACID)
-            if not acid
-            then
-                return false
-            end
-
-            local conn = self._mApplication:getNetworkConnection()
-            local url = string.format(_ACFUN_FMT_URL_VIDEO, acid)
-            local data = conn:receive(url)
-            if not data
-            then
-                return false
-            end
-
-
-            local partCount = 0
-            local titles = utils.clearTable(self.__mVideoTitles)
-            for vid, title in data:gmatch(_ACFUN_PATTERN_VID_AND_TITLE)
-            do
-                title = title:gsub(_ACFUN_PATTERN_SANITIZE_TITLE, constants.STR_EMPTY)
-                title = utils.unescapeXMLString(title)
-                partCount = partCount + 1
-                table.insert(titles, title)
-                table.insert(result.videoIDs, vid)
-            end
-
-            if partCount <= 0
-            then
-                return false
-            elseif partCount == 1
-            then
-                local title = data:match(_ACFUN_PATTERN_TITLE_1P)
-                if not title
-                then
-                    return false
-                end
-
-                title = utils.unescapeXMLString(title)
-                table.insert(result.videoTitles, title)
-            else
-                utils.appendArrayElements(result.videoTitles, titles)
-            end
-
-            local partIdx = acid:match(_ACFUN_PATTERN_SEARCH_PART_INDEX)
-            partIdx = partIdx and tonumber(partIdx)
-            result.isSplited = partCount > 1
-            result.preferredIDIndex = partIdx or _ACFUN_DEFAULT_VIDEO_INDEX
+            utils.appendArrayElements(result.videoTitles, titles)
         end
 
-        result.videoTitleColumnCount = 1
-        return true
-    end,
+        local partIdx = acid:match(_ACFUN_PATTERN_SEARCH_PART_INDEX)
+        partIdx = partIdx and tonumber(partIdx)
+        result.isSplited = partCount > 1
+        result.preferredIDIndex = partIdx or _ACFUN_DEFAULT_VIDEO_INDEX
+    end
+
+    result.videoTitleColumnCount = 1
+    return true
+end
 
 
-    _startExtractDanmakus = function(self, rawData)
-        -- 用闭包函数模仿 string.gmatch() 的行为
-        local startIdx = 1
-        local ret = function()
-            local findIdx = startIdx
-            local _, endIdx1 = rawData:find(_ACFUN_PATTERN_DANMAKU_INFO_KEY, findIdx, false)
-            if not endIdx1
-            then
-                return
-            end
-
-            findIdx = endIdx1 + 1
-            local posText, endIdx2 = utils.findJSONString(rawData, findIdx)
-            local start, color, layer, size, id = posText:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUE)
-            if not endIdx2
-            then
-                return
-            end
-
-            findIdx = endIdx2 + 1
-            local _, endIdx3 = rawData:find(_ACFUN_PATTERN_DANMAKU_TEXT_KEY, findIdx, false)
-            if not endIdx3
-            then
-                return
-            end
-
-            findIdx = endIdx3 + 1
-            local text, nextFindIdx = utils.findJSONString(rawData, findIdx)
-            if not nextFindIdx
-            then
-                return
-            end
-
-            startIdx = nextFindIdx
-            return text, start, color, layer, size, id
-        end
-        return ret
-    end,
-
-    _extractDanmaku = function(self, iterFunc, cfg, danmakuData)
-        local text, startTime, fontColor, layer, fontSize, danmakuID = iterFunc()
-        if not text
+function AcfunDanmakuSourcePlugin:_startExtractDanmakus(rawData)
+    -- 用闭包函数模仿 string.gmatch() 的行为
+    local startIdx = 1
+    local ret = function()
+        local findIdx = startIdx
+        local _, endIdx1 = rawData:find(_ACFUN_PATTERN_DANMAKU_INFO_KEY, findIdx, false)
+        if not endIdx1
         then
             return
         end
 
-        danmakuData.startTime = tonumber(startTime * _ACFUN_FACTOR_TIME_STAMP)
-        danmakuData.fontSize = tonumber(fontSize)
-        danmakuData.fontColor = tonumber(fontColor)
-        danmakuData.danmakuID = tonumber(danmakuID)
-        danmakuData.danmakuText = text
-        return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
-    end,
-
-
-    _doDownloadDanmakuRawData = function(self, conn, videoID, outDatas)
-        self:__initNetworkConnection(conn)
-        return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
-    end,
-
-
-    _doGetVideoDuration = function(self, conn, videoID, outDurations)
-        local function __parseDuration(data, outDurations)
-            local duration = nil
-            if types.isString(data)
-            then
-                local seconds = data:match(_ACFUN_PATTERN_DURATION)
-                duration = seconds and utils.convertHHMMSSToTime(0, 0, tonumber(seconds), 0)
-            end
-            duration = duration or _ACFUN_DEFAULT_DURATION
-            table.insert(outDurations, duration)
+        findIdx = endIdx1 + 1
+        local posText, endIdx2 = utils.findJSONString(rawData, findIdx)
+        local start, color, layer, size, id = posText:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUE)
+        if not endIdx2
+        then
+            return
         end
 
-        local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
-        conn:receiveLater(url, __parseDuration, outDurations)
-    end,
-}
+        findIdx = endIdx2 + 1
+        local _, endIdx3 = rawData:find(_ACFUN_PATTERN_DANMAKU_TEXT_KEY, findIdx, false)
+        if not endIdx3
+        then
+            return
+        end
+
+        findIdx = endIdx3 + 1
+        local text, nextFindIdx = utils.findJSONString(rawData, findIdx)
+        if not nextFindIdx
+        then
+            return
+        end
+
+        startIdx = nextFindIdx
+        return text, start, color, layer, size, id
+    end
+    return ret
+end
+
+function AcfunDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
+    local text, startTime, fontColor, layer, fontSize, danmakuID = iterFunc()
+    if not text
+    then
+        return
+    end
+
+    danmakuData.startTime = tonumber(startTime * _ACFUN_FACTOR_TIME_STAMP)
+    danmakuData.fontSize = tonumber(fontSize)
+    danmakuData.fontColor = tonumber(fontColor)
+    danmakuData.danmakuID = tonumber(danmakuID)
+    danmakuData.danmakuText = text
+    return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
+end
+
+
+function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+    self:__initNetworkConnection(conn)
+    return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
+end
+
+
+function AcfunDanmakuSourcePlugin:_doGetVideoDuration(conn, videoID, outDurations)
+    local function __parseDuration(data, outDurations)
+        local duration = nil
+        if types.isString(data)
+        then
+            local seconds = data:match(_ACFUN_PATTERN_DURATION)
+            duration = seconds and utils.convertHHMMSSToTime(0, 0, tonumber(seconds), 0)
+        end
+        duration = duration or _ACFUN_DEFAULT_DURATION
+        table.insert(outDurations, duration)
+    end
+
+    local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
+    conn:receiveLater(url, __parseDuration, outDurations)
+end
 
 classlite.declareClass(AcfunDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
 

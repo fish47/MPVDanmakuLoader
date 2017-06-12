@@ -39,405 +39,404 @@ local _MPV_CONST_MEMORY_FILE_PREFFIX    = "memory://"
 
 local MPVDanmakuLoaderApp =
 {
-    _mConfiguration             = classlite.declareTableField(),
-    _mDanmakuPools              = classlite.declareClassField(danmakupool.DanmakuPools),
-    _mNetworkConnection         = classlite.declareClassField(unportable.NetworkConnection),
-    _mPyScriptCmdExecutor       = classlite.declareClassField(unportable.PyScriptCommandExecutor),
-    _mDanmakuSourcePlugins      = classlite.declareTableField(),
-    _mUniquePathGenerator       = classlite.declareClassField(unportable.UniquePathGenerator),
-    _mLogFunction               = classlite.declareConstantField(nil),
+    _mConfiguration         = classlite.declareTableField(),
+    _mDanmakuPools          = classlite.declareClassField(danmakupool.DanmakuPools),
+    _mNetworkConnection     = classlite.declareClassField(unportable.NetworkConnection),
+    _mPyScriptCmdExecutor   = classlite.declareClassField(unportable.PyScriptCommandExecutor),
+    _mDanmakuSourcePlugins  = classlite.declareTableField(),
+    _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
+    _mLogFunction           = classlite.declareConstantField(nil),
 
-    __mVideoFileMD5             = classlite.declareConstantField(nil),
-    __mVideoFilePath            = classlite.declareConstantField(nil),
-    __mCurrentDirPath           = classlite.declareConstantField(nil),
-    __mAddedMemorySubtitleID    = classlite.declareConstantField(nil),
-    __mCfgSchemeTable           = classlite.declareTableField(),
+    __mVideoFileMD5         = classlite.declareConstantField(nil),
+    __mVideoFilePath        = classlite.declareConstantField(nil),
+    __mCurrentDirPath       = classlite.declareConstantField(nil),
+    __mMemorySubtitleID     = classlite.declareConstantField(nil),
+    __mCfgSchemeTable       = classlite.declareTableField(),
 
-    __mSubprocessArguments      = classlite.declareTableField(),
+    __mSubprocessArguments  = classlite.declareTableField(),
+}
 
+function MPVDanmakuLoaderApp:new()
+    local cmdExecutor = self._mPyScriptCmdExecutor
+    cmdExecutor:setApplication(self)
+    self._mNetworkConnection:setPyScriptCommandExecutor(cmdExecutor)
 
-    new = function(self)
-        local cmdExecutor = self._mPyScriptCmdExecutor
-        cmdExecutor:setApplication(self)
-        self._mNetworkConnection:setPyScriptCommandExecutor(cmdExecutor)
+    -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
+    self:_initDanmakuSourcePlugins()
+    self:__attachMethodLoggingHooks()
+    self:__initConfigurationSchemeTable()
+end
 
-        -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
-        self:_initDanmakuSourcePlugins()
-        self:__attachMethodLoggingHooks()
-        self:__initConfigurationSchemeTable()
-    end,
+function MPVDanmakuLoaderApp:__initConfigurationSchemeTable()
+    local scheme = self.__mCfgSchemeTable
+    for _, k in config.iterateConfigurationKeys()
+    do
+        scheme[k] = true
+    end
+end
 
-    __initConfigurationSchemeTable = function(self)
-        local scheme = self.__mCfgSchemeTable
-        for _, k in config.iterateConfigurationKeys()
-        do
-            scheme[k] = true
-        end
-    end,
-
-    __attachMethodLoggingHooks = function(self)
-        local function __patchFunction(orgFunc, patchFunc)
-            local ret = function(...)
-                utils.invokeSafely(patchFunc, ...)
-                return utils.invokeSafely(orgFunc, ...)
-            end
-            return ret
-        end
-
-        local function __createPatchedFSFunction(orgFunc, subTag)
-            local ret = function(self, arg1, ...)
-                local ret = orgFunc(self, arg1, ...)
-                local arg1Str = arg1 or constants.STR_EMPTY
-                arg1Str = types.isString(arg1) and string.format("%q", arg1Str) or arg1Str
-                self:_printLog(_TAG_FILESYSTEM, "%s(%s) -> %s", subTag, arg1Str, tostring(ret))
-                return ret
-            end
-            return ret
-        end
-
-        local clzApp = self:getClass()
-        self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "readFile")
-        self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8File")
-        self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
-        self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
-        self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
-        self.deletePath     = __createPatchedFSFunction(clzApp.deletePath,      "deletePath")
-        self.createTempFile = __createPatchedFSFunction(clzApp.createTempFile,  "createTempFile")
-
-        local function __printNetworkLog(_, url)
-            self:_printLog(_TAG_NETWORK, "GET %s", url)
-        end
-        local conn = self._mNetworkConnection
-        conn._createConnection = __patchFunction(conn:getClass()._createConnection, __printNetworkLog)
-
-        local function __printSubtitleFilePath(_, path)
-            self:_printLog(_TAG_SUBTITLE, "file: %s", path)
-        end
-        self.setSubtitleFile = __patchFunction(clzApp.setSubtitleFile, __printSubtitleFilePath)
-
-        local function __printSubtitleData(_, data)
-            self:_printLog(_TAG_SUBTITLE, "data")
-        end
-        self.setSubtitleData = __patchFunction(clzApp.setSubtitleData, __printSubtitleData)
-
-        for _, plugin in self:iterateDanmakuSourcePlugins()
-        do
-            local orgSearchFunc = plugin:getClass().search
-            plugin.search = function(plugin, keyword, ...)
-                local ret = orgSearchFunc(plugin, keyword, ...)
-                if ret
-                then
-                    self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
-                end
-                return ret
-            end
-        end
-    end,
-
-    setLogFunction = function(self, func)
-        self._mLogFunction = types.chooseValue(types.isFunction(func), func)
-    end,
-
-    _printLog = function(self, tag, fmt, ...)
-        local func = self._mLogFunction
-        if not func
-        then
-            return
-        end
-
-        local wordWidth = #tag
-        local maxWidth = _TAG_LOG_WIDTH
-        local leadingSpaceCount = math.floor((maxWidth - wordWidth) / 2)
-        local trailingSpaceCount = math.max(maxWidth - wordWidth - leadingSpaceCount, 0)
-        local leadingSpaces = string.rep(constants.STR_SPACE, leadingSpaceCount)
-        local trailingSpaces = string.rep(constants.STR_SPACE, trailingSpaceCount)
-        func(string.format("[%s%s%s]  " .. fmt, leadingSpaces, tag, trailingSpaces, ...))
-    end,
-
-    init = function(self, filePath)
-        local dir = filePath and unportable.splitPath(filePath)
-        self.__mCurrentDirPath = types.toValueOrNil(dir)
-        self.__mVideoFileMD5 = nil
-        self.__mVideoFilePath = filePath
-        self.__mAddedMemorySubtitleID = nil
-        self._mNetworkConnection:reset()
-        self._mDanmakuPools:clear()
-    end,
-
-    _getCurrentDirPath = function(self)
-        return self.__mCurrentDirPath
-    end,
-
-    _updateConfiguration = function(self, cfg)
-        local path = self:_getCurrentDirPath()
-        local options = mp.options.read_options(self.__mCfgSchemeTable)
-        config.updateConfiguration(self, path, cfg, options)
-    end,
-
-    updateConfiguration = function(self)
-        local cfg = self._mConfiguration
-        self:_updateConfiguration(cfg)
-
-        local pools = self._mDanmakuPools
-        for _, pool in pools:iteratePools()
-        do
-            pool:setModifyDanmakuDataHook(cfg.modifyDanmakuDataHook)
-        end
-        pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
-        self._mNetworkConnection:setTimeout(cfg.networkTimeout)
-        self:setLogFunction(cfg.enableDebugLog and print)
-    end,
-
-    getPluginByName = function(self, name)
-        for _, plugin in self:iterateDanmakuSourcePlugins()
-        do
-            if plugin:getName() == name
-            then
-                return plugin
-            end
-        end
-    end,
-
-    _addDanmakuSourcePlugin = function(self, plugin)
-        if classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
-            and not self:getPluginByName(plugin:getName())
-        then
-            table.insert(self._mDanmakuSourcePlugins, plugin)
-            plugin:setApplication(self)
-        end
-    end,
-
-    _initDanmakuSourcePlugins = function(self)
-        local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
-        self:_addDanmakuSourcePlugin(srt.SRTDanmakuSourcePlugin:new())
-        self:_addDanmakuSourcePlugin(acfun.AcfunDanmakuSourcePlugin:new())
-        self:_addDanmakuSourcePlugin(bilibili.BiliBiliDanmakuSourcePlugin:new())
-        self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayDanmakuSourcePlugin:new())
-    end,
-
-    iterateDanmakuSourcePlugins = function(self)
-        return utils.iterateArray(self._mDanmakuSourcePlugins)
-    end,
-
-    getConfiguration = function(self)
-        return self._mConfiguration
-    end,
-
-    getDanmakuPools = function(self)
-        return self._mDanmakuPools
-    end,
-
-    getNetworkConnection = function(self)
-        return self._mNetworkConnection
-    end,
-
-    __doAddSubtitle = function(self, arg)
-        local orgSID = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
-        local orgTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 0)
-        mp.commandv(_MPV_CMD_ADD_SUBTITLE, arg)
-        mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, orgSID)
-
-        local newTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 1)
-        if newTrackCount > orgTrackCount
-        then
-            local prop = string.format(_MPV_PROP_TRACK_ID, newTrackCount - 1)
-            return mp.get_property(prop)
-        end
-    end,
-
-    addSubtitleFile = function(self, path)
-        if self:isExistedFile(path)
-        then
-            return self:__doAddSubtitle(path)
-        end
-    end,
-
-    addSubtitleData = function(self, data)
-        local function __unsetSID(propName, sid)
-            if mp.get_property(propName) == sid
-            then
-                mp.set_property(propName, _MPV_CONST_NO_SUBTITLE_ID)
-            end
-        end
-
-        if types.isNilOrEmpty(data)
-        then
-            return
-        end
-
-        local newSID = self:__doAddSubtitle(_MPV_CONST_MEMORY_FILE_PREFFIX .. data)
-        if newSID
-        then
-            -- 只保留一个内存字幕
-            local memorySID = self.__mAddedMemorySubtitleID
-            if memorySID
-            then
-                __unsetSID(_MPV_PROP_MAIN_SUBTITLE_ID, memorySID)
-                __unsetSID(_MPV_PROP_SECONDARY_SUBTITLE_ID, memorySID)
-                mp.commandv(_MPV_CMD_DELETE_SUBTITLE, memorySID)
-            end
-
-            self.__mAddedMemorySubtitleID = newSID
-            return newSID
-        end
-    end,
-
-    setMainSubtitleByID = function(self, sid)
-        if types.isString(sid)
-        then
-            mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, sid)
-        end
-    end,
-
-    setSecondarySubtitleByID = function(self, sid)
-        if types.isString(sid)
-        then
-            mp.set_property(_MPV_PROP_SECONDARY_SUBTITLE_ID, sid)
-        end
-    end,
-
-    getMainSubtitleID = function(self)
-        local sid = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
-        return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
-    end,
-
-    isVideoPaused = function(self)
-        return mp.get_property_native(_MPV_PROP_PAUSE)
-    end,
-
-    setVideoPaused = function(self, val)
-        mp.set_property_native(_MPV_PROP_PAUSE, types.toBoolean(val))
-    end,
-
-    listFiles = function(self, dir, outList)
-        local files = mp.utils.readdir(dir, _MPV_ARG_READDIR_ONLY_FILES)
-        utils.clearTable(outList)
-        utils.appendArrayElements(outList, files)
-    end,
-
-    createDir = function(self, dir)
-        return self._mPyScriptCmdExecutor:createDirs(dir)
-    end,
-
-    deletePath = function(self, fullPath)
-        return self._mPyScriptCmdExecutor:deletePath(fullPath)
-    end,
-
-    createTempFile = function(self)
-        return io.tmpfile()
-    end,
-
-    readFile = function(self, fullPath)
-        return types.isString(fullPath) and io.read(fullPath)
-    end,
-
-    readUTF8File = function(self, fullPath)
-        return self._mPyScriptCmdExecutor:readUTF8File(fullPath)
-    end,
-
-    writeFile = function(self, fullPath, mode)
-        mode = mode or constants.FILE_MODE_WRITE_ERASE
-        return types.isString(fullPath) and io.open(fullPath, mode)
-    end,
-
-    closeFile = function(self, file)
-        utils.closeSafely(file)
-    end,
-
-    isExistedDir = function(self, fullPath)
-        local ret = false
-        if types.isString(fullPath)
-        then
-            local parentDir, dir = unportable.splitPath(fullPath)
-            local dirs = mp.utils.readdir(parentDir, _MPV_ARG_READDIR_ONLY_DIRS)
-            ret = utils.linearSearchArray(dirs, dir)
+function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
+    local function __patchFunction(orgFunc, patchFunc)
+        local ret = function(...)
+            utils.invokeSafely(patchFunc, ...)
+            return utils.invokeSafely(orgFunc, ...)
         end
         return ret
-    end,
+    end
 
-    isExistedFile = function(self, fullPath)
-        local file = nil
-        if types.isString(fullPath)
+    local function __createPatchedFSFunction(orgFunc, subTag)
+        local retFunc = function(self, arg1, ...)
+            local ret = orgFunc(self, arg1, ...)
+            local arg1Str = arg1 or constants.STR_EMPTY
+            arg1Str = types.isString(arg1) and string.format("%q", arg1Str) or arg1Str
+            self:_printLog(_TAG_FILESYSTEM, "%s(%s) -> %s", subTag, arg1Str, tostring(ret))
+            return ret
+        end
+        return retFunc
+    end
+
+    local clzApp = self:getClass()
+    self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "readFile")
+    self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8File")
+    self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
+    self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
+    self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
+    self.deletePath     = __createPatchedFSFunction(clzApp.deletePath,      "deletePath")
+    self.createTempFile = __createPatchedFSFunction(clzApp.createTempFile,  "createTempFile")
+
+    local function __printNetworkLog(_, url)
+        self:_printLog(_TAG_NETWORK, "GET %s", url)
+    end
+    local conn = self._mNetworkConnection
+    conn._createConnection = __patchFunction(conn:getClass()._createConnection, __printNetworkLog)
+
+    local function __printSubtitleFilePath(_, path)
+        self:_printLog(_TAG_SUBTITLE, "file: %s", path)
+    end
+    self.setSubtitleFile = __patchFunction(clzApp.setSubtitleFile, __printSubtitleFilePath)
+
+    local function __printSubtitleData(_, data)
+        self:_printLog(_TAG_SUBTITLE, "data")
+    end
+    self.setSubtitleData = __patchFunction(clzApp.setSubtitleData, __printSubtitleData)
+
+    for _, plugin in self:iterateDanmakuSourcePlugins()
+    do
+        local orgSearchFunc = plugin:getClass().search
+        plugin.search = function(plugin, keyword, ...)
+            local ret = orgSearchFunc(plugin, keyword, ...)
+            if ret
+            then
+                self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
+            end
+            return ret
+        end
+    end
+end
+
+function MPVDanmakuLoaderApp:setLogFunction(func)
+    self._mLogFunction = types.chooseValue(types.isFunction(func), func)
+end
+
+function MPVDanmakuLoaderApp:_printLog(tag, fmt, ...)
+    local func = self._mLogFunction
+    if not func
+    then
+        return
+    end
+
+    local wordWidth = #tag
+    local maxWidth = _TAG_LOG_WIDTH
+    local leadingSpaceCount = math.floor((maxWidth - wordWidth) / 2)
+    local trailingSpaceCount = math.max(maxWidth - wordWidth - leadingSpaceCount, 0)
+    local leadingSpaces = string.rep(constants.STR_SPACE, leadingSpaceCount)
+    local trailingSpaces = string.rep(constants.STR_SPACE, trailingSpaceCount)
+    func(string.format("[%s%s%s]  " .. fmt, leadingSpaces, tag, trailingSpaces, ...))
+end
+
+function MPVDanmakuLoaderApp:init(filePath)
+    local dir = filePath and unportable.splitPath(filePath)
+    self.__mCurrentDirPath = types.toValueOrNil(dir)
+    self.__mVideoFileMD5 = nil
+    self.__mVideoFilePath = filePath
+    self.__mMemorySubtitleID = nil
+    self._mNetworkConnection:reset()
+    self._mDanmakuPools:clear()
+end
+
+function MPVDanmakuLoaderApp:_getCurrentDirPath()
+    return self.__mCurrentDirPath
+end
+
+function MPVDanmakuLoaderApp:_updateConfiguration(cfg)
+    local path = self:_getCurrentDirPath()
+    local options = mp.options.read_options(self.__mCfgSchemeTable)
+    config.updateConfiguration(self, path, cfg, options)
+end
+
+function MPVDanmakuLoaderApp:updateConfiguration()
+    local cfg = self._mConfiguration
+    self:_updateConfiguration(cfg)
+
+    local pools = self._mDanmakuPools
+    for _, pool in pools:iteratePools()
+    do
+        pool:setModifyDanmakuDataHook(cfg.modifyDanmakuDataHook)
+    end
+    pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
+    self._mNetworkConnection:setTimeout(cfg.networkTimeout)
+    self:setLogFunction(cfg.enableDebugLog and print)
+end
+
+function MPVDanmakuLoaderApp:getPluginByName(name)
+    for _, plugin in self:iterateDanmakuSourcePlugins()
+    do
+        if plugin:getName() == name
         then
-            file = io.open(fullPath)
-            utils.closeSafely(file)
+            return plugin
         end
-        return types.toBoolean(file)
-    end,
+    end
+end
 
-    getUniqueFilePath = function(self, dir, prefix, suffix)
-        local function __isExistedPath(app, fullPath)
-            return app:isExistedFile(fullPath) or app:isExistedDir(fullPath)
-        end
+function MPVDanmakuLoaderApp:_addDanmakuSourcePlugin(plugin)
+    if classlite.isInstanceOf(plugin, pluginbase.IDanmakuSourcePlugin)
+        and not self:getPluginByName(plugin:getName())
+    then
+        table.insert(self._mDanmakuSourcePlugins, plugin)
+        plugin:setApplication(self)
+    end
+end
 
-        local generator = self._mUniquePathGenerator
-        return generator:getUniquePath(dir, prefix, suffix, __isExistedPath, self)
-    end,
+function MPVDanmakuLoaderApp:_initDanmakuSourcePlugins()
+    local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
+    self:_addDanmakuSourcePlugin(srt.SRTDanmakuSourcePlugin:new())
+    self:_addDanmakuSourcePlugin(acfun.AcfunDanmakuSourcePlugin:new())
+    self:_addDanmakuSourcePlugin(bilibili.BiliBiliDanmakuSourcePlugin:new())
+    self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+end
 
-    getVideoFileMD5 = function(self)
-        local md5 = self.__mVideoFileMD5
-        if not md5
+function MPVDanmakuLoaderApp:iterateDanmakuSourcePlugins()
+    return utils.iterateArray(self._mDanmakuSourcePlugins)
+end
+
+function MPVDanmakuLoaderApp:getConfiguration()
+    return self._mConfiguration
+end
+
+function MPVDanmakuLoaderApp:getDanmakuPools()
+    return self._mDanmakuPools
+end
+
+function MPVDanmakuLoaderApp:getNetworkConnection()
+    return self._mNetworkConnection
+end
+
+function MPVDanmakuLoaderApp:__doAddSubtitle(arg)
+    local orgSID = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
+    local orgTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 0)
+    mp.commandv(_MPV_CMD_ADD_SUBTITLE, arg)
+    mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, orgSID)
+
+    local newTrackCount = mp.get_property_number(_MPV_PROP_TRACK_COUNT, 1)
+    if newTrackCount > orgTrackCount
+    then
+        local prop = string.format(_MPV_PROP_TRACK_ID, newTrackCount - 1)
+        return mp.get_property(prop)
+    end
+end
+
+function MPVDanmakuLoaderApp:addSubtitleFile(path)
+    if self:isExistedFile(path)
+    then
+        return self:__doAddSubtitle(path)
+    end
+end
+
+function MPVDanmakuLoaderApp:addSubtitleData(data)
+    local function __unsetSID(propName, sid)
+        if mp.get_property(propName) == sid
         then
-            local fullPath = self.__mVideoFilePath
-            local executor = self._mPyScriptCmdExecutor
-            md5 = executor:calculateFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
-            self.__mVideoFileMD5 = md5
+            mp.set_property(propName, _MPV_CONST_NO_SUBTITLE_ID)
         end
-        return md5
-    end,
+    end
 
-    __doGetConfigurationFullPath = function(self, relPath)
-        local path = self:_getCurrentDirPath()
-        local dirName = self:getConfiguration().privateDataDirName
-        return path and dirName and unportable.joinPath(path, dirName)
-    end,
+    if types.isNilOrEmpty(data)
+    then
+        return
+    end
 
-    getDanmakuSourceRawDataDirPath = function(self)
-        local relPath = self:getConfiguration().rawDataDirName
-        return self:__doGetConfigurationFullPath(name)
-    end,
-
-    getDanmakuSourceMetaDataFilePath = function(self)
-        local relPath = self:getConfiguration().metaDataFileName
-        return self:__doGetConfigurationFullPath(relPath)
-    end,
-
-    getGeneratedASSFilePath = function(self)
-        if self:getConfiguration().saveGeneratedASS
+    local newSID = self:__doAddSubtitle(_MPV_CONST_MEMORY_FILE_PREFFIX .. data)
+    if newSID
+    then
+        -- 只保留一个内存字幕
+        local memorySID = self.__mMemorySubtitleID
+        if memorySID
         then
-            local videoFilePath = self.__mVideoFilePath
-            return videoFilePath and videoFilePath .. _APP_ASS_FILE_SUFFIX
+            __unsetSID(_MPV_PROP_MAIN_SUBTITLE_ID, memorySID)
+            __unsetSID(_MPV_PROP_SECONDARY_SUBTITLE_ID, memorySID)
+            mp.commandv(_MPV_CMD_DELETE_SUBTITLE, memorySID)
         end
-    end,
 
-    getCurrentDateTime = function(self)
-        return os.time()
-    end,
+        self.__mMemorySubtitleID = newSID
+        return newSID
+    end
+end
 
-    executeExternalCommand = function(self, cmdArgs, stdin)
-        local function __isSucceed(ret)
-            return types.isTable(ret)
-                and not ret.error
-                and types.isNumber(ret.status)
-        end
-        if types.isString(stdin)
-        then
-            local excutor = self._mPyScriptCmdExecutor
-            return excutor:redirectExternalCommand(cmdArgs, stdin)
-        else
-            local args = utils.clearTable(self.__mSubprocessArguments)
-            args.args = cmdArgs
-            args.cancellable = true
-            local ret = mp.utils.subprocess(args)
-            local succeed = __isSucceed(ret)
-            local retCode = types.chooseValue(succeed, ret.status)
-            local stdout = types.chooseValue(succeed, ret.stdout)
-            ret = nil
-            utils.clearTable(args)
-            return retCode, stdout
-        end
-    end,
-}
+function MPVDanmakuLoaderApp:setMainSubtitleByID(sid)
+    if types.isString(sid)
+    then
+        mp.set_property(_MPV_PROP_MAIN_SUBTITLE_ID, sid)
+    end
+end
+
+function MPVDanmakuLoaderApp:setSecondarySubtitleByID(sid)
+    if types.isString(sid)
+    then
+        mp.set_property(_MPV_PROP_SECONDARY_SUBTITLE_ID, sid)
+    end
+end
+
+function MPVDanmakuLoaderApp:getMainSubtitleID()
+    local sid = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
+    return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
+end
+
+function MPVDanmakuLoaderApp:isVideoPaused()
+    return mp.get_property_native(_MPV_PROP_PAUSE)
+end
+
+function MPVDanmakuLoaderApp:setVideoPaused(val)
+    mp.set_property_native(_MPV_PROP_PAUSE, types.toBoolean(val))
+end
+
+function MPVDanmakuLoaderApp:listFiles(dir, outList)
+    local files = mp.utils.readdir(dir, _MPV_ARG_READDIR_ONLY_FILES)
+    utils.clearTable(outList)
+    utils.appendArrayElements(outList, files)
+end
+
+function MPVDanmakuLoaderApp:createDir(dir)
+    return self._mPyScriptCmdExecutor:createDirs(dir)
+end
+
+function MPVDanmakuLoaderApp:deletePath(fullPath)
+    return self._mPyScriptCmdExecutor:deletePath(fullPath)
+end
+
+function MPVDanmakuLoaderApp:createTempFile()
+    return io.tmpfile()
+end
+
+function MPVDanmakuLoaderApp:readFile(fullPath)
+    return types.isString(fullPath) and io.read(fullPath)
+end
+
+function MPVDanmakuLoaderApp:readUTF8File(fullPath)
+    return self._mPyScriptCmdExecutor:readUTF8File(fullPath)
+end
+
+function MPVDanmakuLoaderApp:writeFile(fullPath, mode)
+    mode = mode or constants.FILE_MODE_WRITE_ERASE
+    return types.isString(fullPath) and io.open(fullPath, mode)
+end
+
+function MPVDanmakuLoaderApp:closeFile(file)
+    utils.closeSafely(file)
+end
+
+function MPVDanmakuLoaderApp:isExistedDir(fullPath)
+    local ret = false
+    if types.isString(fullPath)
+    then
+        local parentDir, dir = unportable.splitPath(fullPath)
+        local dirs = mp.utils.readdir(parentDir, _MPV_ARG_READDIR_ONLY_DIRS)
+        ret = utils.linearSearchArray(dirs, dir)
+    end
+    return ret
+end
+
+function MPVDanmakuLoaderApp:isExistedFile(fullPath)
+    local file = nil
+    if types.isString(fullPath)
+    then
+        file = io.open(fullPath)
+        utils.closeSafely(file)
+    end
+    return types.toBoolean(file)
+end
+
+function MPVDanmakuLoaderApp:getUniqueFilePath(dir, prefix, suffix)
+    local function __isExistedPath(app, fullPath)
+        return app:isExistedFile(fullPath) or app:isExistedDir(fullPath)
+    end
+
+    local generator = self._mUniquePathGenerator
+    return generator:getUniquePath(dir, prefix, suffix, __isExistedPath, self)
+end
+
+function MPVDanmakuLoaderApp:getVideoFileMD5()
+    local md5 = self.__mVideoFileMD5
+    if not md5
+    then
+        local fullPath = self.__mVideoFilePath
+        local executor = self._mPyScriptCmdExecutor
+        md5 = executor:calculateFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
+        self.__mVideoFileMD5 = md5
+    end
+    return md5
+end
+
+function MPVDanmakuLoaderApp:__doGetConfigurationFullPath(relPath)
+    local path = self:_getCurrentDirPath()
+    local dirName = self:getConfiguration().privateDataDirName
+    return path and dirName and unportable.joinPath(path, dirName)
+end
+
+function MPVDanmakuLoaderApp:getDanmakuSourceRawDataDirPath()
+    local relPath = self:getConfiguration().rawDataDirName
+    return self:__doGetConfigurationFullPath(name)
+end
+
+function MPVDanmakuLoaderApp:getDanmakuSourceMetaDataFilePath()
+    local relPath = self:getConfiguration().metaDataFileName
+    return self:__doGetConfigurationFullPath(relPath)
+end
+
+function MPVDanmakuLoaderApp:getGeneratedASSFilePath()
+    if self:getConfiguration().saveGeneratedASS
+    then
+        local videoFilePath = self.__mVideoFilePath
+        return videoFilePath and videoFilePath .. _APP_ASS_FILE_SUFFIX
+    end
+end
+
+function MPVDanmakuLoaderApp:getCurrentDateTime()
+    return os.time()
+end
+
+function MPVDanmakuLoaderApp:executeExternalCommand(cmdArgs, stdin)
+    local function __isSucceed(ret)
+        return types.isTable(ret)
+            and not ret.error
+            and types.isNumber(ret.status)
+    end
+    if types.isString(stdin)
+    then
+        local excutor = self._mPyScriptCmdExecutor
+        return excutor:redirectExternalCommand(cmdArgs, stdin)
+    else
+        local args = utils.clearTable(self.__mSubprocessArguments)
+        args.args = cmdArgs
+        args.cancellable = true
+        local ret = mp.utils.subprocess(args)
+        local succeed = __isSucceed(ret)
+        local retCode = types.chooseValue(succeed, ret.status)
+        local stdout = types.chooseValue(succeed, ret.stdout)
+        ret = nil
+        utils.clearTable(args)
+        return retCode, stdout
+    end
+end
 
 classlite.declareClass(MPVDanmakuLoaderApp)
 

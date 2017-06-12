@@ -18,9 +18,6 @@ local NetworkConnection =
     __mTmpRequestResult     = classlite.declareTableField(),
 }
 
-classlite.declareClass(NetworkConnection)
-
-
 function NetworkConnection:setPyScriptCommandExecutor(executor)
     self.__mPyScriptCmdExecutor = executor
 end
@@ -119,6 +116,7 @@ function NetworkConnection:flushReceiveQueue()
     return self:__readConnections(1, self:__getConnectionCount())
 end
 
+classlite.declareClass(NetworkConnection)
 
 return
 {

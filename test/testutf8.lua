@@ -20,38 +20,37 @@ local __UTF8_TEST_CASES =
 }
 
 
-TestIterateUTF8CodePoints =
-{
-    testDecode = function()
-        for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
+TestIterateUTF8CodePoints = {}
+
+function TestIterateUTF8CodePoints:testDecode()
+    for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
+    do
+        local iterCount = 0
+        local str = string.char(utils.unpackArray(stringBytes))
+        for _, iterCodePoint in utf8.iterateUTF8CodePoints(str)
         do
-            local iterCount = 0
-            local str = string.char(utils.unpackArray(stringBytes))
-            for _, iterCodePoint in utf8.iterateUTF8CodePoints(str)
-            do
-                iterCount = iterCount + 1
-                lu.assertEquals(iterCodePoint, codePoint)
-            end
-
-            lu.assertEquals(iterCount, 1)
+            iterCount = iterCount + 1
+            lu.assertEquals(iterCodePoint, codePoint)
         end
-    end,
+
+        lu.assertEquals(iterCount, 1)
+    end
+end
 
 
-    testEncode = function()
-        local encodedBytes = {}
-        for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
+function TestIterateUTF8CodePoints:testEncode()
+    local encodedBytes = {}
+    for _, codePoint, stringBytes in utils.iteratePairsArray(__UTF8_TEST_CASES)
+    do
+        for _, utf8Byte in utf8.iterateUTF8EncodedBytes(codePoint)
         do
-            for _, utf8Byte in utf8.iterateUTF8EncodedBytes(codePoint)
-            do
-                table.insert(encodedBytes, utf8Byte)
-            end
-
-            lu.assertEquals(encodedBytes, stringBytes)
-            utils.clearTable(encodedBytes)
+            table.insert(encodedBytes, utf8Byte)
         end
-    end,
-}
+
+        lu.assertEquals(encodedBytes, stringBytes)
+        utils.clearTable(encodedBytes)
+    end
+end
 
 lu.LuaUnit.verbosity = 2
 os.exit(lu.LuaUnit.run())

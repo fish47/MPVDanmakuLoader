@@ -10,17 +10,18 @@ local IDanmakuSourcePlugin =
 {
     _mApplication   = classlite.declareConstantField(nil),
 
-    setApplication = function(self, app)
-        self._mApplication = app
-    end,
-
-    getName = constants.FUNC_EMPTY,
-    parseFile = constants.FUNC_EMPTY,
-    parseData = constants.FUNC_EMPTY,
-    search = constants.FUNC_EMPTY,
-    getVideoDurations = constants.FUNC_EMPTY,
+    getName                 = constants.FUNC_EMPTY,
+    parseFile               = constants.FUNC_EMPTY,
+    parseData               = constants.FUNC_EMPTY,
+    search                  = constants.FUNC_EMPTY,
+    getVideoDurations       = constants.FUNC_EMPTY,
     downloadDanmakuRawDatas = constants.FUNC_EMPTY,
 }
+
+
+function IDanmakuSourcePlugin:setApplication(app)
+    self._mApplication = app
+end
 
 classlite.declareClass(IDanmakuSourcePlugin)
 
@@ -48,25 +49,25 @@ end
 
 local _AbstractDanmakuSourcePlugin =
 {
-    _doDownloadDanmakuRawData = constants.FUNC_EMPTY,
-    _doGetVideoDuration = constants.FUNC_EMPTY,
-
-    parseFile = function(self, filePath, ...)
-        local file = self._mApplication:readUTF8File(filePath)
-        local rawData = utils.readAndCloseFile(file)
-        return rawData and self:parseData(rawData, ...)
-    end,
-
-    downloadDanmakuRawDatas = function(self, videoIDs, outDatas)
-        local iterFunc = self._doDownloadDanmakuRawData
-        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
-    end,
-
-    getVideoDurations = function(self, videoIDs, outDurations)
-        local iterFunc = self._doGetVideoDuration
-        return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDurations, iterFunc)
-    end,
+    _doDownloadDanmakuRawData   = constants.FUNC_EMPTY,
+    _doGetVideoDuration         = constants.FUNC_EMPTY,
 }
+
+function _AbstractDanmakuSourcePlugin:parseFile(filePath, ...)
+    local file = self._mApplication:readUTF8File(filePath)
+    local rawData = utils.readAndCloseFile(file)
+    return rawData and self:parseData(rawData, ...)
+end
+
+function _AbstractDanmakuSourcePlugin:downloadDanmakuRawDatas(videoIDs, outDatas)
+    local iterFunc = self._doDownloadDanmakuRawData
+    return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
+end
+
+function _AbstractDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)
+    local iterFunc = self._doGetVideoDuration
+    return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDurations, iterFunc)
+end
 
 classlite.declareClass(_AbstractDanmakuSourcePlugin, IDanmakuSourcePlugin)
 
@@ -75,50 +76,49 @@ local _PatternBasedDanmakuSourcePlugin =
 {
     __mDanmakuData     = classlite.declareClassField(danmaku.DanmakuData),
 
-
-    _extractDanmaku = constants.FUNC_EMPTY,
-    _startExtractDanmakus = constants.FUNC_EMPTY,
-
-    _getLifeTimeByLayer = function(self, cfg, pos)
-        if pos == danmakupool.LAYER_MOVING_L2R or pos == danmakupool.LAYER_MOVING_R2L
-        then
-            return cfg.movingDanmakuLifeTime
-        elseif pos == danmakupool.LAYER_STATIC_TOP or pos == danmakupool.LAYER_STATIC_BOTTOM
-        then
-            return cfg.staticDanmakuLIfeTime
-        else
-            -- 依靠弹幕池的参数检查来过滤
-        end
-    end,
-
-
-    parseData = function(self, rawData, sourceID, timeOffset)
-        local app = self._mApplication
-        local pools = app:getDanmakuPools()
-        local cfg = app:getConfiguration()
-        local iterFunc = self:_startExtractDanmakus(rawData)
-        local danmakuData = self.__mDanmakuData
-        timeOffset = timeOffset or 0
-        while true
-        do
-            local layer = self:_extractDanmaku(iterFunc, cfg, danmakuData)
-            if not layer
-            then
-                break
-            end
-
-            danmakuData.startTime = danmakuData.startTime + timeOffset
-            danmakuData.lifeTime = self:_getLifeTimeByLayer(cfg, layer)
-            danmakuData.sourceID = sourceID
-
-            local pool = pools:getDanmakuPoolByLayer(layer)
-            if pool
-            then
-                pool:addDanmaku(danmakuData)
-            end
-        end
-    end,
+    _extractDanmaku         = constants.FUNC_EMPTY,
+    _startExtractDanmakus   = constants.FUNC_EMPTY,
 }
+
+function _PatternBasedDanmakuSourcePlugin:_getLifeTimeByLayer(cfg, pos)
+    if pos == danmakupool.LAYER_MOVING_L2R or pos == danmakupool.LAYER_MOVING_R2L
+    then
+        return cfg.movingDanmakuLifeTime
+    elseif pos == danmakupool.LAYER_STATIC_TOP or pos == danmakupool.LAYER_STATIC_BOTTOM
+    then
+        return cfg.staticDanmakuLIfeTime
+    else
+        -- 依靠弹幕池的参数检查来过滤
+    end
+end
+
+
+function _PatternBasedDanmakuSourcePlugin:parseData(rawData, sourceID, timeOffset)
+    local app = self._mApplication
+    local pools = app:getDanmakuPools()
+    local cfg = app:getConfiguration()
+    local iterFunc = self:_startExtractDanmakus(rawData)
+    local danmakuData = self.__mDanmakuData
+    timeOffset = timeOffset or 0
+    while true
+    do
+        local layer = self:_extractDanmaku(iterFunc, cfg, danmakuData)
+        if not layer
+        then
+            break
+        end
+
+        danmakuData.startTime = danmakuData.startTime + timeOffset
+        danmakuData.lifeTime = self:_getLifeTimeByLayer(cfg, layer)
+        danmakuData.sourceID = sourceID
+
+        local pool = pools:getDanmakuPoolByLayer(layer)
+        if pool
+        then
+            pool:addDanmaku(danmakuData)
+        end
+    end
+end
 
 classlite.declareClass(_PatternBasedDanmakuSourcePlugin, _AbstractDanmakuSourcePlugin)
 

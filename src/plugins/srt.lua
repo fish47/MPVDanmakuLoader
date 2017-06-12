@@ -133,26 +133,25 @@ end
 local SRTDanmakuSourcePlugin =
 {
     _mDanmakuData   = classlite.declareClassField(danmaku.DanmakuData),
-
-
-    getName = function(self)
-        return _SRT_PLUGIN_NAME
-    end,
-
-    parseFile = function(self, filePath, sourceID, timeOffset)
-        local app = self._mApplication
-        local file = app:readUTF8File(filePath)
-        if types.isOpenedFile(file)
-        then
-            local cfg = app:getConfiguration()
-            local pools = app:getDanmakuPools()
-            local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
-            local danmakuData = self._mDanmakuData
-            _parseSRTFile(cfg, pool, file, sourceID, timeOffset, danmakuData)
-            app:closeFile(file)
-        end
-    end,
 }
+
+function SRTDanmakuSourcePlugin:getName()
+    return _SRT_PLUGIN_NAME
+end
+
+function SRTDanmakuSourcePlugin:parseFile(filePath, sourceID, timeOffset)
+    local app = self._mApplication
+    local file = app:readUTF8File(filePath)
+    if types.isOpenedFile(file)
+    then
+        local cfg = app:getConfiguration()
+        local pools = app:getDanmakuPools()
+        local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
+        local danmakuData = self._mDanmakuData
+        _parseSRTFile(cfg, pool, file, sourceID, timeOffset, danmakuData)
+        app:closeFile(file)
+    end
+end
 
 classlite.declareClass(SRTDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
 

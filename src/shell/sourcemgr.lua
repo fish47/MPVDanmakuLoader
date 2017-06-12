@@ -83,63 +83,61 @@ local __ArrayAndCursorMixin =
 {
     _mArray     = classlite.declareConstantField(nil),
     _mCursor    = classlite.declareConstantField(nil),
-
-    init = function(self, array)
-        self._mArray = array
-        self._mCursor = 1
-    end,
 }
+
+function __ArrayAndCursorMixin:init(array)
+    self._mArray = array
+    self._mCursor = 1
+end
 
 classlite.declareClass(__ArrayAndCursorMixin)
 
 
-local _Deserializer =
-{
-    readElement = function(self)
-        local ret = self._mArray[self._mCursor]
-        self._mCursor = self._mCursor + 1
-        return ret
-    end,
+local _Deserializer = {}
 
-    readArray = function(self, outArray)
-        local count = self:readElement()
-        if types.isNumber(count) and count > 0
-        then
-            utils.clearTable(outArray)
-            for i = 1, count
-            do
-                local elem = self:readElement()
-                table.insert(outArray, elem)
-            end
-            return true
+function _Deserializer:readElement()
+    local ret = self._mArray[self._mCursor]
+    self._mCursor = self._mCursor + 1
+    return ret
+end
+
+function _Deserializer:readArray(outArray)
+    local count = self:readElement()
+    if types.isNumber(count) and count > 0
+    then
+        utils.clearTable(outArray)
+        for i = 1, count
+        do
+            local elem = self:readElement()
+            table.insert(outArray, elem)
         end
-    end,
-}
+        return true
+    end
+end
 
 classlite.declareClass(_Deserializer, __ArrayAndCursorMixin)
 
 
-local _Serializer =
-{
-    writeElement = function(self, elem)
-        self._mArray[self._mCursor] = elem
-        self._mCursor = self._mCursor + 1
-    end,
+local _Serializer = {}
 
-    writeArray = function(self, array, hook, arg)
-        local count = #array
-        self:writeElement(count)
-        for i = 1, count
-        do
-            local val = array[i]
-            if hook
-            then
-                val = hook(val, arg)
-            end
-            self:writeElement(val)
+function _Serializer:writeElement(elem)
+    self._mArray[self._mCursor] = elem
+    self._mCursor = self._mCursor + 1
+end
+
+function _Serializer:writeArray(array, hook, arg)
+    local count = #array
+    self:writeElement(count)
+    for i = 1, count
+    do
+        local val = array[i]
+        if hook
+        then
+            val = hook(val, arg)
         end
-    end,
-}
+        self:writeElement(val)
+    end
+end
 
 classlite.declareClass(_Serializer, __ArrayAndCursorMixin)
 
@@ -150,45 +148,45 @@ local IDanmakuSource =
     _mApplication   = classlite.declareConstantField(nil),
     _mPlugin        = classlite.declareConstantField(nil),
 
-    setApplication = function(self, app)
-        self._mApplication = app
-    end,
+    parse           = constants.FUNC_EMPTY,
+    getDate         = constants.FUNC_EMPTY,
+    getDescription  = constants.FUNC_EMPTY,
 
-    getPluginName = function(self)
-        local plugin = self._mPlugin
-        return plugin and plugin:getName()
-    end,
+    _init           = constants.FUNC_EMPTY,
+    _delete         = constants.FUNC_EMPTY,
+    _update         = constants.FUNC_EMPTY,
+    _isDuplicated   = constants.FUNC_EMPTY,
+}
 
-    _serialize = function(self, serializer)
-        if serializer and self:_isValid()
+function IDanmakuSource:setApplication(app)
+    self._mApplication = app
+end
+
+function IDanmakuSource:getPluginName()
+    local plugin = self._mPlugin
+    return plugin and plugin:getName()
+end
+
+function IDanmakuSource:_serialize(serializer)
+    if serializer and self:_isValid()
+    then
+        serializer:writeElement(self:getPluginName())
+        return true
+    end
+end
+
+function IDanmakuSource:_deserialize(deserializer)
+    if deserializer
+    then
+        local pluginName = deserializer:readElement()
+        local plugin = self._mApplication:getPluginByName(pluginName)
+        if plugin
         then
-            serializer:writeElement(self:getPluginName())
+            self._mPlugin = plugin
             return true
         end
-    end,
-
-    _deserialize = function(self, deserializer)
-        if deserializer
-        then
-            local pluginName = deserializer:readElement()
-            local plugin = self._mApplication:getPluginByName(pluginName)
-            if plugin
-            then
-                self._mPlugin = plugin
-                return true
-            end
-        end
-    end,
-
-    parse = constants.FUNC_EMPTY,
-    getDate = constants.FUNC_EMPTY,
-    getDescription = constants.FUNC_EMPTY,
-
-    _init = constants.FUNC_EMPTY,
-    _delete = constants.FUNC_EMPTY,
-    _update = constants.FUNC_EMPTY,
-    _isDuplicated = constants.FUNC_EMPTY,
-}
+    end
+end
 
 classlite.declareClass(IDanmakuSource)
 
@@ -197,70 +195,70 @@ local _LocalDanmakuSource =
 {
     _mPlugin        = classlite.declareConstantField(nil),
     _mFilePath      = classlite.declareConstantField(nil),
-
-    _init = function(self, plugin, filePath)
-        self._mPlugin = plugin
-        self._mFilePath = filePath
-        return self:_isValid()
-    end,
-
-    parse = function(self)
-        if self:_isValid()
-        then
-            local plugin = self._mPlugin
-            local filePath = self._mFilePath
-            local timeOffset = _DEFAULT_START_TIME_OFFSET
-            local pools = self._mApplication:getDanmakuPools()
-            local sourceID = pools:allocateDanmakuSourceID(plugin:getName(), nil, nil,
-                                                           timeOffset, filePath)
-
-            plugin:parseFile(filePath, sourceID, timeOffset)
-        end
-    end,
-
-    _isValid = function(self)
-        return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
-            and self._mApplication:isExistedFile(self._mFilePath)
-    end,
-
-    getDescription = function(self)
-        local filePath = self._mFilePath
-        if types.isString(filePath)
-        then
-            local _, fileName = unportable.splitPath(filePath)
-            return fileName
-        end
-    end,
-
-    _serialize = function(self, serializer)
-        if IDanmakuSource._serialize(self, serializer)
-        then
-            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
-            serializer:writeElement(unportable.getRelativePath(cacheDir, self._mFilePath))
-            return true
-        end
-    end,
-
-    _deserialize = function(self, deserializer)
-        if IDanmakuSource._deserialize(self, deserializer)
-        then
-            local relPath = deserializer:readElement()
-            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
-            self._mFilePath = unportable.joinPath(cacheDir, relPath)
-            return self:_isValid()
-        end
-    end,
-
-    _delete = function(self)
-        return true
-    end,
-
-    _isDuplicated = function(self, source2)
-        -- 一个文件不能对应多个弹幕源
-        return classlite.isInstanceOf(source2, self:getClass())
-            and self._mFilePath == source2._mFilePath
-    end,
 }
+
+function _LocalDanmakuSource:_init(plugin, filePath)
+    self._mPlugin = plugin
+    self._mFilePath = filePath
+    return self:_isValid()
+end
+
+function _LocalDanmakuSource:parse()
+    if self:_isValid()
+    then
+        local plugin = self._mPlugin
+        local filePath = self._mFilePath
+        local timeOffset = _DEFAULT_START_TIME_OFFSET
+        local pools = self._mApplication:getDanmakuPools()
+        local sourceID = pools:allocateDanmakuSourceID(plugin:getName(), nil, nil,
+                                                        timeOffset, filePath)
+
+        plugin:parseFile(filePath, sourceID, timeOffset)
+    end
+end
+
+function _LocalDanmakuSource:_isValid()
+    return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
+        and self._mApplication:isExistedFile(self._mFilePath)
+end
+
+function _LocalDanmakuSource:getDescription()
+    local filePath = self._mFilePath
+    if types.isString(filePath)
+    then
+        local _, fileName = unportable.splitPath(filePath)
+        return fileName
+    end
+end
+
+function _LocalDanmakuSource:_serialize(serializer)
+    if IDanmakuSource._serialize(self, serializer)
+    then
+        local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+        serializer:writeElement(unportable.getRelativePath(cacheDir, self._mFilePath))
+        return true
+    end
+end
+
+function _LocalDanmakuSource:_deserialize(deserializer)
+    if IDanmakuSource._deserialize(self, deserializer)
+    then
+        local relPath = deserializer:readElement()
+        local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+        self._mFilePath = unportable.joinPath(cacheDir, relPath)
+        return self:_isValid()
+    end
+end
+
+function _LocalDanmakuSource:_delete()
+    return true
+end
+
+function _LocalDanmakuSource:_isDuplicated(source2)
+    -- 一个文件不能对应多个弹幕源
+    return classlite.isInstanceOf(source2, self:getClass())
+        and self._mFilePath == source2._mFilePath
+end
 
 classlite.declareClass(_LocalDanmakuSource, IDanmakuSource)
 
@@ -273,177 +271,177 @@ local _CachedRemoteDanmakuSource =
     _mVideoIDs          = classlite.declareTableField(),
     _mFilePaths         = classlite.declareTableField(),
     _mStartTimeOffsets  = classlite.declareTableField(),
-
-    _init = function(self, plugin, date, desc, videoIDs, paths, offsets)
-        self._mPlugin = plugin
-        self._mDate = date
-        self._mDescription = desc or constants.STR_EMPTY
-
-        local sourceVideoIDs = utils.clearTable(self._mVideoIDs)
-        local sourcePaths = utils.clearTable(self._mFilePaths)
-        local sourceOffsets = utils.clearTable(self._mStartTimeOffsets)
-        utils.appendArrayElements(sourceVideoIDs, videoIDs)
-        utils.appendArrayElements(sourcePaths, paths)
-        utils.appendArrayElements(sourceOffsets, offsets)
-
-        -- 对字段排序方便后来更新时比较
-        if self:_isValid()
-        then
-            utils.sortParallelArrays(sourceOffsets, sourceVideoIDs, sourcePaths)
-            return true
-        end
-    end,
-
-    getDate = function(self)
-        return self._mDate
-    end,
-
-    getDescription = function(self)
-        return self._mDescription
-    end,
-
-    parse = function(self)
-        if self:_isValid()
-        then
-            local pluginName = self._mPlugin:getName()
-            local videoIDs = self._mVideoIDs
-            local timeOffsets = self._mStartTimeOffsets
-            local pools = self._mApplication:getDanmakuPools()
-            for i, filePath in utils.iterateArray(self._mFilePaths)
-            do
-                local timeOffset = timeOffsets[i]
-                local sourceID = pools:allocateDanmakuSourceID(pluginName, videoIDs[i], i, timeOffset)
-                self._mPlugin:parseFile(filePath, sourceID, timeOffset)
-            end
-        end
-    end,
-
-
-    _isValid = function(self)
-        local function __checkNonExistedFilePath(path, app)
-            return not app:isExistedFile(path)
-        end
-
-        local function __checkIsNotNumber(num)
-            return not types.isNumber(num)
-        end
-
-        local function __checkIsNotString(url)
-            return not types.isString(url)
-        end
-
-        local app = self._mApplication
-        local videoIDs = self._mVideoIDs
-        local filePaths = self._mFilePaths
-        local timeOffsets = self._mStartTimeOffsets
-        return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
-            and types.isNumber(self._mDate)
-            and types.isString(self._mDescription)
-            and #videoIDs > 0
-            and #videoIDs == #filePaths
-            and #videoIDs == #timeOffsets
-            and not utils.linearSearchArrayIf(videoIDs, __checkIsNotString)
-            and not utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
-            and not utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
-    end,
-
-    _serialize = function(self, serializer)
-        local function __getRelativePath(fullPath, dir)
-            return unportable.getRelativePath(dir, fullPath)
-        end
-
-        if IDanmakuSource._serialize(self, serializer)
-        then
-            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
-            serializer:writeElement(self._mDate)
-            serializer:writeElement(self._mDescription)
-            serializer:writeArray(self._mVideoIDs)
-            serializer:writeArray(self._mFilePaths, __getRelativePath, cacheDir)
-            serializer:writeArray(self._mStartTimeOffsets)
-            return true
-        end
-    end,
-
-    _deserialize = function(self, deserializer)
-        local function __readFilePaths(deserializer, filePaths, dir)
-            if deserializer:readArray(filePaths)
-            then
-                for i, relPath in ipairs(filePaths)
-                do
-                    filePaths[i] = unportable.joinPath(dir, relPath)
-                end
-                return true
-            end
-        end
-
-        if IDanmakuSource._deserialize(self, deserializer)
-        then
-            local succeed = true
-            local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
-            self._mDate = deserializer:readElement()
-            self._mDescription = deserializer:readElement()
-            succeed = succeed and deserializer:readArray(self._mVideoIDs)
-            succeed = succeed and __readFilePaths(deserializer, self._mFilePaths, cacheDir)
-            succeed = succeed and deserializer:readArray(self._mStartTimeOffsets)
-            return self:_isValid()
-        end
-    end,
-
-
-    _delete = function(self)
-        -- 只要删除原始文件，反序列化的时候就被认为是无效的弹幕源
-        local app = self._mApplication
-        for _, path in utils.iterateArray(self._mFilePaths)
-        do
-            app:deletePath(path)
-        end
-        return true
-    end,
-
-
-    _update = function(self, source2)
-        if self:_isValid()
-        then
-            local app = self._mApplication
-            self:clone(source2)
-            source2._mDate = app:getCurrentDateTime()
-
-            local videoIDs = self._mVideoIDs
-            local plugin = self._mPlugin
-            local filePaths = utils.clearTable(source2._mFilePaths)
-            local succeed = __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
-            if succeed and source2:_isValid()
-            then
-                return true
-            end
-
-            __deleteDownloadedFiles(app, filePaths)
-        end
-    end,
-
-
-    _isDuplicated = function(self, source2)
-        local function __hasSameArrayContent(array1, array2)
-            if types.isTable(array1) and types.isTable(array2) and #array1 == #array2
-            then
-                for i = 1, #array1
-                do
-                    if array1[i] ~= array2[i]
-                    then
-                        return false
-                    end
-                end
-                return true
-            end
-        end
-
-        return classlite.isInstanceOf(source2, self:getClass())
-            and self:_isValid()
-            and source2:_isValid()
-            and __hasSameArrayContent(self._mVideoIDs, source2._mVideoIDs)
-            and __hasSameArrayContent(self._mStartTimeOffsets, source2._mStartTimeOffsets)
-    end,
 }
+
+function _CachedRemoteDanmakuSource:_init(plugin, date, desc, videoIDs, paths, offsets)
+    self._mPlugin = plugin
+    self._mDate = date
+    self._mDescription = desc or constants.STR_EMPTY
+
+    local sourceVideoIDs = utils.clearTable(self._mVideoIDs)
+    local sourcePaths = utils.clearTable(self._mFilePaths)
+    local sourceOffsets = utils.clearTable(self._mStartTimeOffsets)
+    utils.appendArrayElements(sourceVideoIDs, videoIDs)
+    utils.appendArrayElements(sourcePaths, paths)
+    utils.appendArrayElements(sourceOffsets, offsets)
+
+    -- 对字段排序方便后来更新时比较
+    if self:_isValid()
+    then
+        utils.sortParallelArrays(sourceOffsets, sourceVideoIDs, sourcePaths)
+        return true
+    end
+end
+
+function _CachedRemoteDanmakuSource:getDate()
+    return self._mDate
+end
+
+function _CachedRemoteDanmakuSource:getDescription()
+    return self._mDescription
+end
+
+function _CachedRemoteDanmakuSource:parse()
+    if self:_isValid()
+    then
+        local pluginName = self._mPlugin:getName()
+        local videoIDs = self._mVideoIDs
+        local timeOffsets = self._mStartTimeOffsets
+        local pools = self._mApplication:getDanmakuPools()
+        for i, filePath in utils.iterateArray(self._mFilePaths)
+        do
+            local timeOffset = timeOffsets[i]
+            local sourceID = pools:allocateDanmakuSourceID(pluginName, videoIDs[i], i, timeOffset)
+            self._mPlugin:parseFile(filePath, sourceID, timeOffset)
+        end
+    end
+end
+
+
+function _CachedRemoteDanmakuSource:_isValid()
+    local function __checkNonExistedFilePath(path, app)
+        return not app:isExistedFile(path)
+    end
+
+    local function __checkIsNotNumber(num)
+        return not types.isNumber(num)
+    end
+
+    local function __checkIsNotString(url)
+        return not types.isString(url)
+    end
+
+    local app = self._mApplication
+    local videoIDs = self._mVideoIDs
+    local filePaths = self._mFilePaths
+    local timeOffsets = self._mStartTimeOffsets
+    return classlite.isInstanceOf(self._mPlugin, pluginbase.IDanmakuSourcePlugin)
+        and types.isNumber(self._mDate)
+        and types.isString(self._mDescription)
+        and #videoIDs > 0
+        and #videoIDs == #filePaths
+        and #videoIDs == #timeOffsets
+        and not utils.linearSearchArrayIf(videoIDs, __checkIsNotString)
+        and not utils.linearSearchArrayIf(filePaths, __checkNonExistedFilePath, app)
+        and not utils.linearSearchArrayIf(timeOffsets, __checkIsNotNumber)
+end
+
+function _CachedRemoteDanmakuSource:_serialize(serializer)
+    local function __getRelativePath(fullPath, dir)
+        return unportable.getRelativePath(dir, fullPath)
+    end
+
+    if IDanmakuSource._serialize(self, serializer)
+    then
+        local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+        serializer:writeElement(self._mDate)
+        serializer:writeElement(self._mDescription)
+        serializer:writeArray(self._mVideoIDs)
+        serializer:writeArray(self._mFilePaths, __getRelativePath, cacheDir)
+        serializer:writeArray(self._mStartTimeOffsets)
+        return true
+    end
+end
+
+function _CachedRemoteDanmakuSource:_deserialize(deserializer)
+    local function __readFilePaths(deserializer, filePaths, dir)
+        if deserializer:readArray(filePaths)
+        then
+            for i, relPath in ipairs(filePaths)
+            do
+                filePaths[i] = unportable.joinPath(dir, relPath)
+            end
+            return true
+        end
+    end
+
+    if IDanmakuSource._deserialize(self, deserializer)
+    then
+        local succeed = true
+        local cacheDir = self._mApplication:getDanmakuSourceRawDataDirPath()
+        self._mDate = deserializer:readElement()
+        self._mDescription = deserializer:readElement()
+        succeed = succeed and deserializer:readArray(self._mVideoIDs)
+        succeed = succeed and __readFilePaths(deserializer, self._mFilePaths, cacheDir)
+        succeed = succeed and deserializer:readArray(self._mStartTimeOffsets)
+        return self:_isValid()
+    end
+end
+
+
+function _CachedRemoteDanmakuSource:_delete()
+    -- 只要删除原始文件，反序列化的时候就被认为是无效的弹幕源
+    local app = self._mApplication
+    for _, path in utils.iterateArray(self._mFilePaths)
+    do
+        app:deletePath(path)
+    end
+    return true
+end
+
+
+function _CachedRemoteDanmakuSource:_update(source2)
+    if self:_isValid()
+    then
+        local app = self._mApplication
+        self:clone(source2)
+        source2._mDate = app:getCurrentDateTime()
+
+        local videoIDs = self._mVideoIDs
+        local plugin = self._mPlugin
+        local filePaths = utils.clearTable(source2._mFilePaths)
+        local succeed = __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
+        if succeed and source2:_isValid()
+        then
+            return true
+        end
+
+        __deleteDownloadedFiles(app, filePaths)
+    end
+end
+
+
+function _CachedRemoteDanmakuSource:_isDuplicated(source2)
+    local function __hasSameArrayContent(array1, array2)
+        if types.isTable(array1) and types.isTable(array2) and #array1 == #array2
+        then
+            for i = 1, #array1
+            do
+                if array1[i] ~= array2[i]
+                then
+                    return false
+                end
+            end
+            return true
+        end
+    end
+
+    return classlite.isInstanceOf(source2, self:getClass())
+        and self:_isValid()
+        and source2:_isValid()
+        and __hasSameArrayContent(self._mVideoIDs, source2._mVideoIDs)
+        and __hasSameArrayContent(self._mStartTimeOffsets, source2._mStartTimeOffsets)
+end
 
 classlite.declareClass(_CachedRemoteDanmakuSource, IDanmakuSource)
 
@@ -480,273 +478,273 @@ local DanmakuSourceManager =
     __mDownloadedFilePaths      = classlite.declareTableField(),
     __mDeserializedSources      = classlite.declareTableField(),
     __mReadMetaFileCallback     = classlite.declareTableField(),
+}
+
+function DanmakuSourceManager:new()
+    self.__mReadMetaFileCallback = function(...)
+        return self:__onReadMetaFileTuple(...)
+    end
+end
 
 
-    new = function(self)
-        self.__mReadMetaFileCallback = function(...)
-            return self:__onReadMetaFileTuple(...)
-        end
-    end,
+function DanmakuSourceManager:dispose()
+    for _, pool in pairs(self._mDanmakuSourcePools)
+    do
+        utils.forEachArrayElement(pool, utils.disposeSafely)
+        utils.clearTable(pool)
+    end
+end
 
 
-    dispose = function(self)
-        for _, pool in pairs(self._mDanmakuSourcePools)
-        do
-            utils.forEachArrayElement(pool, utils.disposeSafely)
-            utils.clearTable(pool)
-        end
-    end,
+function DanmakuSourceManager:setApplication(app)
+    self._mApplication = app
+end
 
 
-    setApplication = function(self, app)
-        self._mApplication = app
-    end,
+function DanmakuSourceManager:__onReadMetaFileTuple(...)
+    local deserializer = self._mDeserializer
+    local outSources = self.__mDeserializedSources
+    local array = utils.clearTable(self.__mDeserializeArray)
+    utils.packArray(array, ...)
+    deserializer:init(array)
+    self:__deserializeDanmakuSourceCommand(deserializer, outSources)
+end
 
 
-    __onReadMetaFileTuple = function(self, ...)
-        local deserializer = self._mDeserializer
-        local outSources = self.__mDeserializedSources
-        local array = utils.clearTable(self.__mDeserializeArray)
-        utils.packArray(array, ...)
-        deserializer:init(array)
-        self:__deserializeDanmakuSourceCommand(deserializer, outSources)
-    end,
+function DanmakuSourceManager:__serializeDanmakuSourceCommand(serializer, cmdID, source)
+    local sourceTypeID = _META_SOURCE_TYPE_ID_MAP[source:getClass()]
+    if sourceTypeID
+    then
+        serializer:writeElement(self._mApplication:getVideoFileMD5())
+        serializer:writeElement(cmdID)
+        serializer:writeElement(sourceTypeID)
+        return source:_serialize(serializer)
+    end
+end
 
 
-    __serializeDanmakuSourceCommand = function(self, serializer, cmdID, source)
-        local sourceTypeID = _META_SOURCE_TYPE_ID_MAP[source:getClass()]
-        if sourceTypeID
+function DanmakuSourceManager:__deserializeDanmakuSourceCommand(deserializer, outSources)
+    local function __deserializeDanmakuSource(self, deserializer)
+        local clzID = deserializer:readElement()
+        local sourceClz = clzID and _META_SOURCE_TYPE_CLASS_MAP[clzID]
+        if sourceClz
         then
-            serializer:writeElement(self._mApplication:getVideoFileMD5())
-            serializer:writeElement(cmdID)
-            serializer:writeElement(sourceTypeID)
-            return source:_serialize(serializer)
-        end
-    end,
-
-
-    __deserializeDanmakuSourceCommand = function(self, deserializer, outSources)
-        local function __deserializeDanmakuSource(self, deserializer)
-            local clzID = deserializer:readElement()
-            local sourceClz = clzID and _META_SOURCE_TYPE_CLASS_MAP[clzID]
-            if sourceClz
+            local source = self:_obtainDanmakuSource(sourceClz)
+            if source:_deserialize(deserializer)
             then
-                local source = self:_obtainDanmakuSource(sourceClz)
-                if source:_deserialize(deserializer)
-                then
-                    return source
-                end
-
-                self:_recycleDanmakuSource(source)
-            end
-        end
-
-        if deserializer:readElement() ~= self._mApplication:getVideoFileMD5()
-        then
-            return
-        end
-
-        local cmdID = deserializer:readElement()
-        if cmdID == _META_CMD_ADD
-        then
-            local source = __deserializeDanmakuSource(self, deserializer)
-            if source
-            then
-                table.insert(outSources, source)
-                return true
-            end
-        elseif cmdID == _META_CMD_DELETE
-        then
-            local source = __deserializeDanmakuSource(self, deserializer)
-            if source
-            then
-                for i, iterSource in utils.reverseIterateArray(outSources)
-                do
-                    if iterSource:_isDuplicated(source)
-                    then
-                        table.remove(outSources, i)
-                        self:_recycleDanmakuSource(iterSource)
-                    end
-                end
-                self:_recycleDanmakuSource(source)
-                return true
-            end
-        end
-    end,
-
-
-    _obtainDanmakuSource = function(self, srcClz)
-        local pool = self._mDanmakuSourcePools[srcClz]
-        local ret = pool and utils.popArrayElement(pool) or srcClz:new()
-        ret:reset()
-        ret:setApplication(self._mApplication)
-        return ret
-    end,
-
-
-    _recycleDanmakuSource = function(self, source)
-        if classlite.isInstanceOf(source, IDanmakuSource)
-        then
-            local clz = source:getClass()
-            local pools = self._mDanmakuSourcePools
-            local pool = pools[pools]
-            if not pool
-            then
-                pool = {}
-                pools[clz] = pool
-            end
-            table.insert(pool, source)
-        end
-    end,
-
-
-    recycleDanmakuSources = function(self, danmakuSources)
-        for i, source in utils.iterateArray(danmakuSources)
-        do
-            self:_recycleDanmakuSource(source)
-            danmakuSources[i] = nil
-        end
-    end,
-
-
-    _doReadMetaFile = function(self, deserializeCallback)
-        local path = self._mApplication:getDanmakuSourceMetaDataFilePath()
-        serialize.deserializeFromFilePath(path, deserializeCallback)
-    end,
-
-
-    _doAppendMetaFile = function(self, cmdID, source)
-        local app = self._mApplication
-        local array = utils.clearTable(self.__mSerializeArray)
-        local serializer = self._mSerializer
-        serializer:init(array)
-        if self:__serializeDanmakuSourceCommand(serializer, cmdID, source)
-        then
-            local metaFilePath = app:getDanmakuSourceMetaDataFilePath()
-            if not app:isExistedFile(metaFilePath)
-            then
-                local dir = unportable.splitPath(metaFilePath)
-                local hasCreated = app:isExistedDir(dir) or app:createDir(dir)
-                if not hasCreated
-                then
-                    return
-                end
-            end
-
-            local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
-            serialize.serializeArray(file, array)
-            app:closeFile(file)
-        end
-    end,
-
-
-    listDanmakuSources = function(self, outList)
-        if not types.isTable(outList)
-        then
-            return
-        end
-
-        -- 读取下载过的弹幕源
-        local outDanmakuSources = utils.clearTable(self.__mDeserializedSources)
-        self:_doReadMetaFile(self.__mReadMetaFileCallback)
-        utils.appendArrayElements(outList, outDanmakuSources)
-        utils.clearTable(outDanmakuSources)
-    end,
-
-
-    addCachedDanmakuSource = function(self, sources, plugin, desc, videoIDs, offsets)
-        local app = self._mApplication
-        local datetime = app:getCurrentDateTime()
-        local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
-        if __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
-        then
-            local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
-            if source and source:_init(plugin, datetime, desc, videoIDs, filePaths, offsets)
-            then
-                self:_doAppendMetaFile(_META_CMD_ADD, source)
-                utils.pushArrayElement(sources, source)
                 return source
             end
 
             self:_recycleDanmakuSource(source)
         end
-    end,
+    end
 
+    if deserializer:readElement() ~= self._mApplication:getVideoFileMD5()
+    then
+        return
+    end
 
-    addLocalDanmakuSource = function(self, sources, plugin, filePath)
-        local function __isDuplicated(iterSource, newSource)
-            return iterSource:_isDuplicated(newSource)
-        end
-
-        local newSource = self:_obtainDanmakuSource(_LocalDanmakuSource)
-        if newSource:_init(plugin, filePath)
-            and not utils.linearSearchArrayIf(sources, __isDuplicated, newSource)
+    local cmdID = deserializer:readElement()
+    if cmdID == _META_CMD_ADD
+    then
+        local source = __deserializeDanmakuSource(self, deserializer)
+        if source
         then
-            self:_doAppendMetaFile(_META_CMD_ADD, newSource)
-            utils.pushArrayElement(sources, newSource)
-            return newSource
+            table.insert(outSources, source)
+            return true
         end
-
-        self:_recycleDanmakuSource(newSource)
-    end,
-
-
-    deleteDanmakuSourceByIndex = function(self, sources, idx)
-        local source = types.isTable(sources) and types.isNumber(idx) and sources[idx]
-        if classlite.isInstanceOf(source, IDanmakuSource) and sources[idx]:_delete()
+    elseif cmdID == _META_CMD_DELETE
+    then
+        local source = __deserializeDanmakuSource(self, deserializer)
+        if source
         then
-            -- 因为不能删外部文件来标记删除，所以在持久化文件里记个反操作
-            if classlite.isInstanceOf(source, _LocalDanmakuSource)
-            then
-                self:_doAppendMetaFile(_META_CMD_DELETE, source)
+            for i, iterSource in utils.reverseIterateArray(outSources)
+            do
+                if iterSource:_isDuplicated(source)
+                then
+                    table.remove(outSources, i)
+                    self:_recycleDanmakuSource(iterSource)
+                end
             end
-
-            -- 外部不要再持有这个对象了
-            table.remove(sources, idx)
             self:_recycleDanmakuSource(source)
             return true
         end
-    end,
+    end
+end
 
 
-    updateDanmakuSources = function(self, inSources, outSources)
-        local function __checkIsNotDanmakuSource(source)
-            return not classlite.isInstanceOf(source, IDanmakuSource)
+function DanmakuSourceManager:_obtainDanmakuSource(srcClz)
+    local pool = self._mDanmakuSourcePools[srcClz]
+    local ret = pool and utils.popArrayElement(pool) or srcClz:new()
+    ret:reset()
+    ret:setApplication(self._mApplication)
+    return ret
+end
+
+
+function DanmakuSourceManager:_recycleDanmakuSource(source)
+    if classlite.isInstanceOf(source, IDanmakuSource)
+    then
+        local clz = source:getClass()
+        local pools = self._mDanmakuSourcePools
+        local pool = pools[pools]
+        if not pool
+        then
+            pool = {}
+            pools[clz] = pool
+        end
+        table.insert(pool, source)
+    end
+end
+
+
+function DanmakuSourceManager:recycleDanmakuSources(danmakuSources)
+    for i, source in utils.iterateArray(danmakuSources)
+    do
+        self:_recycleDanmakuSource(source)
+        danmakuSources[i] = nil
+    end
+end
+
+
+function DanmakuSourceManager:_doReadMetaFile(deserializeCallback)
+    local path = self._mApplication:getDanmakuSourceMetaDataFilePath()
+    serialize.deserializeFromFilePath(path, deserializeCallback)
+end
+
+
+function DanmakuSourceManager:_doAppendMetaFile(cmdID, source)
+    local app = self._mApplication
+    local array = utils.clearTable(self.__mSerializeArray)
+    local serializer = self._mSerializer
+    serializer:init(array)
+    if self:__serializeDanmakuSourceCommand(serializer, cmdID, source)
+    then
+        local metaFilePath = app:getDanmakuSourceMetaDataFilePath()
+        if not app:isExistedFile(metaFilePath)
+        then
+            local dir = unportable.splitPath(metaFilePath)
+            local hasCreated = app:isExistedDir(dir) or app:createDir(dir)
+            if not hasCreated
+            then
+                return
+            end
         end
 
-        if types.isTable(inSources)
-            and types.isTable(outSources)
-            and not types.isNilOrEmpty(inSources)
-            and not utils.linearSearchArrayIf(inSources, __checkIsNotDanmakuSource)
-        then
-            -- 注意输入和输出有可能是同一个 table
-            local app = self._mApplication
-            local tmpSource = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
-            for i = 1, #inSources
-            do
-                -- 排除掉一些来源重复的
-                local source = inSources[i]
-                local found = false
-                for j = 1, i - 1
-                do
-                    if source:_isDuplicated(inSources[j])
-                    then
-                        found = true
-                        break
-                    end
-                end
+        local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
+        serialize.serializeArray(file, array)
+        app:closeFile(file)
+    end
+end
 
-                if not found and source:_update(tmpSource)
+
+function DanmakuSourceManager:listDanmakuSources(outList)
+    if not types.isTable(outList)
+    then
+        return
+    end
+
+    -- 读取下载过的弹幕源
+    local outDanmakuSources = utils.clearTable(self.__mDeserializedSources)
+    self:_doReadMetaFile(self.__mReadMetaFileCallback)
+    utils.appendArrayElements(outList, outDanmakuSources)
+    utils.clearTable(outDanmakuSources)
+end
+
+
+function DanmakuSourceManager:addCachedDanmakuSource(sources, plugin, desc,
+                                                     videoIDs, offsets)
+    local app = self._mApplication
+    local datetime = app:getCurrentDateTime()
+    local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
+    if __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
+    then
+        local source = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
+        if source and source:_init(plugin, datetime, desc, videoIDs, filePaths, offsets)
+        then
+            self:_doAppendMetaFile(_META_CMD_ADD, source)
+            utils.pushArrayElement(sources, source)
+            return source
+        end
+
+        self:_recycleDanmakuSource(source)
+    end
+end
+
+
+function DanmakuSourceManager:addLocalDanmakuSource(sources, plugin, filePath)
+    local function __isDuplicated(iterSource, newSource)
+        return iterSource:_isDuplicated(newSource)
+    end
+
+    local newSource = self:_obtainDanmakuSource(_LocalDanmakuSource)
+    if newSource:_init(plugin, filePath)
+        and not utils.linearSearchArrayIf(sources, __isDuplicated, newSource)
+    then
+        self:_doAppendMetaFile(_META_CMD_ADD, newSource)
+        utils.pushArrayElement(sources, newSource)
+        return newSource
+    end
+
+    self:_recycleDanmakuSource(newSource)
+end
+
+
+function DanmakuSourceManager:deleteDanmakuSourceByIndex(sources, idx)
+    local source = types.isTable(sources) and types.isNumber(idx) and sources[idx]
+    if classlite.isInstanceOf(source, IDanmakuSource) and sources[idx]:_delete()
+    then
+        -- 因为不能删外部文件来标记删除，所以在持久化文件里记个反操作
+        if classlite.isInstanceOf(source, _LocalDanmakuSource)
+        then
+            self:_doAppendMetaFile(_META_CMD_DELETE, source)
+        end
+
+        -- 外部不要再持有这个对象了
+        table.remove(sources, idx)
+        self:_recycleDanmakuSource(source)
+        return true
+    end
+end
+
+
+function DanmakuSourceManager:updateDanmakuSources(inSources, outSources)
+    local function __checkIsNotDanmakuSource(source)
+        return not classlite.isInstanceOf(source, IDanmakuSource)
+    end
+
+    if types.isTable(inSources)
+        and types.isTable(outSources)
+        and not types.isNilOrEmpty(inSources)
+        and not utils.linearSearchArrayIf(inSources, __checkIsNotDanmakuSource)
+    then
+        -- 注意输入和输出有可能是同一个 table
+        local app = self._mApplication
+        local tmpSource = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
+        for i = 1, #inSources
+        do
+            -- 排除掉一些来源重复的
+            local source = inSources[i]
+            local found = false
+            for j = 1, i - 1
+            do
+                if source:_isDuplicated(inSources[j])
                 then
-                    self:_doAppendMetaFile(_META_CMD_ADD, tmpSource)
-                    table.insert(outSources, tmpSource)
-                    tmpSource = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
+                    found = true
+                    break
                 end
             end
-            self:_recycleDanmakuSource(tmpSource)
+
+            if not found and source:_update(tmpSource)
+            then
+                self:_doAppendMetaFile(_META_CMD_ADD, tmpSource)
+                table.insert(outSources, tmpSource)
+                tmpSource = self:_obtainDanmakuSource(_CachedRemoteDanmakuSource)
+            end
         end
-    end,
-}
+        self:_recycleDanmakuSource(tmpSource)
+    end
+end
 
 classlite.declareClass(DanmakuSourceManager)
 

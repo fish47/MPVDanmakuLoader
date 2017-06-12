@@ -243,10 +243,10 @@ def calculate_file_md5(args):
 
 @_impl_func(_create_str_tuple_arg("urls"),
             _create_int_arg("timeout"),
-            _create_int_tuple_arg("args"))
+            _create_int_tuple_arg("flags"))
 def request_urls(args):
-    def __do_request_url(idx, req_url, req_timeout, req_args, l, req_results):
-        req_arg_bits = req_args[idx]
+    def __do_request_url(idx, req_url, req_timeout, req_flags, l, req_results):
+        req_arg_bits = req_flags[idx]
         is_accept_xml = (req_arg_bits & _REQUEST_ARG_ACCEPT_XML)
         is_uncompress = (req_arg_bits & _REQUEST_ARG_UNCOMPRESS)
 
@@ -270,14 +270,14 @@ def request_urls(args):
 
     urls = args[0]
     timeout = args[1] or socket._GLOBAL_DEFAULT_TIMEOUT
-    request_args = args[2]
+    flags = args[2]
     url_count = len(urls)
-    __assert_equals(url_count, len(request_args))
+    __assert_equals(url_count, len(flags))
 
     threads = []
     results = [None] * url_count
     for i, url in enumerate(urls):
-        thread_args = (i, url, timeout, request_args, lock, results)
+        thread_args = (i, url, timeout, flags, lock, results)
         t = threading.Thread(target=__do_request_url, args=thread_args)
         t.start()
         threads.append(t)

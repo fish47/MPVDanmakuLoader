@@ -102,45 +102,45 @@ local PathElementIterator =
 {
     _mTablePool     = classlite.declareTableField(),
     _mIterateFunc   = classlite.declareConstantField(),
-
-    new = function(self)
-        self._mIterateFunc = function(paths, idx)
-            idx = idx + 1
-            if idx > #paths
-            then
-                -- 如果是中途 break 出来，就让虚拟机回收吧
-                self:_recycleTable(paths)
-                return nil
-            else
-                return idx, paths[idx]
-            end
-        end
-    end,
-
-    _obtainTable = function(self)
-        return utils.popArrayElement(self._mTablePool) or {}
-    end,
-
-    _recycleTable = function(self, tbl)
-        local pool = self._mTablePool
-        if types.isTable(pool)
-        then
-            utils.clearTable(tbl)
-            table.insert(pool, tbl)
-        end
-    end,
-
-    iterate = function(self, fullPath)
-        local paths = self:_obtainTable()
-        if __splitPathElements(fullPath, paths)
-        then
-            return self._mIterateFunc, paths, 0
-        else
-            self:_recycleTable(paths)
-            return constants.FUNC_EMPTY
-        end
-    end,
 }
+
+function PathElementIterator:new()
+    self._mIterateFunc = function(paths, idx)
+        idx = idx + 1
+        if idx > #paths
+        then
+            -- 如果是中途 break 出来，就让虚拟机回收吧
+            self:_recycleTable(paths)
+            return nil
+        else
+            return idx, paths[idx]
+        end
+    end
+end
+
+function PathElementIterator:_obtainTable()
+    return utils.popArrayElement(self._mTablePool) or {}
+end
+
+function PathElementIterator:_recycleTable(tbl)
+    local pool = self._mTablePool
+    if types.isTable(pool)
+    then
+        utils.clearTable(tbl)
+        table.insert(pool, tbl)
+    end
+end
+
+function PathElementIterator:iterate(fullPath)
+    local paths = self:_obtainTable()
+    if __splitPathElements(fullPath, paths)
+    then
+        return self._mIterateFunc, paths, 0
+    else
+        self:_recycleTable(paths)
+        return constants.FUNC_EMPTY
+    end
+end
 
 classlite.declareClass(PathElementIterator)
 
@@ -240,36 +240,37 @@ local _UNIQUE_PATH_FMT_TIME_PREFIX  = "%y%m%d%H%M"
 local UniquePathGenerator =
 {
     _mUniquePathID      = classlite.declareConstantField(1),
-
-    getUniquePath = function(self, dir, prefix, suffix, isExistedFunc, funcArg)
-        local timeStr = os.date(_UNIQUE_PATH_FMT_TIME_PREFIX)
-        prefix = types.isString(prefix) and prefix or constants.STR_EMPTY
-        suffix = types.isString(suffix) and suffix or constants.STR_EMPTY
-        while true
-        do
-            local pathID = self._mUniquePathID
-            self._mUniquePathID = pathID + 1
-
-            local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME, prefix, timeStr, pathID, suffix)
-            local fullPath = joinPath(dir, fileName)
-            if not isExistedFunc(funcArg, fullPath)
-            then
-                return fullPath
-            end
-        end
-    end,
 }
+
+function UniquePathGenerator:getUniquePath(dir, prefix, suffix,
+                                           isExistedFunc, funcArg)
+    local timeStr = os.date(_UNIQUE_PATH_FMT_TIME_PREFIX)
+    prefix = types.isString(prefix) and prefix or constants.STR_EMPTY
+    suffix = types.isString(suffix) and suffix or constants.STR_EMPTY
+    while true
+    do
+        local pathID = self._mUniquePathID
+        self._mUniquePathID = pathID + 1
+
+        local fileName = string.format(_UNIQUE_PATH_FMT_FILE_NAME, prefix, timeStr, pathID, suffix)
+        local fullPath = joinPath(dir, fileName)
+        if not isExistedFunc(funcArg, fullPath)
+        then
+            return fullPath
+        end
+    end
+end
 
 classlite.declareClass(UniquePathGenerator)
 
 
 return
 {
-    PathElementIterator         = PathElementIterator,
-    UniquePathGenerator         = UniquePathGenerator,
-
     normalizePath               = normalizePath,
     joinPath                    = joinPath,
     splitPath                   = splitPath,
     getRelativePath             = getRelativePath,
+
+    PathElementIterator         = PathElementIterator,
+    UniquePathGenerator         = UniquePathGenerator,
 }

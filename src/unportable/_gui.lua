@@ -110,186 +110,187 @@ local ZenityGUIBuilder =
 {
     _mApplication   = classlite.declareConstantField(nil),
     __mArguments    = classlite.declareTableField(),
-
-    __prepareZenityCommand = function(self, props)
-        local app = self._mApplication
-        local cfg = app and app:getConfiguration()
-        local path = cfg and cfg.zenityBinPath
-        if path
-        then
-            local arguments = utils.clearTable(self.__mArguments)
-            _addCommand(arguments, "zenity")
-            _addOptionAndValue(arguments, "--title", props.windowTitle)
-            _addOptionAndValue(arguments, "--width", props.windowWidth)
-            _addOptionAndValue(arguments, "--height", props.windowHeight)
-            return arguments
-        end
-    end,
-
-    __getZenityCommandResult = function(self, arguments, stdin)
-        local app = self._mApplication
-        local succeed, output = app and app:executeExternalCommand(arguments, stdin)
-        if succeed
-        then
-            return output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
-        end
-    end,
-
-
-    showTextInfo = function(self, props, content)
-        local arguments = self:__prepareZenityCommand(props)
-        if arguments
-        then
-            _addOption(arguments, "--text-info")
-            self:__getZenityCommandResult(arguments, content)
-        end
-    end,
-
-
-    showEntry = function(self, props)
-        local arguments = self:__prepareZenityCommand(props)
-        if arguments
-        then
-            _addOption(arguments, "--entry")
-            _addOptionAndValue(arguments, "--text", props.entryTitle)
-            _addOptionAndValue(arguments, "--entry-text", props.entryText)
-            return self:__getZenityCommandResult(arguments)
-        end
-    end,
-
-
-    showListBox = function(self, props, outIndexes)
-        local arguments = self:__prepareZenityCommand(props)
-        if not arguments
-        then
-            return
-        end
-
-        _addOption(arguments, "--list")
-        _addOptionAndValue(arguments, "--text", props.listBoxTitle)
-        _addOption(arguments, types.chooseValue(props.isHeaderHidden, "--hide-header"))
-
-        local isFirstColumnDummy = false
-        if props.isMultiSelectable
-        then
-            _addOption(arguments, "--checklist")
-            _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_LISTBOX_INDEX)
-
-            -- 第一列被用作 CheckList 了囧
-            _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
-            isFirstColumnDummy = true
-        end
-
-        -- 加一列作为返回值
-        local hiddenIDColIdx = 1 + types.toZeroOrOne(isFirstColumnDummy)
-        _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
-        _addOptionAndValue(arguments, "--print-column", hiddenIDColIdx)
-        _addOptionAndValue(arguments, "--hide-column", hiddenIDColIdx)
-
-        -- 表头
-        local columnCount = props.listBoxColumnCount
-        local hasHeader = (not types.isEmptyTable(props.listBoxHeaders))
-        for i = 1, columnCount
-        do
-            local header = hasHeader and props.listBoxHeaders[i] or constants.STR_EMPTY
-            _addOptionAndValue(arguments, "--column", header)
-        end
-
-        -- 表格内容
-        local tableCellCount = #props.listBoxElements
-        local rowCount = (columnCount > 0) and math.ceil(tableCellCount / columnCount) or 0
-        for i = 1, rowCount
-        do
-            -- CheckList 列
-            if isFirstColumnDummy
-            then
-                _addValue(arguments, constants.STR_EMPTY)
-            end
-
-            -- 返回值列
-            _addValue(arguments, i)
-
-            for j = 1, columnCount
-            do
-                local idx = (i - 1) * columnCount + j
-                local element = props.listBoxElements[idx]
-                element = element and element or constants.STR_EMPTY
-                _addValue(arguments, element)
-            end
-        end
-
-        -- 返回点击的行索引
-        utils.clearTable(outIndexes)
-        local resultStr = self:__getZenityCommandResult(arguments)
-        if not types.isNonEmptyString(resultStr) and types.isTable(outIndexes)
-        then
-            for idx in resultStr:gmatch(_ZENITY_PATTERN_SPLIT_INDEXES)
-            do
-                table.insert(outIndexes, tonumber(idx))
-            end
-        end
-
-        return types.isNonEmptyTable(outIndexes)
-    end,
-
-
-    showFileSelection = function(self, props, outPaths)
-        local arguments = self:__prepareZenityCommand(props)
-        if not arguments
-        then
-            return
-        end
-
-        _addOption(arguments, "--file-selection")
-        _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_FILE_SELECTION)
-        _addOption(arguments, types.chooseValue(props.isMultiSelectable, "--multiple"))
-        _addOption(arguments, types.chooseValue(props.isDirectoryOnly, "--directory"))
-
-        utils.clearTable(outPaths)
-        local resultStr = self:__getZenityCommandResult(arguments)
-        if types.isNilOrEmpty(resultStr)
-        then
-            return
-        end
-
-        local startIdx = 1
-        local endIdx = resultStr:len()
-        while startIdx <= endIdx
-        do
-            local sepIdx = resultStr:find(_ZENITY_SEP_FILE_SELECTION, startIdx, true)
-            local pathEndIdx = sepIdx and sepIdx - 1 or endIdx
-            if startIdx <= pathEndIdx
-            then
-                table.insert(outPaths, resultStr:sub(startIdx, pathEndIdx))
-            end
-
-            startIdx = pathEndIdx + #_ZENITY_SEP_FILE_SELECTION + 1
-        end
-        return types.isNonEmptyTable(outPaths)
-    end,
-
-
-    showProgressBar = function(self, props)
-        --TODO
-    end,
-
-    advanceProgressBar = function(self, handler, percentage, message)
-        --TODO
-    end,
-
-    finishProgressBar = function(self, handler)
-        --TODO
-    end,
-
-    showQuestion = function(self, props)
-        local arguments = self:__prepareZenityCommand(props)
-        _addOption(arguments, "--question")
-        _addOptionAndValue(arguments, "--text", props.questionText)
-        _addOptionAndValue(arguments, "--ok-label", props.labelTextOK)
-        _addOptionAndValue(arguments, "--cancel-label", props.labelTextCancel)
-        return self:__getZenityCommandResult(arguments)
-    end,
 }
+
+function ZenityGUIBuilder:__prepareZenityCommand(props)
+    local app = self._mApplication
+    local cfg = app and app:getConfiguration()
+    local path = cfg and cfg.zenityBinPath
+    if path
+    then
+        local arguments = utils.clearTable(self.__mArguments)
+        _addCommand(arguments, "zenity")
+        _addOptionAndValue(arguments, "--title", props.windowTitle)
+        _addOptionAndValue(arguments, "--width", props.windowWidth)
+        _addOptionAndValue(arguments, "--height", props.windowHeight)
+        return arguments
+    end
+end
+
+function ZenityGUIBuilder:__getZenityCommandResult(arguments, stdin)
+    local app = self._mApplication
+    local succeed, output = app and app:executeExternalCommand(arguments, stdin)
+    if succeed
+    then
+        return output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
+    end
+end
+
+
+function ZenityGUIBuilder:showTextInfo(props, content)
+    local arguments = self:__prepareZenityCommand(props)
+    if arguments
+    then
+        _addOption(arguments, "--text-info")
+        self:__getZenityCommandResult(arguments, content)
+    end
+end
+
+
+function ZenityGUIBuilder:showEntry(props)
+    local arguments = self:__prepareZenityCommand(props)
+    if arguments
+    then
+        _addOption(arguments, "--entry")
+        _addOptionAndValue(arguments, "--text", props.entryTitle)
+        _addOptionAndValue(arguments, "--entry-text", props.entryText)
+        return self:__getZenityCommandResult(arguments)
+    end
+end
+
+
+function ZenityGUIBuilder:showListBox(props, outIndexes)
+    local arguments = self:__prepareZenityCommand(props)
+    if not arguments
+    then
+        return
+    end
+
+    _addOption(arguments, "--list")
+    _addOptionAndValue(arguments, "--text", props.listBoxTitle)
+    _addOption(arguments, types.chooseValue(props.isHeaderHidden, "--hide-header"))
+
+    local isFirstColumnDummy = false
+    if props.isMultiSelectable
+    then
+        _addOption(arguments, "--checklist")
+        _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_LISTBOX_INDEX)
+
+        -- 第一列被用作 CheckList 了囧
+        _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
+        isFirstColumnDummy = true
+    end
+
+    -- 加一列作为返回值
+    local hiddenIDColIdx = 1 + types.toZeroOrOne(isFirstColumnDummy)
+    _addOptionAndValue(arguments, "--column", constants.STR_EMPTY)
+    _addOptionAndValue(arguments, "--print-column", hiddenIDColIdx)
+    _addOptionAndValue(arguments, "--hide-column", hiddenIDColIdx)
+
+    -- 表头
+    local columnCount = props.listBoxColumnCount
+    local hasHeader = (not types.isEmptyTable(props.listBoxHeaders))
+    for i = 1, columnCount
+    do
+        local header = hasHeader and props.listBoxHeaders[i] or constants.STR_EMPTY
+        _addOptionAndValue(arguments, "--column", header)
+    end
+
+    -- 表格内容
+    local tableCellCount = #props.listBoxElements
+    local hasColumn = (columnCount > 0)
+    local rowCount = hasColumn and math.ceil(tableCellCount / columnCount) or 0
+    for i = 1, rowCount
+    do
+        -- CheckList 列
+        if isFirstColumnDummy
+        then
+            _addValue(arguments, constants.STR_EMPTY)
+        end
+
+        -- 返回值列
+        _addValue(arguments, i)
+
+        for j = 1, columnCount
+        do
+            local idx = (i - 1) * columnCount + j
+            local element = props.listBoxElements[idx]
+            element = element and element or constants.STR_EMPTY
+            _addValue(arguments, element)
+        end
+    end
+
+    -- 返回点击的行索引
+    utils.clearTable(outIndexes)
+    local resultStr = self:__getZenityCommandResult(arguments)
+    if not types.isNonEmptyString(resultStr) and types.isTable(outIndexes)
+    then
+        for idx in resultStr:gmatch(_ZENITY_PATTERN_SPLIT_INDEXES)
+        do
+            table.insert(outIndexes, tonumber(idx))
+        end
+    end
+
+    return types.isNonEmptyTable(outIndexes)
+end
+
+
+function ZenityGUIBuilder:showFileSelection(props, outPaths)
+    local arguments = self:__prepareZenityCommand(props)
+    if not arguments
+    then
+        return
+    end
+
+    _addOption(arguments, "--file-selection")
+    _addOptionAndValue(arguments, "--separator", _ZENITY_SEP_FILE_SELECTION)
+    _addOption(arguments, types.chooseValue(props.isMultiSelectable, "--multiple"))
+    _addOption(arguments, types.chooseValue(props.isDirectoryOnly, "--directory"))
+
+    utils.clearTable(outPaths)
+    local resultStr = self:__getZenityCommandResult(arguments)
+    if types.isNilOrEmpty(resultStr)
+    then
+        return
+    end
+
+    local startIdx = 1
+    local endIdx = resultStr:len()
+    while startIdx <= endIdx
+    do
+        local sepIdx = resultStr:find(_ZENITY_SEP_FILE_SELECTION, startIdx, true)
+        local pathEndIdx = sepIdx and sepIdx - 1 or endIdx
+        if startIdx <= pathEndIdx
+        then
+            table.insert(outPaths, resultStr:sub(startIdx, pathEndIdx))
+        end
+
+        startIdx = pathEndIdx + #_ZENITY_SEP_FILE_SELECTION + 1
+    end
+    return types.isNonEmptyTable(outPaths)
+end
+
+
+function ZenityGUIBuilder:showProgressBar(props)
+    --TODO
+end
+
+function ZenityGUIBuilder:advanceProgressBar(handler, percentage, message)
+    --TODO
+end
+
+function ZenityGUIBuilder:finishProgressBar(handler)
+    --TODO
+end
+
+function ZenityGUIBuilder:showQuestion(props)
+    local arguments = self:__prepareZenityCommand(props)
+    _addOption(arguments, "--question")
+    _addOptionAndValue(arguments, "--text", props.questionText)
+    _addOptionAndValue(arguments, "--ok-label", props.labelTextOK)
+    _addOptionAndValue(arguments, "--cancel-label", props.labelTextCancel)
+    return self:__getZenityCommandResult(arguments)
+end
 
 classlite.declareClass(ZenityGUIBuilder)
 
