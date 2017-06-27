@@ -361,27 +361,22 @@ local MockApplication =
     _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
     _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
 
-
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
-
-    getMockFileSystem = function(self)
-        return self._mMockFileSystem
-    end,
-
-    _getCurrentDirPath = function(self)
-        return "/mpvdanmakuloader/"
-    end,
-
-    getVideoFileMD5 = function(self)
-        return string.rep("1", 32)
-    end,
-
-    _updateConfiguration = function(self, cfg)
-        config.updateConfiguration(self, nil, cfg, nil)
-        cfg.rawDataDirName = "1/2/3/rawdata"
-        cfg.metaDataFileName = "4/5/6/meta.lua"
-    end,
 }
+
+function MockApplication:_getCurrentDirPath()
+    return "/mpvdanmakuloader/"
+end
+
+function MockApplication:getVideoFileMD5()
+    return string.rep("1", 32)
+end
+
+function MockApplication:_updateConfiguration(cfg)
+    config.updateConfiguration(self, nil, cfg, nil)
+    cfg.rawDataDirName = "1/2/3/rawdata"
+    cfg.metaDataFileName = "4/5/6/meta.lua"
+end
 
 -- 将文件相关操作转交给虚拟文件系统
 for _, methodName in ipairs({ "isExistedDir",
@@ -402,15 +397,14 @@ end
 classlite.declareClass(MockApplication, application.MPVDanmakuLoaderApp)
 
 
-local MockDanmakuSourceManager =
-{
-    _doReadMetaFile = function(self, callback)
-        local app = self._mApplication
-        local path = app:getDanmakuSourceMetaDataFilePath()
-        local content = utils.readAndCloseFile(app:readFile(path))
-        serialize.deserializeFromString(content, callback)
-    end,
-}
+local MockDanmakuSourceManager = {}
+
+function MockDanmakuSourceManager:_doReadMetaFile(callback)
+    local app = self._mApplication
+    local path = app:getDanmakuSourceMetaDataFilePath()
+    local content = utils.readAndCloseFile(app:readFile(path))
+    serialize.deserializeFromString(content, callback)
+end
 
 classlite.declareClass(MockDanmakuSourceManager, sourcemgr.DanmakuSourceManager)
 

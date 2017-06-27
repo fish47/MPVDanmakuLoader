@@ -4,8 +4,12 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
+local _SHELL_PATTERN_STARTS_WITH_DASH   = "^%-.*"
+local _SHELL_CONST_DOUBLE_DASH          = "--"
+
+
 local function __addRawArgument(arguments, arg)
-    if not types.types.isNil(arg)
+    if not types.isNil(arg)
     then
         table.insert(arguments, tostring(arg))
     end
@@ -28,7 +32,7 @@ local function _addValue(arguments, val)
         then
             table.insert(arguments, _SHELL_CONST_DOUBLE_DASH)
         end
-        table.insert(arguments, __quoteShellString(val))
+        table.insert(arguments, val)
     end
 end
 
@@ -112,10 +116,14 @@ local ZenityGUIBuilder =
     __mArguments    = classlite.declareTableField(),
 }
 
+function ZenityGUIBuilder:setApplication(app)
+    self._mApplication = app
+end
+
 function ZenityGUIBuilder:__prepareZenityCommand(props)
     local app = self._mApplication
     local cfg = app and app:getConfiguration()
-    local path = cfg and cfg.zenityBinPath
+    local path = cfg and cfg.zenityPath
     if path
     then
         local arguments = utils.clearTable(self.__mArguments)

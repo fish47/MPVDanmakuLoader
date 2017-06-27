@@ -1,4 +1,5 @@
 local utils         = require("src/base/utils")
+local config        = require("src/shell/config")
 local classlite     = require("src/base/classlite")
 local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
@@ -8,14 +9,15 @@ local application   = require("src/shell/application")
 local _TITLE_WINDOW     = "TestWriter"
 local _TITLE_LISTBOX    = "选择插件"
 
-local MPVDanmakuLoaderAppWithModifiedCfg =
-{
-    _updateConfiguration = function(self, cfg)
-        cfg.compareSourceIDHook = function()
-            return true
-        end
-    end,
-}
+
+local MPVDanmakuLoaderAppWithModifiedCfg = {}
+
+function MPVDanmakuLoaderAppWithModifiedCfg:_updateConfiguration(cfg)
+    config.updateConfiguration(self, nil, cfg, nil)
+    cfg.compareSourceIDHook = function()
+        return true
+    end
+end
 
 classlite.declareClass(MPVDanmakuLoaderAppWithModifiedCfg, application.MPVDanmakuLoaderApp)
 
@@ -57,6 +59,8 @@ local outSelectedFilePaths = {}
 __initTextInfoProps(textInfoProps)
 __initPluginListBoxProps(listboxProps, app)
 __initFileSelectionProps(fileSelectionProps)
+guiBuilder:setApplication(app)
+app:updateConfiguration()
 
 while true
 do

@@ -414,27 +414,26 @@ function MPVDanmakuLoaderApp:getCurrentDateTime()
     return os.time()
 end
 
+function MPVDanmakuLoaderApp:_spawnSubprocess(cmdArgs)
+    local args = utils.clearTable(self.__mSubprocessArguments)
+    args.args = cmdArgs
+    args.cancellable = true
+    local ret = mp.utils.subprocess(args)
+    local succeed = types.isTable(ret) and not ret.error and types.isNumber(ret.status)
+    local retCode = types.chooseValue(succeed, ret.status)
+    local stdout = types.chooseValue(succeed, ret.stdout)
+    ret = nil
+    utils.clearTable(args)
+    return retCode, stdout
+end
+
 function MPVDanmakuLoaderApp:executeExternalCommand(cmdArgs, stdin)
-    local function __isSucceed(ret)
-        return types.isTable(ret)
-            and not ret.error
-            and types.isNumber(ret.status)
-    end
     if types.isString(stdin)
     then
         local excutor = self._mPyScriptCmdExecutor
         return excutor:redirectExternalCommand(cmdArgs, stdin)
     else
-        local args = utils.clearTable(self.__mSubprocessArguments)
-        args.args = cmdArgs
-        args.cancellable = true
-        local ret = mp.utils.subprocess(args)
-        local succeed = __isSucceed(ret)
-        local retCode = types.chooseValue(succeed, ret.status)
-        local stdout = types.chooseValue(succeed, ret.stdout)
-        ret = nil
-        utils.clearTable(args)
-        return retCode, stdout
+        return self:_spawnSubprocess(cmdArgs)
     end
 end
 

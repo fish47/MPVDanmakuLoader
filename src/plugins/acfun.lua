@@ -55,7 +55,7 @@ local AcfunDanmakuSourcePlugin =
 }
 
 
-function AcfunDanmakuSourcePlugin:getNam()
+function AcfunDanmakuSourcePlugin:getName()
     return _ACFUN_PLUGIN_NAME
 end
 
@@ -177,9 +177,8 @@ function AcfunDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
     return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
 end
 
-
 function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
-    self:__initNetworkConnection(conn)
+    self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
 end
 
@@ -197,6 +196,7 @@ function AcfunDanmakuSourcePlugin:_doGetVideoDuration(conn, videoID, outDuration
     end
 
     local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
+    self:_initRequestFlagsForCompressedXML(conn)
     conn:receiveLater(url, __parseDuration, outDurations)
 end
 

@@ -1,11 +1,13 @@
 local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local classlite = require("src/base/classlite")
+local constants = require("src/base/constants")
 local serialize = require("src/base/serialize")
 
 
-local REQ_URL_FLAG_UNCOMPRESS       = 1
-local REQ_URL_FLAG_ACCEPT_XML       = 2
+local _REQ_URL_FLAG_NONE            = 0
+local _REQ_URL_FLAG_UNCOMPRESS      = bit32.lshift(1, 0)
+local _REQ_URL_FLAG_ACCEPT_XML      = bit32.lshift(1, 1)
 
 local _IMPL_FUNC_SCRIPT_CONTENT     = [[ __SCRIPT_CONTENT__ ]]
 
@@ -44,11 +46,10 @@ end
 
 local PyScriptCommandExecutor =
 {
-    _mLoadEnv               = classlite.declareTableField(),
+    _mApplication           = classlite.declareConstantField(nil),
     _mArguments             = classlite.declareTableField(),
     _mReturnArguments       = classlite.declareTableField(),
     _mReturnValues          = classlite.declareTableField(),
-    _mApplication           = classlite.declareConstantField(nil),
     _mScriptCallback        = classlite.declareConstantField(nil),
 }
 
@@ -70,10 +71,14 @@ function PyScriptCommandExecutor:_invokeImplScript(cmdArgs)
         local retCode, stdout = app:executeExternalCommand(cmdArgs)
         if retCode
         then
-            serialize.deserializeFromString(stdout)
+            serialize.deserializeFromString(stdout, self._mScriptCallback)
             return retCode, self._mReturnValues
         end
     end
+end
+
+function PyScriptCommandExecutor:_getScriptContent()
+    return _IMPL_FUNC_SCRIPT_CONTENT
 end
 
 function PyScriptCommandExecutor:__prepareArguments()
@@ -81,12 +86,12 @@ function PyScriptCommandExecutor:__prepareArguments()
     local rets = utils.clearTable(self._mReturnArguments)
     local app = self._mApplication
     local cfg = app and app:getConfiguration()
-    local pythonPath = cfg and cfg.python2BinPath
+    local pythonPath = cfg and cfg.pythonPath
     if pythonPath
     then
         table.insert(args, pythonPath)
         table.insert(args, "-c")
-        table.insert(args, _IMPL_FUNC_SCRIPT_CONTENT)
+        table.insert(args, self:_getScriptContent())
         return args, rets
     end
 end
@@ -198,8 +203,9 @@ classlite.declareClass(PyScriptCommandExecutor)
 
 return
 {
-    REQ_URL_FLAG_UNCOMPRESS     = REQ_URL_FLAG_UNCOMPRESS,
-    REQ_URL_FLAG_ACCEPT_XML     = REQ_URL_FLAG_ACCEPT_XML,
+    _REQ_URL_FLAG_NONE          = _REQ_URL_FLAG_NONE,
+    _REQ_URL_FLAG_UNCOMPRESS    = _REQ_URL_FLAG_UNCOMPRESS,
+    _REQ_URL_FLAG_ACCEPT_XML    = _REQ_URL_FLAG_ACCEPT_XML,
 
     PyScriptCommandExecutor     = PyScriptCommandExecutor,
 }

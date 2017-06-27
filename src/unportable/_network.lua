@@ -6,16 +6,16 @@ local classlite = require("src/base/classlite")
 
 local NetworkConnection =
 {
+    _mRequestTimeout        = classlite.declareConstantField(nil),
     _mRequestURLs           = classlite.declareTableField(),
-    _mCallbacks             = classlite.declareTableField(),
-    _mCallbackArgs          = classlite.declareTableField(),
-    _mTimeoutSeconds        = classlite.declareConstantField(nil),
-    _mRequestURLArgs        = classlite.declareTableField(),
-    __mTmpRequestFlag       = classlite.declareConstantField(0),
+    _mRequestFlags          = classlite.declareTableField(),
+    _mRequestCallbacks      = classlite.declareTableField(),
+    _mRequestCallbackArgs   = classlite.declareTableField(),
+
     __mPyScriptCmdExecutor  = classlite.declareConstantField(nil),
-    __mTmpRequestURLs       = classlite.declareTableField(),
-    __mRequestOutArray      = classlite.declareTableField(),
-    __mTmpRequestResult     = classlite.declareTableField(),
+    __mCurrentReqFlags      = classlite.declareConstantField(_cmd._REQ_URL_FLAG_NONE),
+    __mTmpTable1            = classlite.declareTableField(),
+    __mTmpTable2            = classlite.declareTableField(),
 }
 
 function NetworkConnection:setPyScriptCommandExecutor(executor)
@@ -26,20 +26,20 @@ function NetworkConnection:__getConnectionCount()
     return #self._mRequestURLs
 end
 
-function NetworkConnection:_requestURLs(urls, results)
+function NetworkConnection:_requestURLs(urls, timeout, flags, results)
     local executor = self.__mPyScriptCmdExecutor
-    return exexecutor and executor:requestURLs(urls, results) or false
+    return exexecutor and executor:requestURLs(urls, timeout, flags, results) or false
 end
 
-function NetworkConnection:_createConnection(url, callback, arg,
-                                             isAcceptXML, isUncompress)
+function NetworkConnection:_createConnection(url, callback, arg)
     if types.isString(url)
     then
         -- 注意回调和参数有可能为空
         local idx = self:__getConnectionCount() + 1
         self._mRequestURLs[idx] = url
-        self._mCallbacks[idx] = callback
-        self._mCallbackArgs[idx] = arg
+        self._mRequestFlags[idx] = self.__mCurrentReqFlags
+        self._mRequestCallbacks[idx] = callback
+        self._mRequestCallbackArgs[idx] = arg
         return true
     end
     return false
@@ -50,17 +50,19 @@ function NetworkConnection:__readConnections(startIdx, lastIdx)
     if startIdx <= lastIdx
     then
         local urls = self._mRequestURLs
-        local urlArgs = utils.clearTable(self.__mTmpRequestURLs)
+        local urlArgs = utils.clearTable(self.__mTmpTable1)
         for i = startIdx, lastIdx
         do
             urlArgs[i - startIdx] = urls[i]
         end
 
-        local results = utils.clearTable(self.__mRequestOutArray)
-        succeed = self:_requestURLs(urls, results)
+        local flags = self._mRequestFlags
+        local timeout = self._mRequestTimeout
+        local results = utils.clearTable(self.__mTmpTable2)
+        succeed = self:_requestURLs(urls, timeout, flags, results)
 
-        local callbacks = self._mCallbacks
-        local callbackArgs = self._mCallbackArgs
+        local callbacks = self._mRequestCallbacks
+        local callbackArgs = self._mRequestCallbackArgs
         for i = startIdx, lastIdx
         do
             local cb = callbacks[i]
@@ -81,9 +83,35 @@ function NetworkConnection:__readConnections(startIdx, lastIdx)
     return succeed
 end
 
+function NetworkConnection:resetRequestFlags()
+    self.__mCurrentReqFlags = _cmd._REQ_URL_FLAG_NONE
+end
+
 function NetworkConnection:setTimeout(timeout)
     local val = types.chooseValue(types.isPositiveNumber(timeout), timeout)
-    self._mTimeoutSeconds = val
+    self._mRequestTimeout = val
+end
+
+function NetworkConnection:__setRequestFlag(flag, val)
+    local flags = self.__mCurrentReqFlags
+    if val
+    then
+        flags = bit32.band(flags, val)
+    else
+        if bit32.test(flags, flag)
+        then
+            flags = flags - flag
+        end
+    end
+    self.__mCurrentReqFlags = flags
+end
+
+function NetworkConnection:setUncompress(val)
+    self:__setRequestFlag(_cmd._REQ_URL_FLAG_UNCOMPRES, val)
+end
+
+function NetworkConnection:setAcceptXML(val)
+    self:__setRequestFlag(_cmd._REQ_URL_FLAG_ACCEPT_XML, val)
 end
 
 function NetworkConnection:receive(url)
@@ -96,14 +124,14 @@ function NetworkConnection:receive(url)
     if types.isString(url)
     then
         local idx = self:__getConnectionCount() + 1
-        local resultTable = utils.clearTable(self.__mTmpRequestResult)
+        local resultTable = utils.clearTable(self.__mTmpTable1)
         local succeed = self:_createConnection(url, __getResult, resultTable)
         if succeed
         then
             self:__readConnections(idx, idx)
             result = resultTable[0]
-            utils.clearTable(resultTable)
         end
+        utils.clearTable(resultTable)
     end
     return result
 end

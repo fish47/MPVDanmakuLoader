@@ -103,6 +103,8 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
     end
 
     local conn = self._mApplication:getNetworkConnection()
+    self:_initRequestFlagsForCompressedXML(conn)
+
     local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
     local data = conn:receive(url)
     if types.isNilOrEmpty(data)
@@ -151,6 +153,7 @@ end
 
 
 function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+    self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_DDP_FMT_URL_DANMAKU, videoID)
 end
 

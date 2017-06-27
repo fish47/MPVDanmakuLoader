@@ -50,8 +50,10 @@ end
 
 function MPVDanmakuLoaderShell:setApplication(app)
     local sourceMgr = self._mDanmakuSourceManager
+    local guiBuilder = self._mGUIBuilder
     self._mApplication = app
     app:getDanmakuPools():clear()
+    guiBuilder:setApplication(app)
     sourceMgr:setApplication(app)
     sourceMgr:recycleDanmakuSources(self._mDanmakuSources)
 end

@@ -31,8 +31,8 @@ local _CONFIGURATION_DEFINATIONS =
     "danmakuReservedBottomHeight",  { _VALIDATOR_INT_GE_ZERO,       30 },
     "subtitleReservedBottomHeight", { _VALIDATOR_INT_GE_ZERO,       10 },
 
-    "zenityBinPath",                { _VALIDATOR_STRING_NON_EMPTY,  "zenity" },
-    "python2BinPath",               { _VALIDATOR_STRING_NON_EMPTY,  "python2" },
+    "zenityPath",                   { _VALIDATOR_STRING_NON_EMPTY,  "zenity" },
+    "pythonPath",                   { _VALIDATOR_STRING_NON_EMPTY,  "python2" },
 
     "trashDirPath",                 { _VALIDATOR_STRING_NULLABLE,   nil },
     "privateDataDirName",           { _VALIDATOR_STRING_NULLABLE,   ".mpvdanmakuloader" },

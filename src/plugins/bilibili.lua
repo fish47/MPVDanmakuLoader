@@ -164,9 +164,9 @@ function BiliBiliDanmakuSourcePlugin:search(keyword, result)
 end
 
 function BiliBiliDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+    self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_BILI_FMT_URL_DAMAKU, videoID)
 end
-
 
 function BiliBiliDanmakuSourcePlugin:_doGetVideoDuration(conn, videoID, outDurations)
     local function __parseDuration(rawData, outDurations)
@@ -189,6 +189,7 @@ function BiliBiliDanmakuSourcePlugin:_doGetVideoDuration(conn, videoID, outDurat
     end
 
     local url = string.format(_BILI_FMT_URL_VIDEO_INFO, videoID)
+    self:_initRequestFlagsForCompressedXML(conn)
     conn:receiveLater(url, __parseDuration, outDurations)
 end
 

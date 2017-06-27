@@ -18,6 +18,21 @@ local IDanmakuSourcePlugin =
     downloadDanmakuRawDatas = constants.FUNC_EMPTY,
 }
 
+local function __initConnectionRequestFlags(conn, acceptXML, uncompress)
+    conn:resetRequestFlags()
+    conn:setAcceptXML(acceptXML)
+    conn:setUncompress(uncompress)
+    return conn
+end
+
+function IDanmakuSourcePlugin:_initRequestFlagsForCompressedXML(conn)
+    return __initConnectionRequestFlags(conn, true, true)
+end
+
+function IDanmakuSourcePlugin:_initRequestFlagsForXML(conn)
+    return __initConnectionRequestFlags(conn, true, false)
+end
+
 
 function IDanmakuSourcePlugin:setApplication(app)
     self._mApplication = app
