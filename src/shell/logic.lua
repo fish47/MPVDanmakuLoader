@@ -248,7 +248,7 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
             sid = app:addSubtitleFile(assFilePath)
         end
     else
-        local file = app:createTempFile()
+        local file = app:createAnonymousTempFile()
         local hasContent = pools:writeDanmakus(app, file)
         pools:clear()
         file:seek(constants.SEEK_MODE_BEGIN)

@@ -84,7 +84,7 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
         return ret
     end
 
-    local function __createPatchedFSFunction(orgFunc, subTag)
+    local function __patchFS(orgFunc, subTag)
         local retFunc = function(self, arg1, ...)
             local ret = orgFunc(self, arg1, ...)
             local arg1Str = arg1 or constants.STR_EMPTY
@@ -95,14 +95,26 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
         return retFunc
     end
 
+    local function __patchPlugin(orgFunc)
+        local ret = orgSearchFunc(plugin, keyword, ...)
+        if ret
+        then
+            self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
+        end
+        return ret
+    end
+
     local clzApp = self:getClass()
-    self.readFile       = __createPatchedFSFunction(clzApp.readFile,        "readFile")
-    self.readUTF8File   = __createPatchedFSFunction(clzApp.readUTF8File,    "readUTF8File")
-    self.writeFile      = __createPatchedFSFunction(clzApp.writeFile,       "writeFile")
-    self.closeFile      = __createPatchedFSFunction(clzApp.closeFile,       "closeFile")
-    self.createDir      = __createPatchedFSFunction(clzApp.createDir,       "createDir")
-    self.deletePath     = __createPatchedFSFunction(clzApp.deletePath,      "deletePath")
-    self.createTempFile = __createPatchedFSFunction(clzApp.createTempFile,  "createTempFile")
+    self.readFile                   = __patchFS(clzApp.readFile,        "readFile")
+    self.readUTF8File               = __patchFS(clzApp.readUTF8File,    "readUTF8File")
+    self.writeFile                  = __patchFS(clzApp.writeFile,       "writeFile")
+    self.closeFile                  = __patchFS(clzApp.closeFile,       "closeFile")
+    self.createDir                  = __patchFS(clzApp.createDir,       "createDir")
+    self.deletePath                 = __patchFS(clzApp.deletePath,      "deletePath")
+    self.getTempFileWithPath        = __patchFS(clzApp.getTempFileWithPath,
+                                              "getTempFileWithPath")
+    self.createAnonymousTempFile    = __patchFS(clzApp.createAnonymousTempFile,
+                                              "createAnonymousTempFile")
 
     local function __printNetworkLog(_, url)
         self:_printLog(_TAG_NETWORK, "GET %s", url)
@@ -122,15 +134,7 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
 
     for _, plugin in self:iterateDanmakuSourcePlugins()
     do
-        local orgSearchFunc = plugin:getClass().search
-        plugin.search = function(plugin, keyword, ...)
-            local ret = orgSearchFunc(plugin, keyword, ...)
-            if ret
-            then
-                self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
-            end
-            return ret
-        end
+        plugin.search = __patchPlugin(plugin:getClass().search)
     end
 end
 
@@ -323,8 +327,12 @@ function MPVDanmakuLoaderApp:deletePath(fullPath)
     return self._mPyScriptCmdExecutor:deletePath(fullPath)
 end
 
-function MPVDanmakuLoaderApp:createTempFile()
+function MPVDanmakuLoaderApp:createAnonymousTempFile()
     return io.tmpfile()
+end
+
+function MPVDanmakuLoaderApp:getTempFileWithPath()
+    return os.tmp
 end
 
 function MPVDanmakuLoaderApp:readFile(fullPath)

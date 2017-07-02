@@ -22,10 +22,10 @@ _LUA_PRIMITIVE_BOOL_FALSE = "false"
 _LUA_PRIMITIVE_TABLE_BRACE_LEFT = "{"
 _LUA_PRIMITIVE_TABLE_BRACE_RIGHT = "}"
 _LUA_PRIMITIVE_TABLE_SEPARATOR = ","
-_LUA_PRIMITIVE_STRING_QUOTE_LEFT = "\""
-_LUA_PRIMITIVE_STRING_QUOTE_RIGHT = "\""
-_LUA_PRIMITIVE_STRING_ESCAPE_CHAR_MATCH_PATTERN = r'([\\"])'
-_LUA_PRIMITIVE_STRING_ESCAPE_CHAR_SUBSTITUTE_PATTERN = r"\\\1"
+_LUA_PRIMITIVE_STRING_QUOTE_SEP = "="
+_LUA_PRIMITIVE_STRING_QUOTE_LEFT = "["
+_LUA_PRIMITIVE_STRING_QUOTE_RIGHT = "]"
+_LUA_PRIMITIVE_STRING_MAY_BE_QUOTE_PATTERN = r"[\[\]](=*)[\[\]]"
 _LUA_PRIMITIVE_FUNCTION_PARENTHESIS_LEFT = "("
 _LUA_PRIMITIVE_FUNCTION_PARENTHESIS_RIGHT = ")"
 
@@ -92,6 +92,7 @@ def _create_int_arg(name):
             return 1, None
     return name, _convert
 
+
 def __do_create_tuple_arg(name, hook=None):
     def _convert(args, idx):
         ret = []
@@ -135,18 +136,32 @@ def __convert_to_impl_func_args(argv, arg_decls):
     return tuple(ret)
 
 
+def __quote_lua_string(content, tmp_set, out_fragments):
+    tmp_set.clear()
+    for match_obj in re.finditer(_LUA_PRIMITIVE_STRING_MAY_BE_QUOTE_PATTERN, content):
+        tmp_set.add(len(match_obj.group(1)))
+    sep_len = 0
+    while sep_len in tmp_set:
+        sep_len = sep_len + 1
+    sep = _LUA_PRIMITIVE_STRING_QUOTE_SEP * sep_len
+    out_fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_LEFT)
+    out_fragments.append(sep)
+    out_fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_LEFT)
+    out_fragments.append(content)
+    out_fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_RIGHT)
+    out_fragments.append(sep)
+    out_fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_RIGHT)
+    tmp_set.clear()
+
+
 def __generate_impl_func_result_print_results(ret, fragments, level):
+    tmp_set = set()
     if isinstance(ret, bool):
         fragments.append(ret and _LUA_PRIMITIVE_BOOL_TRUE or _LUA_PRIMITIVE_BOOL_FALSE)
     elif isinstance(ret, int):
         fragments.append(str(ret))
     elif isinstance(ret, str):
-        replaced = re.sub(_LUA_PRIMITIVE_STRING_ESCAPE_CHAR_MATCH_PATTERN,
-                          _LUA_PRIMITIVE_STRING_ESCAPE_CHAR_SUBSTITUTE_PATTERN,
-                          ret)
-        fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_LEFT)
-        fragments.append(replaced)
-        fragments.append(_LUA_PRIMITIVE_STRING_QUOTE_RIGHT)
+        __quote_lua_string(ret, tmp_set, fragments)
     elif isinstance(ret, tuple):
         def _add_char_if(dst, cond, ch):
             if cond:

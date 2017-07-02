@@ -6,7 +6,7 @@ local classlite = require("src/base/classlite")
 
 local _SHELL_PATTERN_STARTS_WITH_DASH   = "^%-.*"
 local _SHELL_CONST_DOUBLE_DASH          = "--"
-
+local _SHELL_RETURN_CODE_SUCCEED        = 0
 
 local function __addRawArgument(arguments, arg)
     if not types.isNil(arg)
@@ -137,10 +137,13 @@ end
 
 function ZenityGUIBuilder:__getZenityCommandResult(arguments, stdin)
     local app = self._mApplication
-    local succeed, output = app and app:executeExternalCommand(arguments, stdin)
-    if succeed
+    if app
     then
-        return output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
+        local retCode, output = app:executeExternalCommand(arguments, stdin)
+        if retCode == _SHELL_RETURN_CODE_SUCCEED and types.isString(output)
+        then
+            return output:sub(1, -_ZENITY_RESULT_RSTRIP_COUNT)
+        end
     end
 end
 
@@ -231,7 +234,7 @@ function ZenityGUIBuilder:showListBox(props, outIndexes)
     -- 返回点击的行索引
     utils.clearTable(outIndexes)
     local resultStr = self:__getZenityCommandResult(arguments)
-    if not types.isNonEmptyString(resultStr) and types.isTable(outIndexes)
+    if types.isNonEmptyString(resultStr) and types.isTable(outIndexes)
     then
         for idx in resultStr:gmatch(_ZENITY_PATTERN_SPLIT_INDEXES)
         do

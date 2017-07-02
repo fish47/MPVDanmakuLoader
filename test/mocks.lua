@@ -81,7 +81,7 @@ local __gIsClosedFileFunc   = types.isClosedFile
 
 local function __isOpenedFilePatched(f)
     f = classlite.isInstanceOf(f, _BridgedFile) and f:getFile() or f
-    return (f)
+    return __gIsOpenedFileFunc(f)
 end
 
 local function __isClosedFilePatched(f)

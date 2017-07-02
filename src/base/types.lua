@@ -48,6 +48,7 @@ end
 local _IO_TYPE_OPENED_FILE  = "file"
 local _IO_TYPE_CLOSED_FILE  = "closed file"
 
+--TODO bridgedFile
 local function isOpenedFile(obj)
     return io.type(obj) == _IO_TYPE_OPENED_FILE
 end
@@ -125,6 +126,7 @@ return
     isNilOrEmpty            = isNilOrEmpty,
     isEmptyTable            = isEmptyTable,
     isNonEmptyTable         = isNonEmptyTable,
+    isNonEmptyArray         = isNonEmptyArray,
     isEmptyVarArgs          = isEmptyVarArgs,
     getVarArgCount          = getVarArgCount,
     toInt                   = toInt,

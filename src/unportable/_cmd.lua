@@ -24,6 +24,7 @@ local function _appendKeyArray(args, key, value)
     if types.isString(key) and types.isNonEmptyTable(value)
     then
         table.insert(args, key)
+        table.insert(args, #value)
         for _, v in ipairs(value)
         do
             table.insert(args, tostring(v))
@@ -133,7 +134,7 @@ function PyScriptCommandExecutor:deletePath(path)
     return self:__execute(types.isNonEmptyString, _build, __project1, path)
 end
 
-function PyScriptCommandExecutor:redirectExternalCommand(content, cmdArgs)
+function PyScriptCommandExecutor:redirectExternalCommand(cmdArgs, content)
     local function _check(content, cmdArgs)
         return types.isNonEmptyString(content) and types.isNonEmptyArray(cmdArgs)
     end
@@ -151,7 +152,7 @@ end
 function PyScriptCommandExecutor:readUTF8File(path)
     local function _build(args, rets, path)
         table.insert(args, "read_utf8_file")
-        _appendKeyArray(args, "path", path)
+        _appendKeyValue(args, "path", path)
     end
     return self:__execute(types.isNonEmptyString, _build, __project2, path)
 end

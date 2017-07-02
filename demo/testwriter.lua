@@ -1,3 +1,4 @@
+local _demoapp      = require("demo/_demoapp")
 local utils         = require("src/base/utils")
 local config        = require("src/shell/config")
 local classlite     = require("src/base/classlite")
@@ -10,16 +11,19 @@ local _TITLE_WINDOW     = "TestWriter"
 local _TITLE_LISTBOX    = "选择插件"
 
 
-local MPVDanmakuLoaderAppWithModifiedCfg = {}
+local ApplicationImpl =
+{
+    readUTF8File    = application.MPVDanmakuLoaderApp.readUTF8File,
+}
 
-function MPVDanmakuLoaderAppWithModifiedCfg:_updateConfiguration(cfg)
-    config.updateConfiguration(self, nil, cfg, nil)
+function ApplicationImpl:_updateConfiguration(cfg)
+    _demoapp.DemoApplication._updateConfiguration(self, cfg)
     cfg.compareSourceIDHook = function()
         return true
     end
 end
 
-classlite.declareClass(MPVDanmakuLoaderAppWithModifiedCfg, application.MPVDanmakuLoaderApp)
+classlite.declareClass(ApplicationImpl, _demoapp.DemoApplication)
 
 
 local function __initPluginListBoxProps(listboxProps, app)
@@ -48,7 +52,7 @@ local function __initTextInfoProps(textInfoProps)
 end
 
 
-local app = MPVDanmakuLoaderAppWithModifiedCfg:new()
+local app = ApplicationImpl:new()
 local listboxProps = unportable.ListBoxProperties:new()
 local textInfoProps = unportable.TextInfoProperties:new()
 local fileSelectionProps = unportable.FileSelectionProperties:new()
@@ -73,17 +77,18 @@ do
     app:init()
     app:updateConfiguration()
 
+    local danmakuPools = app:getDanmakuPools()
     guiBuilder:showFileSelection(fileSelectionProps, outSelectedFilePaths)
     for _, filePath in ipairs(outSelectedFilePaths)
     do
         local selectedIdx = outSelectedIndexes[1]
         local plugin = app:getPluginByName(listboxProps.listBoxElements[selectedIdx])
-        local sourceID = app:getDanmakuPools():allocateDanmakuSourceID()
+        local sourceID = danmakuPools:allocateDanmakuSourceID()
         plugin:parseFile(filePath, sourceID, 0)
     end
 
-    local tmpFile = app:createTempFile()
-    local hasContent = app:getDanmakuPools():writeDanmakus(app, tmpFile)
+    local tmpFile = app:createAnonymousTempFile()
+    local hasContent = danmakuPools:writeDanmakus(app, tmpFile)
     if hasContent
     then
         tmpFile:seek(constants.SEEK_MODE_BEGIN)

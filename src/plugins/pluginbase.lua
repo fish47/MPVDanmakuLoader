@@ -69,8 +69,7 @@ local _AbstractDanmakuSourcePlugin =
 }
 
 function _AbstractDanmakuSourcePlugin:parseFile(filePath, ...)
-    local file = self._mApplication:readUTF8File(filePath)
-    local rawData = utils.readAndCloseFile(file)
+    local rawData = self._mApplication:readUTF8File(filePath)
     return rawData and self:parseData(rawData, ...)
 end
 
