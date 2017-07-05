@@ -57,7 +57,6 @@ function TestMockFileSystem:setUp()
 end
 
 function TestMockFileSystem:tearDown()
-    mocks.unsetupMockFSEnvironment()
     self._mFileSystem:dispose()
     utils.clearTable(self._mPathsAndContents)
 end

@@ -58,6 +58,16 @@ local function _mergeModuleTables(dstTbl, srcTbl, ...)
     end
 end
 
+local function __pushSetElementUnchecked(srcSet, elem)
+    srcSet[elem] = true
+end
+
+local function appendSetElements(destSet, srcSet)
+    local function __pushElement(k, _, _, arg)
+        __pushSetElementUnchecked(arg, k)
+    end
+    forEachTableKey(srcSet, __pushElement, destSet)
+end
 
 local function appendArrayElementsIf(destArray, srcArray, filterFunc, arg)
     if types.isTable(destArray) and types.isTable(srcArray)
@@ -305,6 +315,32 @@ local function pushArrayElement(array, elem)
     end
 end
 
+local function removeSetElement(set, elem)
+    if types.isTable(set) and not types.isNil(elem)
+    then
+        set[elem] = nil
+    end
+end
+
+local function pushSetElement(set, elem)
+    if types.isTable(set) and not types.isNil(elem)
+    then
+        __pushSetElementUnchecked(set, elem)
+    end
+end
+
+local function popSetElement(set)
+    if types.isTable(set)
+    then
+        local ret = next(elements)
+        if not types.isNil(ret)
+        then
+            elements[ret] = nil
+            return ret
+        end
+    end
+    return nil
+end
 
 local function removeArrayElementsIf(array, func, arg)
     if types.isTable(array)
@@ -365,12 +401,16 @@ return
     clearArray                  = clearArray,
     packArray                   = packArray,
     unpackArray                 = unpack or table.unpack,
+    appendSetElements           = appendSetElements,
     appendArrayElements         = appendArrayElements,
     appendArrayElementsIf       = appendArrayElementsIf,
     removeArrayElements         = removeArrayElements,
     removeArrayElementsIf       = removeArrayElementsIf,
     pushArrayElement            = pushArrayElement,
     popArrayElement             = popArrayElement,
+    removeSetElement            = removeSetElement,
+    pushSetElement              = pushSetElement,
+    popSetElement               = popSetElement,
     linearSearchArray           = linearSearchArray,
     linearSearchArrayIf         = linearSearchArrayIf,
     binarySearchArrayIf         = binarySearchArrayIf,

@@ -48,13 +48,31 @@ end
 local _IO_TYPE_OPENED_FILE  = "file"
 local _IO_TYPE_CLOSED_FILE  = "closed file"
 
---TODO bridgedFile
+local function __isBridgedFile(obj)
+    return isTable(obj)
+        and isFunction(obj.read)
+        and isFunction(obj.write)
+        and isFunction(obj.close)
+end
+
+local function __doCheckNativeFileType(obj, reqType)
+    return toBoolean(obj) and io.type(obj) == reqType
+end
+
+local function __doCheckBridgedFileType(obj, reqType)
+    return __isBridgedFile(obj) and __doCheckNativeFileType(obj._mFile, reqType)
+end
+
+local function __checkFileType(obj, reqType)
+    return __doCheckNativeFileType(obj, reqType) or __doCheckBridgedFileType(obj, reqType)
+end
+
 local function isOpenedFile(obj)
-    return io.type(obj) == _IO_TYPE_OPENED_FILE
+    return __checkFileType(obj, _IO_TYPE_OPENED_FILE)
 end
 
 local function isClosedFile(obj)
-    return io.type(obj) == _IO_TYPE_CLOSED_FILE
+    return __checkFileType(obj, _IO_TYPE_CLOSED_FILE)
 end
 
 

@@ -2,6 +2,7 @@ local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
+local stringfile    = require("src/base/stringfile")
 local unportable    = require("src/base/unportable")
 local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
@@ -46,6 +47,7 @@ local MPVDanmakuLoaderApp =
     _mDanmakuSourcePlugins  = classlite.declareTableField(),
     _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
     _mLogFunction           = classlite.declareConstantField(nil),
+    _mStringFilePool        = classlite.declareClassField(stringfile.StringFilePool),
 
     __mVideoFileMD5         = classlite.declareConstantField(nil),
     __mVideoFilePath        = classlite.declareConstantField(nil),
@@ -111,10 +113,6 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
     self.closeFile                  = __patchFS(clzApp.closeFile,       "closeFile")
     self.createDir                  = __patchFS(clzApp.createDir,       "createDir")
     self.deletePath                 = __patchFS(clzApp.deletePath,      "deletePath")
-    self.getTempFileWithPath        = __patchFS(clzApp.getTempFileWithPath,
-                                              "getTempFileWithPath")
-    self.createAnonymousTempFile    = __patchFS(clzApp.createAnonymousTempFile,
-                                              "createAnonymousTempFile")
 
     local function __printNetworkLog(_, url)
         self:_printLog(_TAG_NETWORK, "GET %s", url)
@@ -327,29 +325,31 @@ function MPVDanmakuLoaderApp:deletePath(fullPath)
     return self._mPyScriptCmdExecutor:deletePath(fullPath)
 end
 
-function MPVDanmakuLoaderApp:createAnonymousTempFile()
-    return io.tmpfile()
-end
-
-function MPVDanmakuLoaderApp:getTempFileWithPath()
-    return os.tmp
-end
-
 function MPVDanmakuLoaderApp:readFile(fullPath)
-    return types.isString(fullPath) and io.read(fullPath)
+    return types.isString(fullPath)
+        and io.open(fullPath)
+        or nil
 end
 
 function MPVDanmakuLoaderApp:readUTF8File(fullPath)
-    return self._mPyScriptCmdExecutor:readUTF8File(fullPath)
+    local content = self._mPyScriptCmdExecutor:readUTF8File(fullPath)
+    return types.isString(content)
+        and self._mStringFilePool:obtainReadOnlyStringFile(content)
+        or nil
+end
+
+function MPVDanmakuLoaderApp:createWriteOnlyStringFile()
+    return self._mStringFilePool:obtainWriteOnlyStringFile()
 end
 
 function MPVDanmakuLoaderApp:writeFile(fullPath, mode)
-    mode = mode or constants.FILE_MODE_WRITE_ERASE
-    return types.isString(fullPath) and io.open(fullPath, mode)
+    return types.isString(fullPath)
+        and io.open(fullPath, mode or constants.FILE_MODE_WRITE_ERASE)
+        or nil
 end
 
 function MPVDanmakuLoaderApp:closeFile(file)
-    utils.closeSafely(file)
+    return utils.closeSafely(file)
 end
 
 function MPVDanmakuLoaderApp:isExistedDir(fullPath)

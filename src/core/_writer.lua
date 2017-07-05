@@ -99,7 +99,7 @@ function DanmakuWriter:dispose()
 end
 
 
-function DanmakuWriter:writeDanmakus(pools, cfg, screenW, screenH, f)
+function DanmakuWriter:writeDanmakusToFile(pools, cfg, screenW, screenH, f)
     local hasDanmaku = false
     local calculators = self._mCalculators
     for layer, calc in pairs(calculators)
@@ -164,6 +164,9 @@ function DanmakuWriter:writeDanmakus(pools, cfg, screenW, screenH, f)
     end
 
     return true
+end
+
+function DanmakuWriter:writeDanmakusToString(pools, cfg, screenW, screenH)
 end
 
 classlite.declareClass(DanmakuWriter)

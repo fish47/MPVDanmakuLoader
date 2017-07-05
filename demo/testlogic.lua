@@ -90,8 +90,8 @@ classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourceP
 
 local MockShell =
 {
-    _mApplication               = classlite.declareClassField(mocks.MockApplication),
-    _mDanmakuSourceManager      = classlite.declareClassField(mocks.MockDanmakuSourceManager),
+    _mApplication           = classlite.declareClassField(mocks.MockApplication),
+    _mDanmakuSourceManager  = classlite.declareClassField(mocks.MockDanmakuSourceManager),
 }
 
 

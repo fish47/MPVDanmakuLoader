@@ -210,11 +210,18 @@ function DanmakuPools:allocateDanmakuSourceID(pluginName, videoID, partIdx,
     return sourceID
 end
 
-function DanmakuPools:writeDanmakus(app, f)
+function DanmakuPools:writeDanmakusToFile(app, f)
     local cfg = app:getConfiguration()
     local width = cfg.danmakuResolutionX
     local height = cfg.danmakuResolutionY
-    return self._mWriter:writeDanmakus(self, cfg, width, height, f)
+    return self._mWriter:writeDanmakusToFile(self, cfg, width, height, f)
+end
+
+function DanmakuPools:writeDanmakusToString(app)
+    local cfg = app:getConfiguration()
+    local width = cfg.danmakuResolutionX
+    local height = cfg.danmakuResolutionY
+    return self._mWriter:writeDanmakusToString(self, cfg, width, height)
 end
 
 function DanmakuPools:clear()
