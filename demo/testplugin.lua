@@ -33,7 +33,7 @@ do
     entryProps.windowTitle = _TITLE_WINDOW
     entryProps.entryTitle = _TITLE_ENTRY
     local keyword = guiBuilder:showEntry(entryProps)
-    if types.isNilOrEmpty(keyword)
+    if types.isNilOrEmptyString(keyword)
     then
         break
     end

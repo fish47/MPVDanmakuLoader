@@ -107,12 +107,13 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
     end
 
     local clzApp = self:getClass()
-    self.readFile                   = __patchFS(clzApp.readFile,        "readFile")
-    self.readUTF8File               = __patchFS(clzApp.readUTF8File,    "readUTF8File")
-    self.writeFile                  = __patchFS(clzApp.writeFile,       "writeFile")
-    self.closeFile                  = __patchFS(clzApp.closeFile,       "closeFile")
-    self.createDir                  = __patchFS(clzApp.createDir,       "createDir")
-    self.deletePath                 = __patchFS(clzApp.deletePath,      "deletePath")
+    self.readFile           = __patchFS(clzApp.readFile,            "readFile")
+    self.readUTF8File       = __patchFS(clzApp.readUTF8File,        "readUTF8File")
+    self.createStringFile   = __patchFS(clzApp.createStringFile,    "createStringFile")
+    self.writeFile          = __patchFS(clzApp.writeFile,           "writeFile")
+    self.closeFile          = __patchFS(clzApp.closeFile,           "closeFile")
+    self.createDir          = __patchFS(clzApp.createDir,           "createDir")
+    self.deletePath         = __patchFS(clzApp.deletePath,          "deletePath")
 
     local function __printNetworkLog(_, url)
         self:_printLog(_TAG_NETWORK, "GET %s", url)
@@ -262,7 +263,7 @@ function MPVDanmakuLoaderApp:addSubtitleData(data)
         end
     end
 
-    if types.isNilOrEmpty(data)
+    if types.isNilOrEmptyString(data)
     then
         return
     end
@@ -338,7 +339,7 @@ function MPVDanmakuLoaderApp:readUTF8File(fullPath)
         or nil
 end
 
-function MPVDanmakuLoaderApp:createWriteOnlyStringFile()
+function MPVDanmakuLoaderApp:createStringFile()
     return self._mStringFilePool:obtainWriteOnlyStringFile()
 end
 

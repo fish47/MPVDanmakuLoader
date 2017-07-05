@@ -132,7 +132,7 @@ function MockShell:_showSelectFiles(outPaths)
             app:createDir(unportable.splitPath(path))
             local f = app:writeFile(path)
             f:write(constants.STR_EMPTY)
-            f:close()
+            app:closeFile(f)
         end
     end
     return ret

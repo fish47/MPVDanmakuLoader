@@ -112,7 +112,7 @@ function MPVDanmakuLoaderShell:_showSearchDanmakuSource()
     props.entryTitle = self._mUIStrings.title_search_danmaku_source
 
     local input = self._mGUIBuilder:showEntry(props)
-    if types.isNilOrEmpty(input)
+    if types.isNilOrEmptyString(input)
     then
         return self:_showMain()
     end
@@ -238,9 +238,8 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
     if assFilePath
     then
         app:deletePath(assFilePath)
-
         local file = app:writeFile(assFilePath, constants.FILE_MODE_WRITE_ERASE)
-        local hasContent = pools:writeDanmakus(app, file)
+        local hasContent = pools:writeDanmakusToFile(app, file)
         pools:clear()
         app:closeFile(file)
         if hasContent
@@ -248,15 +247,11 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
             sid = app:addSubtitleFile(assFilePath)
         end
     else
-        local file = app:createAnonymousTempFile()
-        local hasContent = pools:writeDanmakus(app, file)
-        pools:clear()
-        file:seek(constants.SEEK_MODE_BEGIN)
-        if hasContent
+        local content = pools:writeDanmakusToString(app)
+        if not types.isNilOrEmptyString(content)
         then
-            sid = app:addSubtitleData(file:read(constants.READ_MODE_ALL))
+            sid = app:addSubtitleData(content)
         end
-        app:closeFile(file)
     end
 
     if not sid

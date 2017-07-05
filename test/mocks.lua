@@ -303,6 +303,10 @@ local MockApplication =
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 }
 
+function MockApplication:createReadOnlyStringFile(content)
+    return self._mStringFilePool:obtainReadOnlyStringFile(content)
+end
+
 function MockApplication:_getCurrentDirPath()
     return "/mpvdanmakuloader/"
 end

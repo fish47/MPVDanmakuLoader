@@ -87,12 +87,9 @@ do
         plugin:parseFile(filePath, sourceID, 0)
     end
 
-    local tmpFile = app:createAnonymousTempFile()
-    local hasContent = danmakuPools:writeDanmakus(app, tmpFile)
-    if hasContent
+    local content = danmakuPools:writeDanmakusToString(app)
+    if not types.isNilOrEmptyString(content)
     then
-        tmpFile:seek(constants.SEEK_MODE_BEGIN)
-        guiBuilder:showTextInfo(textInfoProps, tmpFile:read(constants.READ_MODE_ALL))
+        guiBuilder:showTextInfo(textInfoProps, content)
     end
-    tmpFile:close()
 end

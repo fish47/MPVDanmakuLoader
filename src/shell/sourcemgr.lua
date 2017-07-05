@@ -25,7 +25,7 @@ end
 
 local function __downloadDanmakuRawDataFiles(app, plugin, videoIDs, outFilePaths)
     if not classlite.isInstanceOf(app, application.MPVDanmakuLoaderApp)
-        or types.isNilOrEmpty(videoIDs)
+        or not types.isNonEmptyArray(videoIDs)
         or not types.isTable(outFilePaths)
     then
         return false
@@ -713,9 +713,8 @@ function DanmakuSourceManager:updateDanmakuSources(inSources, outSources)
         return not classlite.isInstanceOf(source, IDanmakuSource)
     end
 
-    if types.isTable(inSources)
-        and types.isTable(outSources)
-        and not types.isNilOrEmpty(inSources)
+    if types.isNonEmptyArray(inSources)
+        and types.isNonEmptyArray(outSources)
         and not utils.linearSearchArrayIf(inSources, __checkIsNotDanmakuSource)
     then
         -- 注意输入和输出有可能是同一个 table

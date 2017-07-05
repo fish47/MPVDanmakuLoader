@@ -88,8 +88,8 @@ local function isNonEmptyArray(obj)
     return (isTable(obj) and obj[1] ~= nil)
 end
 
-local function isNilOrEmpty(obj)
-    return (obj == nil or obj == constants.STR_EMPTY or isEmptyTable(obj))
+local function isNilOrEmptyString(obj)
+    return (obj == nil or obj == constants.STR_EMPTY)
 end
 
 local function chooseValue(val, trueVal, falseVal)
@@ -141,7 +141,7 @@ return
     isTable                 = isTable,
     isOpenedFile            = isOpenedFile,
     isClosedFile            = isClosedFile,
-    isNilOrEmpty            = isNilOrEmpty,
+    isNilOrEmptyString      = isNilOrEmptyString,
     isEmptyTable            = isEmptyTable,
     isNonEmptyTable         = isNonEmptyTable,
     isNonEmptyArray         = isNonEmptyArray,

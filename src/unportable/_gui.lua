@@ -260,7 +260,7 @@ function ZenityGUIBuilder:showFileSelection(props, outPaths)
 
     utils.clearTable(outPaths)
     local resultStr = self:__getZenityCommandResult(arguments)
-    if types.isNilOrEmpty(resultStr)
+    if types.isNilOrEmptyString(resultStr)
     then
         return
     end

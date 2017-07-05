@@ -62,21 +62,17 @@ TestParseSRT =
 }
 
 function TestParseSRT:_parseSRT(content)
-    local f = io.tmpfile()
-    f:write(content)
-    f:flush()
-    f:seek(constants.SEEK_MODE_BEGIN, 0)
-
     local app = self._mApplication
     local pools = app:getDanmakuPools()
     local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_SUBTITLE)
     pool:clear()
 
+    local f = app:createReadOnlyStringFile(content)
     local danmakuData = self._mDanmakuData
     local sourceID = pools:allocateDanmakuSourceID()
     local ret = srt._parseSRTFile(app:getConfiguration(), pool, f, sourceID, 0, danmakuData)
     pool:freeze()
-    f:close()
+    app:closeFile(f)
     return ret, pool
 end
 

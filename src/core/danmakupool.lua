@@ -218,10 +218,9 @@ function DanmakuPools:writeDanmakusToFile(app, f)
 end
 
 function DanmakuPools:writeDanmakusToString(app)
-    local cfg = app:getConfiguration()
-    local width = cfg.danmakuResolutionX
-    local height = cfg.danmakuResolutionY
-    return self._mWriter:writeDanmakusToString(self, cfg, width, height)
+    local f = app:createStringFile()
+    self:writeDanmakusToFile(app, f)
+    return app:closeFile(f)
 end
 
 function DanmakuPools:clear()

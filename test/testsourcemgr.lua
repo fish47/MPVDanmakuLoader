@@ -73,7 +73,7 @@ function TestDanmakuSourceManager:_createRandomFiles(count, outPaths)
 
         local f = app:writeFile(fullPath)
         f:write("")
-        f:close()
+        app:closeFile(f)
         table.insert(outPaths, fullPath)
     end
 end

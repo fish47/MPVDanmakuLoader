@@ -107,7 +107,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
 
     local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
     local data = conn:receive(url)
-    if types.isNilOrEmpty(data)
+    if types.isNilOrEmptyString(data)
     then
         return false
     end
