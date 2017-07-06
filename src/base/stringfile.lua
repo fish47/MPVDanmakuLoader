@@ -38,7 +38,7 @@ function _StringFile:close()
     end
     if self._mPool
     then
-        self._mPool:_recycle(self)
+        self._mPool:_recycleStringFile(self)
         self._mPool = nil
     end
     utils.closeSafely(f)
@@ -63,7 +63,7 @@ function _StringFile:write(arg)
     end
 end
 
-classlite.declareClass(StringFile)
+classlite.declareClass(_StringFile)
 
 
 local StringFilePool =
@@ -83,7 +83,7 @@ function StringFilePool:dispose()
     utils.clearTable(allocatedFiles)
 end
 
-function StringFilePool:_recycle(f)
+function StringFilePool:_recycleStringFile(f)
     utils.removeSetElement(self._mPendingFileSet, f:getFile())
     utils.removeSetElement(self._mAllocatedStringFileSet, f)
     utils.pushSetElement(self._mFreeStringFileSet, f)
@@ -104,7 +104,7 @@ function StringFilePool:__obtainStringFile(content, readable, writeable)
     utils.pushSetElement(self._mPendingFileSet, f)
 
     local stringFile = utils.popSetElement(fileSet) or _StringFile:new()
-    stringFile:_init(pool, f, flags)
+    stringFile:_init(flags, pool, f)
     return stringFile
 end
 

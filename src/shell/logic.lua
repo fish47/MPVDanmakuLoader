@@ -1,6 +1,5 @@
 local utils         = require("src/base/utils")
 local types         = require("src/base/types")
-local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
@@ -238,7 +237,7 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
     if assFilePath
     then
         app:deletePath(assFilePath)
-        local file = app:writeFile(assFilePath, constants.FILE_MODE_WRITE_ERASE)
+        local file = app:writeFile(assFilePath)
         local hasContent = pools:writeDanmakusToFile(app, file)
         pools:clear()
         app:closeFile(file)

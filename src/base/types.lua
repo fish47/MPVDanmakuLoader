@@ -8,6 +8,34 @@ local _LUA_TYPE_NUMBER      = "number"
 local _LUA_TYPE_BOOLEAN     = "boolean"
 local _LUA_TYPE_NIL         = "nil"
 
+
+local function chooseValue(val, trueVal, falseVal)
+    -- 注意选择的值可能就是 nil ，不要用简写为 A and B or C 的形式
+    if val
+    then
+        return trueVal
+    else
+        return falseVal
+    end
+end
+
+local function toInt(obj)
+    local val = tonumber(obj)
+    return chooseValue(val, math.floor, constants.FUNC_EMPTY)(val)
+end
+
+local function toZeroOrOne(obj)
+    return obj and 1 or 0
+end
+
+local function toBoolean(obj)
+    return obj and true or false
+end
+
+local function toValueOrNil(val)
+    return chooseValue(val, val)
+end
+
 local function isString(obj)
     return type(obj) == _LUA_TYPE_STRING
 end
@@ -48,7 +76,7 @@ end
 local _IO_TYPE_OPENED_FILE  = "file"
 local _IO_TYPE_CLOSED_FILE  = "closed file"
 
-local function __isBridgedFile(obj)
+local function __isStringFile(obj)
     return isTable(obj)
         and isFunction(obj.read)
         and isFunction(obj.write)
@@ -60,7 +88,7 @@ local function __doCheckNativeFileType(obj, reqType)
 end
 
 local function __doCheckBridgedFileType(obj, reqType)
-    return __isBridgedFile(obj) and __doCheckNativeFileType(obj._mFile, reqType)
+    return __isStringFile(obj) and __doCheckNativeFileType(obj._mFile, reqType)
 end
 
 local function __checkFileType(obj, reqType)
@@ -92,16 +120,6 @@ local function isNilOrEmptyString(obj)
     return (obj == nil or obj == constants.STR_EMPTY)
 end
 
-local function chooseValue(val, trueVal, falseVal)
-    -- 注意选择的值可能就是 nil ，不要用简写为 A and B or C 的形式
-    if val
-    then
-        return trueVal
-    else
-        return falseVal
-    end
-end
-
 local function getVarArgCount(...)
     return select("#", ...)
 end
@@ -110,26 +128,14 @@ local function isEmptyVarArgs(...)
     return (getVarArgCount(...) == 0)
 end
 
-local function toInt(obj)
-    local val = tonumber(obj)
-    return chooseValue(val, math.floor, constants.FUNC_EMPTY)(val)
-end
-
-local function toZeroOrOne(obj)
-    return obj and 1 or 0
-end
-
-local function toBoolean(obj)
-    return obj and true or false
-end
-
-local function toValueOrNil(val)
-    return chooseValue(val, val)
-end
-
 
 return
 {
+    toInt                   = toInt,
+    toZeroOrOne             = toZeroOrOne,
+    toBoolean               = toBoolean,
+    toValueOrNil            = toValueOrNil,
+    chooseValue             = chooseValue,
     isString                = isString,
     isNonEmptyString        = isNonEmptyString,
     isNumber                = isNumber,
@@ -147,9 +153,4 @@ return
     isNonEmptyArray         = isNonEmptyArray,
     isEmptyVarArgs          = isEmptyVarArgs,
     getVarArgCount          = getVarArgCount,
-    toInt                   = toInt,
-    toZeroOrOne             = toZeroOrOne,
-    toBoolean               = toBoolean,
-    toValueOrNil            = toValueOrNil,
-    chooseValue             = chooseValue,
 }

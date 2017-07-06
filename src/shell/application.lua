@@ -87,8 +87,8 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
     end
 
     local function __patchFS(orgFunc, subTag)
-        local retFunc = function(self, arg1, ...)
-            local ret = orgFunc(self, arg1, ...)
+        local retFunc = function(fs, arg1, ...)
+            local ret = orgFunc(fs, arg1, ...)
             local arg1Str = arg1 or constants.STR_EMPTY
             arg1Str = types.isString(arg1) and string.format("%q", arg1Str) or arg1Str
             self:_printLog(_TAG_FILESYSTEM, "%s(%s) -> %s", subTag, arg1Str, tostring(ret))
@@ -98,12 +98,14 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
     end
 
     local function __patchPlugin(orgFunc)
-        local ret = orgSearchFunc(plugin, keyword, ...)
-        if ret
-        then
-            self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
+        local retFunc = function(plugin, keyword, ...)
+            local ret = orgFunc(plugin, keyword, ...)
+            if ret
+            then
+                self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
+            end
         end
-        return ret
+        return retFunc
     end
 
     local clzApp = self:getClass()
@@ -343,10 +345,11 @@ function MPVDanmakuLoaderApp:createStringFile()
     return self._mStringFilePool:obtainWriteOnlyStringFile()
 end
 
-function MPVDanmakuLoaderApp:writeFile(fullPath, mode)
-    return types.isString(fullPath)
-        and io.open(fullPath, mode or constants.FILE_MODE_WRITE_ERASE)
-        or nil
+function MPVDanmakuLoaderApp:writeFile(fullPath, isAppend)
+    local mode = types.chooseValue(isAppend,
+        constants.FILE_MODE_WRITE_APPEND,
+        constants.FILE_MODE_WRITE_ERASE)
+    return types.isString(fullPath) and io.open(fullPath, mode) or nil
 end
 
 function MPVDanmakuLoaderApp:closeFile(file)

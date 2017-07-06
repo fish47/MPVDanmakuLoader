@@ -3,6 +3,7 @@ local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local serialize     = require("src/base/serialize")
+local stringfile    = require("src/base/stringfile")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
@@ -14,6 +15,7 @@ local _MockFileSystemTreeNode =
 {
     name        = classlite.declareConstantField(nil),
     content     = classlite.declareConstantField(nil),
+    isWriting   = classlite.declareConstantField(false),
     children    = classlite.declareTableField(),
 }
 
@@ -46,16 +48,61 @@ end
 classlite.declareClass(_MockFileSystemTreeNode)
 
 
+local _MockFileSystemStringFilePool =
+{
+    _mMockFileSystem        = classlite.declareConstantField(nil),
+    _mWriteFilePathMap      = classlite.declareTableField(),
+    _mWriteAppendFlagMap    = classlite.declareTableField(),
+}
+
+function _MockFileSystemStringFilePool:setMockFileSystem(fs)
+    self._mMockFileSystem = fs
+end
+
+function _MockFileSystemStringFilePool:setWriteFileData(f, path, isAppend)
+    self._mWriteFilePathMap[f] = path
+    self._mWriteAppendFlagMap[f] = isAppend
+end
+
+function _MockFileSystemStringFilePool:_recycleStringFile(f)
+    local mockFS = self._mMockFileSystem
+    local path = self._mWriteFilePathMap[f]
+    local isAppend = self._mWriteAppendFlagMap[f]
+    local nativeFile = f:getFile()
+    if path and mockFS and types.isOpenedFile(nativeFile)
+    then
+        local _, fileNode = fs:_seekToNode(fullPath)
+        if fileNode and fileNode:isFile()
+        then
+            nativeFile:seek(constants.SEEK_MODE_BEGIN)
+            local content = self:read(constants.READ_MODE_ALL)
+            if isAppend
+            then
+                content = fileNode.content .. content
+            end
+            fileNode.content = content
+        end
+
+        -- 只能由外部保证同时只有一个文件在写
+        fileNode.isWriting = false
+    end
+    self._mWriteFilePathMap[f] = nil
+    self._mWriteAppendFlagMap[f] = nil
+    return stringfile.StringFilePool._recycleStringFile(self, f)
+end
+
+classlite.declareClass(_MockFileSystemStringFilePool, stringfile.StringFilePool)
+
+
 local MockFileSystem =
 {
     _mFreeNodes             = classlite.declareTableField(),
     _mRootNode              = classlite.declareClassField(_MockFileSystemTreeNode, "/"),
-    _mPendingFileSet        = classlite.declareTableField(),
     _mPathElementIterator   = classlite.declareClassField(unportable.PathElementIterator),
+    _mStringFilePool        = classlite.declareClassField(_MockFileSystemStringFilePool),
 }
 
 function MockFileSystem:dispose()
-    utils.forEachTableKey(self._mPendingFileSet, utils.closeSafely)
     self:_doDeleteTreeNode(self._mRootNode)
     utils.forEachArrayElement(self._mFreeNodes, utils.disposeSafely)
 end
@@ -104,23 +151,8 @@ end
 function MockFileSystem:_obtainTreeNode()
     local ret = utils.popArrayElement(self._mFreeNodes)
     ret = ret or _MockFileSystemTreeNode:new()
-    utils.clearTable(ret.children)
+    ret:reset()
     return ret
-end
-
-function MockFileSystem:_doCreateBridgedFile(fullPath)
-    local f = _BridgedFile:new(io.tmpfile())
-    local orgCloseFunc = f.close
-    local pendingFiles = self._mPendingFileSet
-    pendingFiles[f] = true
-    f.close = function(self, ...)
-        if types.isOpenedFile(self:getFile())
-        then
-            orgCloseFunc(self, ...)
-            pendingFiles[f] = nil
-        end
-    end
-    return f
 end
 
 function MockFileSystem:isExistedFile(fullPath)
@@ -133,7 +165,7 @@ function MockFileSystem:isExistedDir(fullPath)
     return node and node:isDir()
 end
 
-function MockFileSystem:writeFile(fullPath, mode)
+function MockFileSystem:writeFile(fullPath, isAppend)
     local dirName, fileName = unportable.splitPath(fullPath)
     local _, dirNode = self:_seekToNode(dirName)
     local fileNode = dirNode and dirNode:findChildByName(fileName)
@@ -141,9 +173,10 @@ function MockFileSystem:writeFile(fullPath, mode)
     then
         -- 没有创建对应的文件夹
         return nil
-    elseif fileNode and fileNode:isDir()
+    elseif fileNode and (fileNode:isDir() or fileNode.isWriting)
     then
         -- 不能写文件夹
+        -- 不能并发写
         return nil
     else
         if not fileNode
@@ -154,43 +187,21 @@ function MockFileSystem:writeFile(fullPath, mode)
             table.insert(dirNode.children, fileNode)
         end
 
-        local fs = self
-        local f = self:_doCreateBridgedFile(fullPath)
-        local orgCloseFunc = f.close
-        f.close = function(self)
-            if types.isOpenedFile(self:getFile())
-            then
-                self:seek(constants.SEEK_MODE_BEGIN)
-                local content = self:read(constants.READ_MODE_ALL)
-
-                -- 一定要重新搜结点，在打开到关闭期间，可能文件结构已经改变了
-                local _, fileNode = fs:_seekToNode(fullPath)
-                if fileNode and fileNode:isFile()
-                then
-                    if mode == constants.FILE_MODE_WRITE_APPEND
-                    then
-                        content = fileNode.content .. content
-                    end
-                    fileNode.content = content
-                end
-
-                orgCloseFunc(self)
-            end
-        end
-
+        -- 关闭文件的时候会更新节点内容
+        local filePool = self._mStringFilePool
+        local f = self._mStringFilePool:obtainWriteOnlyStringFile()
+        filePool:setWriteFileData(f, fullPath, isAppend)
+        fileNode.isWriting = true
         return f
     end
 end
 
 function MockFileSystem:readFile(fullPath)
+    -- 不允许边写边读
     local _, fileNode = self:_seekToNode(fullPath)
-    if fileNode and fileNode:isFile()
-    then
-        local f = self:_doCreateBridgedFile(fullPath)
-        f:write(fileNode.content)
-        f:seek(constants.SEEK_MODE_BEGIN)
-        return f
-    end
+    return fileNode and fileNode:isFile() and not fileNode.isWriting
+        and self._mStringFilePool:obtainReadOnlyStringFile(fileNode.content)
+        or nil
 end
 
 function MockFileSystem:readUTF8File(fullPath)

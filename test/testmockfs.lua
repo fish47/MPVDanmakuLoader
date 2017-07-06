@@ -108,13 +108,35 @@ end
 
 
 function TestMockFileSystem:testClosePenddingFiles()
-    local fs = mocks.MockFileSystem:new()
+    local fs = self._mFileSystem
     utils.writeAndCloseFile(fs:writeFile("/1.txt"), "123")
     local f1 = fs:readFile("/1.txt")
     local f2 = fs:writeFile("/2.txt")
     fs:dispose()
     lu.assertTrue(types.isClosedFile(f1))
     lu.assertTrue(types.isClosedFile(f2))
+end
+
+
+function TestMockFileSystem:testReadWriteSameFile()
+    local fs = self._mFileSystem
+    local paht1 = "/1/2/3.txt"
+    local f1 = fs:readFile(paht1)
+    local f2 = fs:readFile(paht1)
+    local f3 = fs:writeFile(path1)
+    lu.assertTrue(types.isOpenedFile(f1))
+    lu.assertIsNil(f2)
+    lu.assertIsNil(f3)
+    f1:close()
+
+    local path2 = "/4/5/6.txt"
+    local f4 = fs:writeFile(path2)
+    local f5 = fs:readFile(path2)
+    local f6 = fs:writeFile(path2)
+    lu.assertTrue(types.isOpenedFile(f4))
+    lu.assertIsNil(f5)
+    lu.assertIsNil(f6)
+    f3:close()
 end
 
 lu.LuaUnit.verbosity = 2

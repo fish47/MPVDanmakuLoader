@@ -631,7 +631,7 @@ function DanmakuSourceManager:_doAppendMetaFile(cmdID, source)
             end
         end
 
-        local file = app:writeFile(metaFilePath, constants.FILE_MODE_WRITE_APPEND)
+        local file = app:writeFile(metaFilePath, true)
         serialize.serializeArray(file, array)
         app:closeFile(file)
     end
