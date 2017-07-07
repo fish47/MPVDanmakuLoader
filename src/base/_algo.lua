@@ -58,6 +58,52 @@ local function _mergeModuleTables(dstTbl, srcTbl, ...)
     end
 end
 
+local function iterateTable(tbl)
+    if not types.isTable(tbl)
+    then
+        return constants.FUNC_EMPTY
+    end
+    return pairs(tbl)
+end
+
+local function iterateArray(array)
+    if not types.isTable(array)
+    then
+        return constants.FUNC_EMPTY
+    end
+    return ipairs(array)
+end
+
+local function forEachArrayElement(array, func, arg)
+    if types.isFunction(func)
+    then
+        for i, v in iterateArray(array)
+        do
+            func(v, i, array, arg)
+        end
+    end
+end
+
+local function forEachTableKey(tbl, func, arg)
+    if types.isFunction(func)
+    then
+        for k, v in iterateTable(tbl)
+        do
+            func(k, v, tbl, arg)
+        end
+    end
+end
+
+local function forEachTableValue(tbl, func, arg)
+    if types.isFunction(func)
+    then
+        for k, v in iterateTable(tbl)
+        do
+            func(v, k, tbl, arg)
+        end
+    end
+end
+
 local function __pushSetElementUnchecked(srcSet, elem)
     srcSet[elem] = true
 end
@@ -101,7 +147,6 @@ local function packArray(array, ...)
     return array
 end
 
-
 local function linearSearchArrayIf(array, func, arg)
     if types.isTable(array)
     then
@@ -115,7 +160,6 @@ local function linearSearchArrayIf(array, func, arg)
     end
     return false
 end
-
 
 local function linearSearchArray(array, val)
     return linearSearchArrayIf(array, __equals, val)
@@ -282,21 +326,6 @@ local function reverseIterateArray(array)
     return __doReverseIterateArrayImpl, array, #array + 1
 end
 
-local function iterateTable(tbl)
-    if not types.isTable(tbl)
-    then
-        return constants.FUNC_EMPTY
-    end
-    return pairs(tbl)
-end
-
-local function iterateArray(array)
-    if not types.isTable(array)
-    then
-        return constants.FUNC_EMPTY
-    end
-    return ipairs(array)
-end
 
 local function popArrayElement(array)
     if types.isTable(array)
@@ -362,36 +391,6 @@ local function removeArrayElements(array, val)
     removeArrayElementsIf(array, __equals, val)
 end
 
-local function forEachArrayElement(array, func, arg)
-    if types.isFunction(func)
-    then
-        for i, v in iterateArray(array)
-        do
-            func(v, i, array, arg)
-        end
-    end
-end
-
-local function forEachTableKey(tbl, func, arg)
-    if types.isFunction(func)
-    then
-        for k, v in iterateTable(tbl)
-        do
-            func(k, v, tbl, arg)
-        end
-    end
-end
-
-local function forEachTableValue(tbl, func, arg)
-    if types.isFunction(func)
-    then
-        for k, v in iterateTable(tbl)
-        do
-            func(v, k, tbl, arg)
-        end
-    end
-end
-
 
 return
 {
@@ -401,6 +400,12 @@ return
     clearArray                  = clearArray,
     packArray                   = packArray,
     unpackArray                 = unpack or table.unpack,
+    iterateTable                = iterateTable,
+    iterateArray                = iterateArray,
+    forEachArrayElement         = forEachArrayElement,
+    forEachTableKey             = forEachTableKey,
+    forEachTableValue           = forEachTableValue,
+    forEachSetElement           = forEachTableKey,
     appendSetElements           = appendSetElements,
     appendArrayElements         = appendArrayElements,
     appendArrayElementsIf       = appendArrayElementsIf,
@@ -414,13 +419,8 @@ return
     linearSearchArray           = linearSearchArray,
     linearSearchArrayIf         = linearSearchArrayIf,
     binarySearchArrayIf         = binarySearchArrayIf,
-    iterateTable                = iterateTable,
-    iterateArray                = iterateArray,
     reverseIterateArray         = reverseIterateArray,
     iteratePairsArray           = iteratePairsArray,
-    forEachArrayElement         = forEachArrayElement,
-    forEachTableKey             = forEachTableKey,
-    forEachTableValue           = forEachTableValue,
     sortParallelArrays          = sortParallelArrays,
     fillArrayWithAscNumbers     = fillArrayWithAscNumbers,
 }

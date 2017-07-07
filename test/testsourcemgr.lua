@@ -1,5 +1,5 @@
 local lu            = require("test/luaunit")
-local mocks         = require("test/mocks")
+local mock          = require("test/mock")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
@@ -48,9 +48,9 @@ TestDanmakuSourceManager =
 }
 
 function TestDanmakuSourceManager:setUp()
-    self._mApplication = mocks.MockApplication:new()
+    self._mApplication = mock.MockApplication:new()
     self._mApplication:updateConfiguration()
-    self._mDanmakuSourceManager = mocks.MockDanmakuSourceManager:new()
+    self._mDanmakuSourceManager = mock.MockDanmakuSourceManager:new()
     self._mDanmakuSourceManager:setApplication(self._mApplication)
     self._mRandomSourceIDCount = 0
     self._mRandomFilePathCount = 0

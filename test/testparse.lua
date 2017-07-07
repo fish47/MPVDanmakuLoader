@@ -7,12 +7,12 @@ local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
 local lu            = require("test/luaunit")
-local mocks         = require("test/mocks")
+local mock          = require("test/mock")
 
 
 local function __createSetUpMethod(pluginClz)
     local ret = function(self)
-        local app = mocks.MockApplication:new()
+        local app = mock.MockApplication:new()
         app:updateConfiguration()
         self._mApplication = app
         self._mConfiguration = app:getConfiguration()

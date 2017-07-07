@@ -11,17 +11,28 @@ local config        = require("src/shell/config")
 local sourcemgr     = require("src/shell/sourcemgr")
 
 
+local _NODE_FLAG_IS_HOLDING     = bit32.lshift(1, 0)
+local _NODE_FLAG_IS_APPEND      = bit32.lshift(1, 1)
+
 local _MockFileSystemTreeNode =
 {
     name        = classlite.declareConstantField(nil),
     content     = classlite.declareConstantField(nil),
-    isWriting   = classlite.declareConstantField(false),
+    flags       = classlite.declareConstantField(0),
     children    = classlite.declareTableField(),
 }
 
 function _MockFileSystemTreeNode:new(name, content)
     self.name = name
     self.content = content
+end
+
+function _MockFileSystemTreeNode:isHolding()
+    return bit32.btest(self.flags, _NODE_FLAG_IS_HOLDING)
+end
+
+function _MockFileSystemTreeNode:isWriteAppend()
+    return bit32.btest(self.flags, _NODE_FLAG_IS_APPEND)
 end
 
 function _MockFileSystemTreeNode:isFile()
@@ -52,42 +63,37 @@ local _MockFileSystemStringFilePool =
 {
     _mMockFileSystem        = classlite.declareConstantField(nil),
     _mWriteFilePathMap      = classlite.declareTableField(),
-    _mWriteAppendFlagMap    = classlite.declareTableField(),
 }
 
 function _MockFileSystemStringFilePool:setMockFileSystem(fs)
     self._mMockFileSystem = fs
 end
 
-function _MockFileSystemStringFilePool:setWriteFileData(f, path, isAppend)
+function _MockFileSystemStringFilePool:setWriteFileData(f, path)
     self._mWriteFilePathMap[f] = path
-    self._mWriteAppendFlagMap[f] = isAppend
 end
 
 function _MockFileSystemStringFilePool:_recycleStringFile(f)
     local mockFS = self._mMockFileSystem
-    local path = self._mWriteFilePathMap[f]
-    local isAppend = self._mWriteAppendFlagMap[f]
+    local fullPath = self._mWriteFilePathMap[f]
     local nativeFile = f:getFile()
-    if path and mockFS and types.isOpenedFile(nativeFile)
+    if fullPath and mockFS and types.isOpenedFile(nativeFile)
     then
-        local _, fileNode = fs:_seekToNode(fullPath)
+        local _, fileNode = mockFS:_seekToNode(fullPath)
         if fileNode and fileNode:isFile()
         then
+            -- 只能由外部保证同时只有一个文件在写
             nativeFile:seek(constants.SEEK_MODE_BEGIN)
-            local content = self:read(constants.READ_MODE_ALL)
-            if isAppend
+            local content = f:getFile():read(constants.READ_MODE_ALL)
+            if fileNode:isWriteAppend()
             then
                 content = fileNode.content .. content
             end
             fileNode.content = content
+            fileNode.flags = 0
         end
-
-        -- 只能由外部保证同时只有一个文件在写
-        fileNode.isWriting = false
     end
     self._mWriteFilePathMap[f] = nil
-    self._mWriteAppendFlagMap[f] = nil
     return stringfile.StringFilePool._recycleStringFile(self, f)
 end
 
@@ -101,6 +107,10 @@ local MockFileSystem =
     _mPathElementIterator   = classlite.declareClassField(unportable.PathElementIterator),
     _mStringFilePool        = classlite.declareClassField(_MockFileSystemStringFilePool),
 }
+
+function MockFileSystem:new()
+    self._mStringFilePool:setMockFileSystem(self)
+end
 
 function MockFileSystem:dispose()
     self:_doDeleteTreeNode(self._mRootNode)
@@ -173,10 +183,10 @@ function MockFileSystem:writeFile(fullPath, isAppend)
     then
         -- 没有创建对应的文件夹
         return nil
-    elseif fileNode and (fileNode:isDir() or fileNode.isWriting)
+    elseif fileNode and (fileNode:isDir() or fileNode:isHolding())
     then
         -- 不能写文件夹
-        -- 不能并发写
+        -- 不能并发读写
         return nil
     else
         if not fileNode
@@ -187,11 +197,15 @@ function MockFileSystem:writeFile(fullPath, isAppend)
             table.insert(dirNode.children, fileNode)
         end
 
+        local flags = 0
+        flags = bit32.bor(flags, _NODE_FLAG_IS_HOLDING)
+        flags = bit32.bor(flags, types.chooseValue(isAppend, _NODE_FLAG_IS_APPEND, 0))
+        fileNode.flags = flags
+
         -- 关闭文件的时候会更新节点内容
         local filePool = self._mStringFilePool
         local f = self._mStringFilePool:obtainWriteOnlyStringFile()
-        filePool:setWriteFileData(f, fullPath, isAppend)
-        fileNode.isWriting = true
+        filePool:setWriteFileData(f, fullPath)
         return f
     end
 end
@@ -199,9 +213,12 @@ end
 function MockFileSystem:readFile(fullPath)
     -- 不允许边写边读
     local _, fileNode = self:_seekToNode(fullPath)
-    return fileNode and fileNode:isFile() and not fileNode.isWriting
-        and self._mStringFilePool:obtainReadOnlyStringFile(fileNode.content)
-        or nil
+    if fileNode and fileNode:isFile() and not fileNode:isHolding()
+    then
+        fileNode.flags = _NODE_FLAG_IS_HOLDING
+        return self._mStringFilePool:obtainReadOnlyStringFile(fileNode.content)
+    end
+    return nil
 end
 
 function MockFileSystem:readUTF8File(fullPath)

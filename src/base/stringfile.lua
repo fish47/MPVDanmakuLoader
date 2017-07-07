@@ -4,8 +4,8 @@ local classlite     = require("src/base/classlite")
 local constants     = require("src/base/constants")
 
 
-local _FILE_FLAG_READABLE   = bit32.lshift(0, 0)
-local _FILE_FLAG_WRITEABLE  = bit32.lshift(1, 0)
+local _FILE_FLAG_READABLE   = bit32.lshift(1, 0)
+local _FILE_FLAG_WRITEABLE  = bit32.lshift(1, 1)
 
 local _StringFile =
 {
@@ -30,20 +30,22 @@ end
 
 function _StringFile:close()
     local ret = nil
-    local f = self._mFile
+    local f = self:getFile()
+    local pool = self._mPool
     if types.isOpenedFile(f) and bit32.btest(self._mFlags, _FILE_FLAG_WRITEABLE)
     then
         f:seek(constants.SEEK_MODE_BEGIN, 0)
         ret = f:read(constants.READ_MODE_ALL)
     end
-    if self._mPool
+    if pool
     then
-        self._mPool:_recycleStringFile(self)
-        self._mPool = nil
+        pool:_recycleStringFile(self)
     end
-    utils.closeSafely(f)
-    self._mFlags = 0
-    self._mFile = nil
+    if f
+    then
+        f:close()
+    end
+    self:_invalidate()
     return ret
 end
 
@@ -74,11 +76,16 @@ local StringFilePool =
 }
 
 function StringFilePool:dispose()
+    local function __close(f)
+        f:close()
+    end
+    local function __invalidate(f)
+        f:_invalidate()
+    end
     local pendingFiles = self._mPendingFileSet
     local allocatedFiles = self._mAllocatedStringFileSet
-    utils.forEachTableKey(pendingFiles, utils.closeSafely)
-    utils.forEachTableKey(allocatedFiles, _invalidate)
-    utils.appendSetElements(self._mFreeStringFileSet, allocated)
+    utils.forEachSetElement(pendingFiles, __close)
+    utils.forEachSetElement(allocatedFiles, __invalidate)
     utils.clearTable(pendingFiles)
     utils.clearTable(allocatedFiles)
 end
@@ -104,7 +111,8 @@ function StringFilePool:__obtainStringFile(content, readable, writeable)
     utils.pushSetElement(self._mPendingFileSet, f)
 
     local stringFile = utils.popSetElement(fileSet) or _StringFile:new()
-    stringFile:_init(flags, pool, f)
+    stringFile:_init(flags, self, f)
+    utils.pushSetElement(self._mAllocatedStringFileSet, stringFile)
     return stringFile
 end
 

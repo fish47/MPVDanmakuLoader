@@ -352,8 +352,16 @@ function MPVDanmakuLoaderApp:writeFile(fullPath, isAppend)
     return types.isString(fullPath) and io.open(fullPath, mode) or nil
 end
 
+local function __closeSafely(f)
+    if f
+    then
+        return f:close()
+    end
+    return nil
+end
+
 function MPVDanmakuLoaderApp:closeFile(file)
-    return utils.closeSafely(file)
+    return __closeSafely(file)
 end
 
 function MPVDanmakuLoaderApp:isExistedDir(fullPath)
@@ -372,7 +380,7 @@ function MPVDanmakuLoaderApp:isExistedFile(fullPath)
     if types.isString(fullPath)
     then
         file = io.open(fullPath)
-        utils.closeSafely(file)
+        __closeSafely(file)
     end
     return types.toBoolean(file)
 end

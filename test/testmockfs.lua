@@ -1,5 +1,5 @@
 local lu            = require("test/luaunit")
-local mocks         = require("test/mocks")
+local mock          = require("test/mock")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local constants     = require("src/base/constants")
@@ -35,7 +35,7 @@ TestMockFileSystem =
 }
 
 function TestMockFileSystem:setUp()
-    local fs = mocks.MockFileSystem:new()
+    local fs = mock.MockFileSystem:new()
     self._mFileSystem = fs
 
     local pathsAndContents =
@@ -57,7 +57,7 @@ function TestMockFileSystem:setUp()
 end
 
 function TestMockFileSystem:tearDown()
-    self._mFileSystem:dispose()
+    utils.disposeSafely(self._mFileSystem)
     utils.clearTable(self._mPathsAndContents)
 end
 
@@ -109,20 +109,25 @@ end
 
 function TestMockFileSystem:testClosePenddingFiles()
     local fs = self._mFileSystem
-    utils.writeAndCloseFile(fs:writeFile("/1.txt"), "123")
-    local f1 = fs:readFile("/1.txt")
-    local f2 = fs:writeFile("/2.txt")
-    fs:dispose()
+    local f1 = fs:writeFile("/1.txt")
+    f1:write("1234")
+    f1:close()
     lu.assertTrue(types.isClosedFile(f1))
+
+    local f2 = fs:readFile("/1.txt")
+    local f3 = fs:writeFile("/2.txt")
+    fs:dispose()
     lu.assertTrue(types.isClosedFile(f2))
+    lu.assertTrue(types.isClosedFile(f3))
 end
 
 
 function TestMockFileSystem:testReadWriteSameFile()
     local fs = self._mFileSystem
-    local paht1 = "/1/2/3.txt"
-    local f1 = fs:readFile(paht1)
-    local f2 = fs:readFile(paht1)
+    local path1 = "/1/2/3.txt"
+    __writeFile(fs, path1, "1234")
+    local f1 = fs:readFile(path1)
+    local f2 = fs:readFile(path1)
     local f3 = fs:writeFile(path1)
     lu.assertTrue(types.isOpenedFile(f1))
     lu.assertIsNil(f2)
@@ -130,14 +135,20 @@ function TestMockFileSystem:testReadWriteSameFile()
     f1:close()
 
     local path2 = "/4/5/6.txt"
+    fs:createDir("/4/5")
     local f4 = fs:writeFile(path2)
     local f5 = fs:readFile(path2)
     local f6 = fs:writeFile(path2)
     lu.assertTrue(types.isOpenedFile(f4))
     lu.assertIsNil(f5)
     lu.assertIsNil(f6)
-    f3:close()
+    f4:close()
 end
+
+
+function TestMockFileSystem:testWriteAppend()
+end
+
 
 lu.LuaUnit.verbosity = 2
 os.exit(lu.LuaUnit.run())

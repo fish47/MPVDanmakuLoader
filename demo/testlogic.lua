@@ -5,7 +5,7 @@ local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local logic         = require("src/shell/logic")
-local mocks         = require("test/mocks")
+local mock          = require("test/mock")
 
 
 local MockRemoteDanmakuSourcePlugin =
@@ -90,8 +90,8 @@ classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourceP
 
 local MockShell =
 {
-    _mApplication           = classlite.declareClassField(mocks.MockApplication),
-    _mDanmakuSourceManager  = classlite.declareClassField(mocks.MockDanmakuSourceManager),
+    _mApplication           = classlite.declareClassField(mock.MockApplication),
+    _mDanmakuSourceManager  = classlite.declareClassField(mock.MockDanmakuSourceManager),
 }
 
 

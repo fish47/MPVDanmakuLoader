@@ -3,7 +3,7 @@ local classlite     = require("src/base/classlite")
 local constants     = require("src/base/constants")
 local unportable    = require("src/base/unportable")
 local application   = require("src/shell/application")
-local mocks         = require("test/mocks")
+local mock          = require("test/mock")
 
 
 local _SCRIPT_FILE_PATH     = "src/unportable/_impl.py"
@@ -75,7 +75,7 @@ function DemoApplication:_spawnSubprocess(cmdArgs)
     return _DEFAULT_RETURN_CODE, nil
 end
 
-classlite.declareClass(DemoApplication, mocks.MockApplication)
+classlite.declareClass(DemoApplication, mock.MockApplication)
 
 
 return

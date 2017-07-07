@@ -87,22 +87,20 @@ local function __doCheckNativeFileType(obj, reqType)
     return toBoolean(obj) and io.type(obj) == reqType
 end
 
-local function __doCheckBridgedFileType(obj, reqType)
-    return __isStringFile(obj) and __doCheckNativeFileType(obj._mFile, reqType)
-end
-
-local function __checkFileType(obj, reqType)
-    return __doCheckNativeFileType(obj, reqType) or __doCheckBridgedFileType(obj, reqType)
-end
-
 local function isOpenedFile(obj)
-    return __checkFileType(obj, _IO_TYPE_OPENED_FILE)
+    local reqType = _IO_TYPE_OPENED_FILE
+    return __doCheckNativeFileType(obj, reqType)
+        or __isStringFile(obj) and __doCheckNativeFileType(obj._mFile, reqType)
 end
 
 local function isClosedFile(obj)
-    return __checkFileType(obj, _IO_TYPE_CLOSED_FILE)
+    local function __isNilOrNativeFileTypeMatched(obj, reqType)
+        return obj == nil or __doCheckNativeFileType(obj, reqType)
+    end
+    local reqType = _IO_TYPE_CLOSED_FILE
+    return __doCheckNativeFileType(obj, reqType)
+        or __isStringFile(obj) and __isNilOrNativeFileTypeMatched(obj._mFile, reqType)
 end
-
 
 local function isEmptyTable(obj)
     return (isTable(obj) and next(obj) == nil)
