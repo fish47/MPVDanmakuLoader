@@ -147,6 +147,7 @@ return
     isClosedFile            = isClosedFile,
     isNilOrEmptyString      = isNilOrEmptyString,
     isEmptyTable            = isEmptyTable,
+    isEmptySet              = isEmptyTable,
     isNonEmptyTable         = isNonEmptyTable,
     isNonEmptyArray         = isNonEmptyArray,
     isEmptyVarArgs          = isEmptyVarArgs,

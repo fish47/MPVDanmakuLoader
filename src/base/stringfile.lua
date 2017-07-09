@@ -49,19 +49,19 @@ function _StringFile:close()
     return ret
 end
 
-function _StringFile:read(arg)
+function _StringFile:read(...)
     local f = self:getFile()
     if f and bit32.btest(self._mFlags, _FILE_FLAG_READABLE)
     then
-        return f:read(arg)
+        return f:read(...)
     end
 end
 
-function _StringFile:write(arg)
+function _StringFile:write(...)
     local f = self:getFile()
     if f and bit32.btest(self._mFlags, _FILE_FLAG_WRITEABLE)
     then
-        return f:write(arg)
+        return f:write(...)
     end
 end
 
@@ -71,8 +71,8 @@ classlite.declareClass(_StringFile)
 local StringFilePool =
 {
     _mPendingFileSet            = classlite.declareTableField(),
-    _mFreeStringFileSet        = classlite.declareTableField(),
-    _mAllocatedStringFileSet   = classlite.declareTableField(),
+    _mFreeStringFileSet         = classlite.declareTableField(),
+    _mAllocatedStringFileSet    = classlite.declareTableField(),
 }
 
 function StringFilePool:dispose()
@@ -102,7 +102,7 @@ function StringFilePool:__obtainStringFile(content, readable, writeable)
     if types.isString(content)
     then
         f:write(content)
-        f:seek(SEEK_MODE_BEGIN, 0)
+        f:seek(constants.SEEK_MODE_BEGIN, 0)
     end
 
     local flags = 0

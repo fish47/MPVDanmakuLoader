@@ -69,8 +69,11 @@ local _AbstractDanmakuSourcePlugin =
 }
 
 function _AbstractDanmakuSourcePlugin:parseFile(filePath, ...)
-    local rawData = self._mApplication:readUTF8File(filePath)
-    return rawData and self:parseData(rawData, ...)
+    local rawData = utils.readAndCloseFile(self._mApplication, filePath, true)
+    if rawData
+    then
+        self:parseData(rawData, ...)
+    end
 end
 
 function _AbstractDanmakuSourcePlugin:downloadDanmakuRawDatas(videoIDs, outDatas)
@@ -108,6 +111,12 @@ end
 
 
 function _PatternBasedDanmakuSourcePlugin:parseData(rawData, sourceID, timeOffset)
+    if types.isNilOrEmptyString(rawData)
+        or not classlite.isInstanceOf(sourceID, danmaku.DanmakuSourceID)
+    then
+        return
+    end
+
     local app = self._mApplication
     local pools = app:getDanmakuPools()
     local cfg = app:getConfiguration()

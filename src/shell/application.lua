@@ -13,6 +13,50 @@ local dandanplay    = require("src/plugins/dandanplay")
 local config        = require("src/shell/config")
 
 
+local _TempFileGuard =
+{
+    _mApplication       = classlite.declareConstantField(nil),
+    _mTempFilePathSet   = classlite.declareTableField(),
+}
+
+function _TempFileGuard:setApplication(app)
+    self._mApplication = app
+end
+
+function _TempFileGuard:dispose()
+    local app = self._mApplication
+    local fileSet = self._mTempFilePathSet
+    if not app or types.isEmptySet(fileSet)
+    then
+        return
+    end
+
+    local function __delete(path, app)
+        app:deletePath(path)
+    end
+    utils.forEachSetElement(fileSet, __delete, app)
+    utils.clearTable(fileSet)
+end
+
+function _TempFileGuard:allocateTempFilePath()
+    local path = nil
+    local app = self._mApplication
+    if app
+    then
+        -- 不知道临时路径返回值会不会相同，保险起见写个空文件吧
+        local tmpPath = app:_getTempFilePath()
+        if utils.writeAndCloseFile(app, tmpPath, constants.STR_EMPTY)
+        then
+            path = tmpPath
+            utils.pushSetElement(self._mTempFilePathSet, path)
+        end
+    end
+    return path
+end
+
+classlite.declareClass(_TempFileGuard)
+
+
 local _APP_MD5_BYTE_COUNT       = 32 * 1024 * 1024
 local _APP_ASS_FILE_SUFFIX      = ".ass"
 
@@ -48,6 +92,7 @@ local MPVDanmakuLoaderApp =
     _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
     _mLogFunction           = classlite.declareConstantField(nil),
     _mStringFilePool        = classlite.declareClassField(stringfile.StringFilePool),
+    _mTempFileGuard         = classlite.declareClassField(_TempFileGuard),
 
     __mVideoFileMD5         = classlite.declareConstantField(nil),
     __mVideoFilePath        = classlite.declareConstantField(nil),
@@ -59,14 +104,32 @@ local MPVDanmakuLoaderApp =
 }
 
 function MPVDanmakuLoaderApp:new()
-    local cmdExecutor = self._mPyScriptCmdExecutor
-    cmdExecutor:setApplication(self)
-    self._mNetworkConnection:setPyScriptCommandExecutor(cmdExecutor)
+    self._mTempFileGuard:setApplication(self)
+    self:__initPyScriptCmdExecutor()
+    self:__initNetworkConnection()
 
     -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
     self:_initDanmakuSourcePlugins()
     self:__attachMethodLoggingHooks()
     self:__initConfigurationSchemeTable()
+end
+
+function MPVDanmakuLoaderApp:_getTempFilePath()
+    return os.tmpname()
+end
+
+function MPVDanmakuLoaderApp:__initPyScriptCmdExecutor()
+    local executor = self._mPyScriptCmdExecutor
+    local tempFileGuard = self._mTempFileGuard
+    executor:setApplication(self)
+    executor:extractScript(tempFileGuard:allocateTempFilePath())
+    executor:setTempFilePath(tempFileGuard:allocateTempFilePath())
+end
+
+function MPVDanmakuLoaderApp:__initNetworkConnection()
+    local conn = self._mNetworkConnection
+    conn:reset()
+    conn:setPyScriptCommandExecutor(self._mPyScriptCmdExecutor)
 end
 
 function MPVDanmakuLoaderApp:__initConfigurationSchemeTable()
@@ -165,8 +228,8 @@ function MPVDanmakuLoaderApp:init(filePath)
     self.__mVideoFileMD5 = nil
     self.__mVideoFilePath = filePath
     self.__mMemorySubtitleID = nil
-    self._mNetworkConnection:reset()
     self._mDanmakuPools:clear()
+    self:__initNetworkConnection()
 end
 
 function MPVDanmakuLoaderApp:_getCurrentDirPath()
@@ -409,12 +472,13 @@ end
 function MPVDanmakuLoaderApp:__doGetConfigurationFullPath(relPath)
     local path = self:_getCurrentDirPath()
     local dirName = self:getConfiguration().privateDataDirName
-    return path and dirName and unportable.joinPath(path, dirName)
+    local dirPath = path and dirName and unportable.joinPath(path, dirName) or nil
+    return dirPath and unportable.joinPath(dirPath, relPath) or nil
 end
 
 function MPVDanmakuLoaderApp:getDanmakuSourceRawDataDirPath()
     local relPath = self:getConfiguration().rawDataDirName
-    return self:__doGetConfigurationFullPath(name)
+    return self:__doGetConfigurationFullPath(relPath)
 end
 
 function MPVDanmakuLoaderApp:getDanmakuSourceMetaDataFilePath()

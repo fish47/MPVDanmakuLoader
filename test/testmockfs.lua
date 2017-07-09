@@ -135,7 +135,7 @@ function TestMockFileSystem:testReadWriteSameFile()
     f1:close()
 
     local path2 = "/4/5/6.txt"
-    fs:createDir("/4/5")
+    fs:createDir(unportable.splitPath(path2))
     local f4 = fs:writeFile(path2)
     local f5 = fs:readFile(path2)
     local f6 = fs:writeFile(path2)
@@ -143,10 +143,30 @@ function TestMockFileSystem:testReadWriteSameFile()
     lu.assertIsNil(f5)
     lu.assertIsNil(f6)
     f4:close()
+
+    local path3 = self._mPathsAndContents[1]
+    local f7 = fs:readFile(path3)
+    lu.assertNotNil(f7:read(constants.READ_MODE_ALL))
+    f7:close()
+    local f8 = fs:readFile(path3)
+    lu.assertNotNil(f8)
+    f8:close()
 end
 
 
 function TestMockFileSystem:testWriteAppend()
+    local fs = self._mFileSystem
+    local line1 = "--> 11111"
+    local line2 = "--> 22222"
+    local line3 = "--> 33333"
+    local path1 = self._mPathsAndContents[1]
+    local content = self._mPathsAndContents[2]
+    local f1 = fs:writeFile(path1, true)
+    f1:write(line1)
+    f1:write(line2)
+    f1:write(line3)
+    f1:close()
+    lu.assertEquals(__readFile(fs, path1), content .. line1 .. line2 .. line3)
 end
 
 

@@ -4,8 +4,8 @@ local constants = require("src/base/constants")
 local classlite = require("src/base/classlite")
 
 
-local _ASS_CONST_SEP_FIELD              = ", "
-local _ASS_CONST_SEP_KEY_VALUE          = ": "
+local _ASS_CONST_SEP_FIELD              = ","
+local _ASS_CONST_SEP_KEY_VALUE          = ":"
 local _ASS_CONST_SEP_LINE               = "\n"
 local _ASS_CONST_HEADER_NAME_START      = "["
 local _ASS_CONST_HEADER_NAME_END        = "]"
@@ -87,7 +87,6 @@ local _ASS_PAIRS_SCRIPT_INFO_CONTENT =
     "Collisions",           "Normal",
     "WrapStyle",            "2",
 }
-
 
 -- 弹幕样式抄自 https://github.com/cnbeining/Biligrab/blob/master/danmaku2ass2.py
 -- 字幕样式抄自 http://www.zimuku.net/detail/45087.html
@@ -220,6 +219,10 @@ local function __toASSEscapedString(builder, val)
     return types.isString(val) and utils.escapeASSString(val)
 end
 
+local function __toSelfASSEscapedString(builder)
+    return __toASSEscapedString(builder._mStyleName)
+end
+
 local function __toIntNumberString(builder, val)
     return types.isNumber(val) and _convertNumberToIntString(val)
 end
@@ -238,6 +241,9 @@ local function __toNonDefaultFontColor(builder, fontColor)
     return types.isNumber(fontColor)
         and __getRGBHex(fontColor) ~= __getRGBHex(builder._mDefaultFontColor)
         and _convertARGBHexToABGRColorString(fontColor)
+end
+
+local function __toNoneDefaultBorderColor(builder, fontColor)
 end
 
 
@@ -261,7 +267,7 @@ local function __createBuilderMethod(...)
                 argIdx = argIdx + 1
             end
 
-            if not val
+            if types.isNil(val)
             then
                 -- 只要有一次返回空值，就取消本次写操作
                 utils.clearArray(self._mContent, contentLastIdxBak + 1)
@@ -293,7 +299,7 @@ DialogueBuilder.addText                 = __createBuilderMethod(__toASSEscapedSt
 DialogueBuilder.addTopCenterAlign       = __createBuilderMethod("\\an8")
 DialogueBuilder.addBottomCenterAlign    = __createBuilderMethod("\\an2")
 
-DialogueBuilder.__doStartDialogue   = __createBuilderMethod(
+DialogueBuilder.startDialogue   = __createBuilderMethod(
     _ASS_KEYNAME_EVENTS_DIALOGUE,
     _ASS_CONST_SEP_KEY_VALUE,
     __toIntNumberString,        -- layer
@@ -302,10 +308,10 @@ DialogueBuilder.__doStartDialogue   = __createBuilderMethod(
     _ASS_CONST_SEP_FIELD,
     __convertTimeToTimeString,  -- endTime
     _ASS_CONST_SEP_FIELD,
-    __toASSEscapedString,       -- styleName
+    __toSelfASSEscapedString,   -- styleName(不接受参数)
     _ASS_CONST_SEP_FIELD)
 
-DialogueBuilder.addMove             = __createBuilderMethod(
+DialogueBuilder.addMove         = __createBuilderMethod(
     "\\move(",
     __toIntNumberString,        -- startX
     _ASS_CONST_SEP_FIELD,
@@ -316,7 +322,7 @@ DialogueBuilder.addMove             = __createBuilderMethod(
     __toIntNumberString,
     ")")
 
-DialogueBuilder.addPos              = __createBuilderMethod(
+DialogueBuilder.addPos          = __createBuilderMethod(
     "\\pos(",
     __toIntNumberString,        -- x
     _ASS_CONST_SEP_FIELD,
@@ -324,18 +330,19 @@ DialogueBuilder.addPos              = __createBuilderMethod(
     ")")
 
 
-DialogueBuilder.addFontColor        = __createBuilderMethod(
+DialogueBuilder.addFontColor    = __createBuilderMethod(
     "\\c",
     __toNonDefaultFontColor,    -- rgb
     "&")
 
-DialogueBuilder.addFontSize         = __createBuilderMethod(
+DialogueBuilder.addBorderColor  = __createBuilderMethod(
+    "\\3c",
+    __toNoneDefaultBorderColor, -- rgb
+    "&")
+
+DialogueBuilder.addFontSize     = __createBuilderMethod(
     "\\fs",
     __toNonDefaultFontSize)    -- fontSize
-
-function DialogueBuilder:startDialogue(layer, startTime, endTime)
-    return self:__doStartDialogue(layer, startTime, endTime, self._mStyleName)
-end
 
 function DialogueBuilder:__doInitStyle(idx)
     local function __getStyleDefinitionValue(name, styleIdx)

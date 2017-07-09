@@ -29,6 +29,10 @@ _LUA_PRIMITIVE_STRING_MAY_BE_QUOTE_PATTERN = r"[\[\]](=*)[\[\]]"
 _LUA_PRIMITIVE_FUNCTION_PARENTHESIS_LEFT = "("
 _LUA_PRIMITIVE_FUNCTION_PARENTHESIS_RIGHT = ")"
 
+_MAX_TRANSFER_BYTE_COUNT = 8 * 1024 * 1024
+
+_IMPL_FUNC_RET_MARK_TEMP_FILE_OUTPUT = "TEMP_FILE_OUTPUT"
+
 _IMPL_FUNC_RET_CALLBACK_FUNCTION_NAME = "_"
 
 _IMPL_FUNC_RET_CODE_SUCCEED = 0
@@ -179,6 +183,14 @@ def __generate_impl_func_result_print_results(ret, fragments, level):
 
 
 def _impl_func(*arg_decls):
+    def __print_output(output, tmp_path):
+        if len(output) > _MAX_TRANSFER_BYTE_COUNT and not tmp_path:
+            with open(tmp_path, "w") as f:
+                f.write(output)
+            print(_IMPL_FUNC_RET_MARK_TEMP_FILE_OUTPUT)
+        else:
+            print(output)
+
     def _wrapper(func):
         @functools.wraps(func)
         def _impl(args):
@@ -187,12 +199,14 @@ def _impl_func(*arg_decls):
             try:
                 pieces = []
                 ret = func(new_args)
-                if ret is not None:
+                if ret and isinstance(ret, tuple) and len(ret) > 1:
+                    tmp_path = ret[0]
+                    ret = ret[1:]
                     pieces.append(_IMPL_FUNC_RET_CALLBACK_FUNCTION_NAME)
                     pieces.append(_LUA_PRIMITIVE_FUNCTION_PARENTHESIS_LEFT)
                     __generate_impl_func_result_print_results(ret, pieces, 0)
                     pieces.append(_LUA_PRIMITIVE_FUNCTION_PARENTHESIS_RIGHT)
-                    print("".join(pieces))
+                    __print_output("".join(pieces), tmp_path)
             except AssertionError:
                 ret_code = _IMPL_FUNC_RET_CODE_ASSERT_FAILED
             except:
@@ -207,58 +221,74 @@ def _impl_func(*arg_decls):
 
 @_impl_func(_create_str_arg("path"))
 def create_dirs(args):
-    path = __assert_path(args[0], False)
+    (path,) = args
+    __assert_path(path, False)
     os.makedirs(path)
+    return None, True
 
 
 @_impl_func(_create_str_arg("path"))
 def delete_path(args):
-    path = __assert_path(args[0], True)
+    (path,) = args
+    __assert_path(path, True)
     if os.path.isdir(path):
         shutil.rmtree(path)
     else:
         os.remove(path)
+    return None, True
 
 
 @_impl_func(_create_str_arg("src_path"),
             _create_str_arg("dst_path"))
 def move_path(args):
     # 要求传完整路径，不要依赖类似 mv aa bb/ 的行为
-    src_path = __assert_path(args[0], True)
-    dst_path = __assert_path(args[1], False)
+    (src_path, dst_path) = args
+    __assert_path(src_path, True)
+    __assert_path(dst_path, False)
     shutil.move(src_path, dst_path)
+    return None, True
 
 
 @_impl_func(_create_str_arg("content"),
-            _create_str_tuple_arg("cmd_args"))
+            _create_str_tuple_arg("cmd_args"),
+            _create_str_arg("tmp_path"))
 def redirect_external_command(args):
-    content = __assert_none_empty_string(args[0])
+    (content, cmd_args, tmp_path) = args
     cmd_args = __assert_none_empty_string_tuple(args[1])
+    if not content and tmp_path:
+        __assert_path(tmp_path, True, is_file=True)
+        with open(tmp_path) as f:
+            content = f.read()
+    __assert_none_empty_string(content)
     p = subprocess.Popen(cmd_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout_data, _ = p.communicate(content)
-    return p.returncode, stdout_data
+    return tmp_path, p.returncode, stdout_data
 
 
-@_impl_func(_create_str_arg("path"))
+@_impl_func(_create_str_arg("path"),
+            _create_str_arg("tmp_path"))
 def read_utf8_file(args):
-    path = __assert_path(args[0], True, is_file=True)
+    (path, tmp_path) = args
+    __assert_path(path, True, is_file=True)
     with codecs.open(path) as f:
-        return f.read()
+        return tmp_path, f.read()
 
 
 @_impl_func(_create_str_arg("path"),
             _create_int_arg("byte_count"))
 def calculate_file_md5(args):
-    path = __assert_path(args[0], True, is_file=True)
-    byte_count = args[0] or -1
+    (path, byte_count) = args
+    byte_count = byte_count or -1
+    __assert_path(path, True, is_file=True)
     with open(path) as f:
         content = f.read(byte_count)
-        return hashlib.md5().update(content).digest()
+        return None, hashlib.md5().update(content).digest()
 
 
 @_impl_func(_create_str_tuple_arg("urls"),
             _create_int_arg("timeout"),
-            _create_int_tuple_arg("flags"))
+            _create_int_tuple_arg("flags"),
+            _create_str_arg("tmp_path"))
 def request_urls(args):
     def __do_request_url(idx, req_url, req_timeout, req_flags, l, req_results):
         req_arg_bits = req_flags[idx]
@@ -283,11 +313,11 @@ def request_urls(args):
     lock = threading.Lock()  # 虽然有 GIL 保险起见还是加个锁吧
     urllib2.install_opener(urllib2.build_opener())  # 防止多线程执行时多次初始化
 
-    urls = args[0]
-    timeout = args[1] or socket._GLOBAL_DEFAULT_TIMEOUT
-    flags = args[2]
+    (urls, timeout, flags, tmp_path) = args
+    timeout = timeout or socket._GLOBAL_DEFAULT_TIMEOUT
     url_count = len(urls)
     __assert_equals(url_count, len(flags))
+    __assert_none_empty_string(tmp_path)
 
     threads = []
     results = [None] * url_count
@@ -298,7 +328,7 @@ def request_urls(args):
         threads.append(t)
     for t in threads:
         t.join()
-    return tuple(results)
+    return tmp_path, tuple(results)
 
 
 def main():

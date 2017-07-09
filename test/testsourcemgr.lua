@@ -115,9 +115,10 @@ function TestDanmakuSourceManager:testAddAndRemoveCachedSource()
     local srcOffsets = {}
     local srcPlugins = {}
     local sources = {}
-    local sourceCount = math.random(5)
+    local sourceCount = math.random(10)
     for i = 1, sourceCount
     do
+        local desc = tostring(i)
         local ids, offsets = self:_getRandomDanmakuSourceParams()
         local plugin = plugins[math.random(pluginCount)]
         table.insert(srcPlugins, plugin)
@@ -126,7 +127,7 @@ function TestDanmakuSourceManager:testAddAndRemoveCachedSource()
 
         -- 每次添加都会写一次序列化文件
         -- 因为不保证反序列化后的顺序，所以这里用描述来指定原始数据的索引
-        local source = manager:addCachedDanmakuSource(sources, plugin, tostring(i), ids, offsets)
+        local source = manager:addCachedDanmakuSource(sources, plugin, desc, ids, offsets)
         lu.assertNotNil(source)
     end
 

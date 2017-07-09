@@ -65,8 +65,8 @@ local function __downloadDanmakuRawDataFiles(app, plugin, videoIDs, outFilePaths
     do
         local suffix = string.format(_RAW_DATA_FILE_FMT_SUFFIX, i)
         local fullPath = app:getUniqueFilePath(baseDir, _RAW_DATA_FILE_PREFIX, suffix)
-        local f = app:writeFile(fullPath)
-        if not utils.writeAndCloseFile(f, rawData)
+        local succeed = utils.writeAndCloseFile(app, fullPath, rawData)
+        if not succeed
         then
             utils.clearArray(rawDatas, i)
             __deleteDownloadedFiles(app, outFilePaths)
@@ -204,17 +204,17 @@ function _LocalDanmakuSource:_init(plugin, filePath)
 end
 
 function _LocalDanmakuSource:parse()
-    if self:_isValid()
+    if not self:_isValid()
     then
-        local plugin = self._mPlugin
-        local filePath = self._mFilePath
-        local timeOffset = _DEFAULT_START_TIME_OFFSET
-        local pools = self._mApplication:getDanmakuPools()
-        local sourceID = pools:allocateDanmakuSourceID(plugin:getName(), nil, nil,
-                                                        timeOffset, filePath)
-
-        plugin:parseFile(filePath, sourceID, timeOffset)
+        return
     end
+    local plugin = self._mPlugin
+    local path = self._mFilePath
+    local offset = _DEFAULT_START_TIME_OFFSET
+    local pools = self._mApplication:getDanmakuPools()
+    local name = plugin:getName()
+    local sourceID = pools:allocateDanmakuSourceID(name, nil, nil, offset, path)
+    plugin:parseFile(path, sourceID, offset)
 end
 
 function _LocalDanmakuSource:_isValid()
@@ -302,18 +302,20 @@ function _CachedRemoteDanmakuSource:getDescription()
 end
 
 function _CachedRemoteDanmakuSource:parse()
-    if self:_isValid()
+    if not self:_isValid()
     then
-        local pluginName = self._mPlugin:getName()
-        local videoIDs = self._mVideoIDs
-        local timeOffsets = self._mStartTimeOffsets
-        local pools = self._mApplication:getDanmakuPools()
-        for i, filePath in utils.iterateArray(self._mFilePaths)
-        do
-            local timeOffset = timeOffsets[i]
-            local sourceID = pools:allocateDanmakuSourceID(pluginName, videoIDs[i], i, timeOffset)
-            self._mPlugin:parseFile(filePath, sourceID, timeOffset)
-        end
+        return
+    end
+    local name = self._mPlugin:getName()
+    local videoIDs = self._mVideoIDs
+    local timeOffsets = self._mStartTimeOffsets
+    local pools = self._mApplication:getDanmakuPools()
+    for i, path in utils.iterateArray(self._mFilePaths)
+    do
+        local vid = videoIDs[i]
+        local offset = timeOffsets[i]
+        local sourceID = pools:allocateDanmakuSourceID(name, vid, i, offset, path)
+        self._mPlugin:parseFile(path, sourceID, offset)
     end
 end
 

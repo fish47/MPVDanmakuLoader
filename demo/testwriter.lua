@@ -1,4 +1,5 @@
 local _demoapp      = require("demo/_demoapp")
+local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local config        = require("src/shell/config")
 local classlite     = require("src/base/classlite")
@@ -93,3 +94,5 @@ do
         guiBuilder:showTextInfo(textInfoProps, content)
     end
 end
+
+app:dispose()

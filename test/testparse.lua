@@ -244,7 +244,8 @@ function TestParseAcfun:testParse()
 ]])
 
     local danmakuData = self._mDanmakuData
-    local pool = self._mApplication:getDanmakuPools():getDanmakuPoolByLayer(danmakupool.LAYER_MOVING_R2L)
+    local pools = self._mApplication:getDanmakuPools()
+    local pool = pools:getDanmakuPoolByLayer(danmakupool.LAYER_MOVING_R2L)
     pool:getDanmakuByIndex(2, danmakuData)
     lu.assertEquals(pool:getDanmakuCount(), 4)
     lu.assertEquals(danmakuData.danmakuText, "比原版好听")

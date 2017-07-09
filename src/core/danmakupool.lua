@@ -153,9 +153,10 @@ function DanmakuPools:getDanmakuPoolByLayer(layer)
     return layer and self._mPools[layer]
 end
 
-function DanmakuPools:allocateDanmakuSourceID(pluginName, videoID, partIdx,
+function DanmakuPools:allocateDanmakuSourceID(pluginName,
+                                              videoID, partIdx,
                                               offset, filePath)
-    local function __iterateSourceIDs(pool, count, hook, arg, sourceID)
+    local function __find(pool, count, hook, arg, sourceID)
         for i = 1, count
         do
             local iterSourceID = pool[i]
@@ -185,6 +186,7 @@ function DanmakuPools:allocateDanmakuSourceID(pluginName, videoID, partIdx,
         pool[count] = sourceID
     end
 
+    sourceID._value = count + 1
     sourceID.pluginName = pluginName
     sourceID.videoID = videoID
     sourceID.videoPartIndex = partIdx
@@ -192,7 +194,7 @@ function DanmakuPools:allocateDanmakuSourceID(pluginName, videoID, partIdx,
     sourceID.filePath = filePath
 
     -- 有可能之前就构造过一模一样的实例
-    local ret1 = __iterateSourceIDs(pool, count, __checkIsSame, nil, sourceID)
+    local ret1 = __find(pool, count, __checkIsSame, nil, sourceID)
     if ret1
     then
         return ret1
@@ -200,10 +202,10 @@ function DanmakuPools:allocateDanmakuSourceID(pluginName, videoID, partIdx,
 
     -- 例如同一个 cid 的不同历史版本，虽然文件路径不同，但也应被认为是同一个弹幕源
     local hook = self._mCompareSourceIDHook
-    local ret2 = hook and __iterateSourceIDs(pool, count, __checkIsSameByHook, hook, sourceID)
-    if ret2
+    if types.isFunction(hook)
     then
-        return ret2
+        -- 找到相同的弹幕源并复制内部索引值
+        __find(pool, count, __checkIsSameByHook, hook, sourceID)
     end
 
     self._mSourceIDCount = count + 1

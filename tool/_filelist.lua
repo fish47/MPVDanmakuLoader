@@ -48,7 +48,7 @@ local FILE_LIST_SRC_PRIVATE =
 
 local FILE_LIST_TEMPLATE =
 {
-    ["src/unportable/_cmd.lua"] =
+    ["src/unportable/_executor.lua"] =
     {
         ["__SCRIPT_CONTENT__"] = "src/unportable/_impl.py",
     },

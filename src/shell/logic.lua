@@ -402,8 +402,8 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
         then
             local ids = utils.clearTable(self.__mVideoIDs)
             local rawDatas = utils.clearTable(self.__mDanmakuRawDatas)
-            local videoID = result.videoIDs[result.preferredIDIndex]
-            table.insert(ids, videoID)
+            local vid = result.videoIDs[result.preferredIDIndex]
+            table.insert(ids, vid)
 
             guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
             plugin:downloadDanmakuRawDatas(ids, rawDatas)
@@ -412,9 +412,9 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
             if types.isString(data)
             then
                 local offset = _SHELL_TIMEOFFSET_START
-                local pluginName = plugin:getName()
+                local name = plugin:getName()
                 local pools = app:getDanmakuPools()
-                local sourceID = pools:allocateDanmakuSourceID(pluginName, videoID, nil, offset)
+                local sourceID = pools:allocateDanmakuSourceID(name, vid, nil, offset)
                 guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
                 plugin:parseData(data, sourceID, offset)
                 self:__doCommitDanmakus()

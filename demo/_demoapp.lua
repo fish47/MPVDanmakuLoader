@@ -1,3 +1,4 @@
+local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local classlite     = require("src/base/classlite")
 local constants     = require("src/base/constants")
@@ -46,10 +47,44 @@ classlite.declareClass(DemoPyScriptCommandExecutor, unportable.PyScriptCommandEx
 local DemoApplication =
 {
     __mCommandBuf               = classlite.declareTableField(),
+    __mTempFilePathSet          = classlite.declareTableField(),
     _mPyScriptCmdExecutor       = classlite.declareClassField(DemoPyScriptCommandExecutor),
 
     _initDanmakuSourcePlugins   = application.MPVDanmakuLoaderApp._initDanmakuSourcePlugins,
 }
+
+function DemoApplication:dispose()
+    local function __delete(path)
+        os.remove(path)
+    end
+    local pathSet = self.__mTempFilePathSet
+    utils.forEachSetElement(pathSet, __delete)
+    utils.clearTable(pathSet)
+end
+
+function DemoApplication:_getTempFilePath()
+    local ret = application.MPVDanmakuLoaderApp._getTempFilePath(self)
+    utils.pushSetElement(self.__mTempFilePathSet, ret)
+    return ret
+end
+
+function DemoApplication:__isTempFilePath(path)
+    return types.isString(path) and self.__mTempFilePathSet[path]
+end
+
+function DemoApplication:writeFile(path, ...)
+    local func = types.chooseValue(self:__isTempFilePath(path),
+                                   application.MPVDanmakuLoaderApp.writeFile,
+                                   mock.MockApplication.writeFile)
+    return func(self, path, ...)
+end
+
+function DemoApplication:readFile(path, ...)
+    local func = types.chooseValue(self:__isTempFilePath(path),
+                                   application.MPVDanmakuLoaderApp.readFile,
+                                   mock.MockApplication.readFile)
+    return func(self, path, ...)
+end
 
 function DemoApplication:_spawnSubprocess(cmdArgs)
     local buf = utils.clearTable(self.__mCommandBuf)

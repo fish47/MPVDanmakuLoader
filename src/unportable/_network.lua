@@ -1,7 +1,7 @@
-local _cmd      = require("src/unportable/_cmd")
-local utils     = require("src/base/utils")
-local types     = require("src/base/types")
-local classlite = require("src/base/classlite")
+local _executor     = require("src/unportable/_executor")
+local utils         = require("src/base/utils")
+local types         = require("src/base/types")
+local classlite     = require("src/base/classlite")
 
 
 local NetworkConnection =
@@ -13,7 +13,7 @@ local NetworkConnection =
     _mRequestCallbackArgs   = classlite.declareTableField(),
 
     __mPyScriptCmdExecutor  = classlite.declareConstantField(nil),
-    __mCurrentReqFlags      = classlite.declareConstantField(_cmd._REQ_URL_FLAG_NONE),
+    __mCurrentReqFlags      = classlite.declareConstantField(_executor._REQ_URL_FLAG_NONE),
     __mTmpTable1            = classlite.declareTableField(),
     __mTmpTable2            = classlite.declareTableField(),
 }
@@ -84,7 +84,7 @@ function NetworkConnection:__readConnections(startIdx, lastIdx)
 end
 
 function NetworkConnection:resetRequestFlags()
-    self.__mCurrentReqFlags = _cmd._REQ_URL_FLAG_NONE
+    self.__mCurrentReqFlags = _executor._REQ_URL_FLAG_NONE
 end
 
 function NetworkConnection:setTimeout(timeout)
@@ -107,11 +107,11 @@ function NetworkConnection:__setRequestFlag(flag, val)
 end
 
 function NetworkConnection:setUncompress(val)
-    self:__setRequestFlag(_cmd._REQ_URL_FLAG_UNCOMPRES, val)
+    self:__setRequestFlag(_executor._REQ_URL_FLAG_UNCOMPRES, val)
 end
 
 function NetworkConnection:setAcceptXML(val)
-    self:__setRequestFlag(_cmd._REQ_URL_FLAG_ACCEPT_XML, val)
+    self:__setRequestFlag(_executor._REQ_URL_FLAG_ACCEPT_XML, val)
 end
 
 function NetworkConnection:receive(url)

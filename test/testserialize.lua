@@ -19,32 +19,6 @@ function TestSerialize:tearDown()
     self._mTmpFilePaths = nil
 end
 
-function TestSerialize:__getTempPath()
-    local ret = os.tmpname()
-    table.insert(self._mTmpFilePaths, ret)
-    return ret
-end
-
-function TestSerialize:__serializeTuplesToStream(data, file)
-    for _, element in ipairs(data)
-    do
-        serialize.serializeTuple(file, utils.unpackArray(element))
-    end
-end
-
-function TestSerialize:__deserializeTuples(file)
-    local results = nil
-    local function __onReadTuple(...)
-        results = results or {}
-        table.insert(results, {...})
-    end
-
-    file:seek(constants.SEEK_MODE_BEGIN, 0)
-    local serializedString = utils.readAndCloseFile(file)
-    serialize.deserializeTupleFromString(serializedString, __onReadTuple)
-    return results
-end
-
 
 function TestSerialize:testSerialize()
     local function __doTest(input)

@@ -11,8 +11,9 @@ local config        = require("src/shell/config")
 local sourcemgr     = require("src/shell/sourcemgr")
 
 
-local _NODE_FLAG_IS_HOLDING     = bit32.lshift(1, 0)
-local _NODE_FLAG_IS_APPEND      = bit32.lshift(1, 1)
+local _NODE_FLAG_IS_HOLDING         = bit32.lshift(1, 0)
+local _NODE_FLAG_IS_WRITING         = bit32.lshift(1, 1)
+local _NODE_FLAG_IS_APPEND_MODE     = bit32.lshift(1, 2)
 
 local _MockFileSystemTreeNode =
 {
@@ -31,8 +32,12 @@ function _MockFileSystemTreeNode:isHolding()
     return bit32.btest(self.flags, _NODE_FLAG_IS_HOLDING)
 end
 
-function _MockFileSystemTreeNode:isWriteAppend()
-    return bit32.btest(self.flags, _NODE_FLAG_IS_APPEND)
+function _MockFileSystemTreeNode:isWriting()
+    return bit32.btest(self.flags, _NODE_FLAG_IS_WRITING)
+end
+
+function _MockFileSystemTreeNode:isAppendMode()
+    return bit32.btest(self.flags, _NODE_FLAG_IS_APPEND_MODE)
 end
 
 function _MockFileSystemTreeNode:isFile()
@@ -61,39 +66,46 @@ classlite.declareClass(_MockFileSystemTreeNode)
 
 local _MockFileSystemStringFilePool =
 {
-    _mMockFileSystem        = classlite.declareConstantField(nil),
-    _mWriteFilePathMap      = classlite.declareTableField(),
+    _mMockFileSystem    = classlite.declareConstantField(nil),
+    _mFilePathMap       = classlite.declareTableField(),
 }
 
 function _MockFileSystemStringFilePool:setMockFileSystem(fs)
     self._mMockFileSystem = fs
 end
 
-function _MockFileSystemStringFilePool:setWriteFileData(f, path)
-    self._mWriteFilePathMap[f] = path
+function _MockFileSystemStringFilePool:setFileData(f, path)
+    self._mFilePathMap[f] = path
 end
 
 function _MockFileSystemStringFilePool:_recycleStringFile(f)
     local mockFS = self._mMockFileSystem
-    local fullPath = self._mWriteFilePathMap[f]
+    local fullPath = self._mFilePathMap[f]
     local nativeFile = f:getFile()
-    if fullPath and mockFS and types.isOpenedFile(nativeFile)
+    local fileNode = nil
+    if fullPath and mockFS
     then
-        local _, fileNode = mockFS:_seekToNode(fullPath)
-        if fileNode and fileNode:isFile()
+        local _, node = mockFS:_seekToNode(fullPath)
+        fileNode = node
+    end
+    if fileNode
+    then
+        -- 如果是写文件则需要更新内容
+        if fileNode:isWriting() and fileNode:isFile() and types.isOpenedFile(nativeFile)
         then
-            -- 只能由外部保证同时只有一个文件在写
             nativeFile:seek(constants.SEEK_MODE_BEGIN)
             local content = f:getFile():read(constants.READ_MODE_ALL)
-            if fileNode:isWriteAppend()
+            if fileNode:isAppendMode()
             then
                 content = fileNode.content .. content
             end
             fileNode.content = content
-            fileNode.flags = 0
         end
+
+        -- 只能由外部保证同时只有一个文件在读写
+        fileNode.flags = 0
     end
-    self._mWriteFilePathMap[f] = nil
+    self._mFilePathMap[f] = nil
     return stringfile.StringFilePool._recycleStringFile(self, f)
 end
 
@@ -199,13 +211,14 @@ function MockFileSystem:writeFile(fullPath, isAppend)
 
         local flags = 0
         flags = bit32.bor(flags, _NODE_FLAG_IS_HOLDING)
-        flags = bit32.bor(flags, types.chooseValue(isAppend, _NODE_FLAG_IS_APPEND, 0))
+        flags = bit32.bor(flags, _NODE_FLAG_IS_WRITING)
+        flags = bit32.bor(flags, types.chooseValue(isAppend, _NODE_FLAG_IS_APPEND_MODE, 0))
         fileNode.flags = flags
 
         -- 关闭文件的时候会更新节点内容
         local filePool = self._mStringFilePool
         local f = self._mStringFilePool:obtainWriteOnlyStringFile()
-        filePool:setWriteFileData(f, fullPath)
+        filePool:setFileData(f, fullPath)
         return f
     end
 end
@@ -215,8 +228,11 @@ function MockFileSystem:readFile(fullPath)
     local _, fileNode = self:_seekToNode(fullPath)
     if fileNode and fileNode:isFile() and not fileNode:isHolding()
     then
+        local pool = self._mStringFilePool
+        local f = pool:obtainReadOnlyStringFile(fileNode.content)
+        pool:setFileData(f, fullPath)
         fileNode.flags = _NODE_FLAG_IS_HOLDING
-        return self._mStringFilePool:obtainReadOnlyStringFile(fileNode.content)
+        return f
     end
     return nil
 end
@@ -373,8 +389,13 @@ local MockDanmakuSourceManager = {}
 function MockDanmakuSourceManager:_doReadMetaFile(callback)
     local app = self._mApplication
     local path = app:getDanmakuSourceMetaDataFilePath()
-    local content = utils.readAndCloseFile(app:readFile(path))
-    serialize.deserializeFromString(content, callback)
+    local metaFile = app:readFile(path)
+    if metaFile
+    then
+        local content = metaFile:read(constants.READ_MODE_ALL)
+        app:closeFile(metaFile)
+        serialize.deserializeFromString(content, callback)
+    end
 end
 
 classlite.declareClass(MockDanmakuSourceManager, sourcemgr.DanmakuSourceManager)
