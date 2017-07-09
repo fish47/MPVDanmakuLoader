@@ -39,6 +39,7 @@ local _ASS_VALNAME_STYLE_STYLENAME      = "Name"
 local _ASS_VALNAME_STYLE_FONTNAME       = "Fontname"
 local _ASS_VALNAME_STYLE_FONTSIZE       = "Fontsize"
 local _ASS_VALNAME_STYLE_FONTCOLOR      = "PrimaryColour"
+local _ASS_VALNAME_STYLE_BORDERCOLOR    = "OutlineColour"
 
 local _ASS_ARRAY_EVENTS_KEYNAMES        = { "Layer", "Start", "End", "Style", "Text" }
 
@@ -70,14 +71,15 @@ end
 
 local _VALIDATOR_POSITIVE_INT   = utils.createIntValidator(nil, nil, 0)
 local _VALIDATOR_SCALE_PERCENT  = utils.createIntValidator(nil, nil, 0, 100)
-local _VALIDATOR_ASS_BOOL       = utils.createSimpleValidator(types.toBoolean, _convertBoolToASSBoolString)
-local _VALIDATOR_ASS_COLOR      = utils.createIntValidator(types.toInt, _convertNumberToIntString)
 local _VALIDATOR_STRING         = utils.createSimpleValidator(_convertNonEmptyString)
+local _VALIDATOR_ASS_BOOL       = utils.createSimpleValidator(types.toBoolean,
+                                                              _convertBoolToASSBoolString)
+local _VALIDATOR_ASS_COLOR      = utils.createIntValidator(types.toInt,
+                                                           _convertARGBHexToABGRColorString)
 
 
-local _ASS_CONST_STYLE_DEF_IDX_VALIDATOR    = 1
-local _ASS_CONST_STYLE_DEF_IDX_DANMAKU      = 2
-local _ASS_CONST_STYLE_DEF_IDX_SUBTITLE     = 3
+local _ASS_CONST_STYLE_DEF_IDX_DANMAKU      = 1
+local _ASS_CONST_STYLE_DEF_IDX_SUBTITLE     = 2
 
 
 local _ASS_PAIRS_SCRIPT_INFO_CONTENT =
@@ -88,34 +90,120 @@ local _ASS_PAIRS_SCRIPT_INFO_CONTENT =
     "WrapStyle",            "2",
 }
 
+
+local _ASS_CONST_BORDERCOLOR_DANMAKU        = 0x33000000
+local _ASS_CONST_BORDERCOLOR_DANMKAU_ALT    = 0x00ffffff
+local _ASS_CONST_BORDERCOLOR_SUBTITLE       = 0x0000336C
+local _ASS_CONST_BORDERCOLOR_SUBTITLE_ALT   = 0x00ffffff
+
 -- 弹幕样式抄自 https://github.com/cnbeining/Biligrab/blob/master/danmaku2ass2.py
 -- 字幕样式抄自 http://www.zimuku.net/detail/45087.html
-local _ASS_PAIRS_STYLE_DEFINITIONS =
+local _ASS_STYLE_DEFINITIONS =
 {
-    _ASS_VALNAME_STYLE_STYLENAME,   { _VALIDATOR_STRING,                _ASS_CONST_STYLENAME_DANMAKU,   _ASS_CONST_STYLENAME_SUBTITLE, },
-    _ASS_VALNAME_STYLE_FONTNAME,    { _VALIDATOR_STRING,                "sans-serif",                   "mono",                        },
-    _ASS_VALNAME_STYLE_FONTSIZE,    { _createIntValidator(1),           34,                             34,                            },
-    _ASS_VALNAME_STYLE_FONTCOLOR,   { _VALIDATOR_ASS_COLOR,             0x33FFFFFF,                     0x00FFFFFF,                    },
-    "SecondaryColour",              { _VALIDATOR_ASS_COLOR,             0x33FFFFFF,                     0xFF000000,                    },
-    "OutlineColour",                { _VALIDATOR_ASS_COLOR,             0x33000000,                     0x0000336C,                    },
-    "BackColour",                   { _VALIDATOR_ASS_COLOR,             0x33000000,                     0x00000000,                    },
-    "Bold",                         { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
-    "Italic",                       { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
-    "Underline",                    { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
-    "StrikeOut",                    { _VALIDATOR_ASS_BOOL,              false,                          false,                         },
-    "ScaleX",                       { _VALIDATOR_SCALE_PERCENT,         100,                            100                            },
-    "ScaleY",                       { _VALIDATOR_SCALE_PERCENT,         100,                            100                            },
-    "Spacing",                      { _VALIDATOR_POSITIVE_INT,          0,                              0,                             },
-    "Angle",                        { _createIntValidator(0, 360),      0,                              0,                             },
-    "BorderStyle",                  { _createIntValidator(1, 3),        1,                              1,                             },
-    "Outline",                      { _createIntValidator(0, 4),        1,                              2,                             },
-    "Shadow",                       { _createIntValidator(0, 4),        0,                              1,                             },
-    "Alignment",                    { _createIntValidator(1, 9),        7,                              2,                             },
-    "MarginL",                      { _VALIDATOR_POSITIVE_INT,          0,                              5,                             },
-    "MarginR",                      { _VALIDATOR_POSITIVE_INT,          0,                              5,                             },
-    "MarginV",                      { _VALIDATOR_POSITIVE_INT,          0,                              8,                             },
-    "Encoding",                     { _VALIDATOR_POSITIVE_INT,          0,                              0,                             },
+    _ASS_VALNAME_STYLE_STYLENAME,
+    _VALIDATOR_STRING,
+    { _ASS_CONST_STYLENAME_DANMAKU,     _ASS_CONST_STYLENAME_SUBTITLE,      },
+
+    _ASS_VALNAME_STYLE_FONTNAME,
+    _VALIDATOR_STRING,
+    { "sans-serif",                     "mono",                             },
+
+    _ASS_VALNAME_STYLE_FONTSIZE,
+    _createIntValidator(1),
+    { 34,                               34,                                 },
+
+    _ASS_VALNAME_STYLE_FONTCOLOR,
+    _VALIDATOR_ASS_COLOR,
+    { 0x33FFFFFF,                       0x00FFFFFF,                         },
+
+    "SecondaryColour",
+    _VALIDATOR_ASS_COLOR,
+    { 0x33FFFFFF,                       0xFF000000,                         },
+
+    _ASS_VALNAME_STYLE_BORDERCOLOR,
+    _VALIDATOR_ASS_COLOR,
+    { _ASS_CONST_BORDERCOLOR_DANMAKU,   _ASS_CONST_BORDERCOLOR_SUBTITLE,    },
+
+    "BackColour",
+    _VALIDATOR_ASS_COLOR,
+    { 0x33000000,                       0x00000000,                         },
+
+    "Bold",
+    _VALIDATOR_ASS_BOOL,
+    { false,                            false,                              },
+
+    "Italic",
+    _VALIDATOR_ASS_BOOL,
+    { false,                            false,                              },
+
+    "Underline",
+    _VALIDATOR_ASS_BOOL,
+    { false,                            false,                              },
+
+    "StrikeOut",
+    _VALIDATOR_ASS_BOOL,
+    { false,                            false,                              },
+
+    "ScaleX",
+    _VALIDATOR_SCALE_PERCENT,
+    { 100,                              100                                 },
+
+    "ScaleY",
+    _VALIDATOR_SCALE_PERCENT,
+    { 100,                              100                                 },
+
+    "Spacing",
+    _VALIDATOR_POSITIVE_INT,
+    { 0,                                0,                                  },
+
+    "Angle",
+    _createIntValidator(0, 360),
+    { 0,                                0,                                  },
+
+    "BorderStyle",
+    _createIntValidator(1, 3),
+    { 1,                                1,                                  },
+
+    "Outline",
+    _createIntValidator(0, 4),
+    { 1,                                2,                                  },
+
+    "Shadow",
+    _createIntValidator(0, 4),
+    { 0,                                1,                                  },
+
+    "Alignment",
+    _createIntValidator(1, 9),
+    { 7,                                2,                                  },
+
+    "MarginL",
+    _VALIDATOR_POSITIVE_INT,
+    { 0,                                5,                                  },
+
+    "MarginR",
+    _VALIDATOR_POSITIVE_INT,
+    { 0,                                5,                                  },
+
+    "MarginV",
+    _VALIDATOR_POSITIVE_INT,
+    { 0,                                8,                                  },
+
+    "Encoding",
+    _VALIDATOR_POSITIVE_INT,
+    { 0,                                0,                                  },
 }
+
+local function _iterateStyleDefinations()
+    local function __doIterate(array, idx)
+        local nextIdx = idx + 3
+        if nextIdx - 1 > #array
+        then
+            return nil
+        end
+        return nextIdx, array[idx], array[idx + 1], array[idx + 2]
+    end
+    return __doIterate, _ASS_STYLE_DEFINITIONS, 1
+end
 
 
 local function _writeKeyValue(f, k, v)
@@ -161,7 +249,7 @@ end
 
 local function writeStyleHeader(f)
     local styleNames = utils.clearTable(__gWriteFields)
-    for _, name in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
+    for _, name in _iterateStyleDefinations()
     do
         table.insert(styleNames, name)
     end
@@ -189,9 +277,8 @@ local function __createWriteStyleFunction(styleIdx)
         styleData[_ASS_VALNAME_STYLE_FONTSIZE] = fontSize
 
         local styleValues = utils.clearTable(__gWriteFields)
-        for _, name, defData in utils.iteratePairsArray(_ASS_PAIRS_STYLE_DEFINITIONS)
+        for _, name, validator, defData in _iterateStyleDefinations()
         do
-            local validator = defData[_ASS_CONST_STYLE_DEF_IDX_VALIDATOR]
             local defaultValue = defData[styleIdx]
             local value = validator(styleData[name], defaultValue)
             table.insert(styleValues, value)
@@ -206,6 +293,9 @@ local function __createWriteStyleFunction(styleIdx)
     return ret
 end
 
+local function __getRGBHex(num)
+    return math.floor(num % _ASS_CONST_MOD_COLOR_RGB)
+end
 
 local function __convertTimeToTimeString(builder, time)
     if types.isNumber(time)
@@ -220,7 +310,7 @@ local function __toASSEscapedString(builder, val)
 end
 
 local function __toSelfASSEscapedString(builder)
-    return __toASSEscapedString(builder._mStyleName)
+    return __toASSEscapedString(builder, builder._mStyleName)
 end
 
 local function __toIntNumberString(builder, val)
@@ -234,16 +324,16 @@ local function __toNonDefaultFontSize(builder, fontSize)
 end
 
 local function __toNonDefaultFontColor(builder, fontColor)
-    local function __getRGBHex(num)
-        return types.isNumber(num) and math.floor(num % _ASS_CONST_MOD_COLOR_RGB)
-    end
-
     return types.isNumber(fontColor)
-        and __getRGBHex(fontColor) ~= __getRGBHex(builder._mDefaultFontColor)
+        and __getRGBHex(fontColor) ~= builder._mDefaultFontColorRGB
         and _convertARGBHexToABGRColorString(fontColor)
 end
 
 local function __toNoneDefaultBorderColor(builder, fontColor)
+    --TODO 如果字体与边框同色效果不好，目前只能用折衷办法避免，终极解法应该是判颜色是否相近
+    return types.isNumber(fontColor)
+        and __getRGBHex(fontColor) == builder._mDefaultBorderColorRGB
+        and _convertARGBHexToABGRColorString(builder._mAlternativeBorderColor)
 end
 
 
@@ -263,13 +353,13 @@ local function __createBuilderMethod(...)
             then
                 -- 函数返回值是字符串
                 local arg = select(argIdx, ...)
-                val = arg and param(self, arg)
+                val = param(self, arg)
                 argIdx = argIdx + 1
             end
 
-            if types.isNil(val)
+            if not val
             then
-                -- 只要有一次返回空值，就取消本次写操作
+                -- 只要有一次返回非真值，就取消本次写操作
                 utils.clearArray(self._mContent, contentLastIdxBak + 1)
                 break
             else
@@ -286,10 +376,12 @@ end
 
 local DialogueBuilder =
 {
-    _mContent               = classlite.declareTableField(),
-    _mStyleName             = classlite.declareConstantField(nil),
-    _mDefaultFontColor      = classlite.declareConstantField(nil),
-    _mDefaultFontSize       = classlite.declareConstantField(nil),
+    _mContent                   = classlite.declareTableField(),
+    _mStyleName                 = classlite.declareConstantField(nil),
+    _mDefaultFontColorRGB       = classlite.declareConstantField(nil),
+    _mDefaultFontSize           = classlite.declareConstantField(nil),
+    _mDefaultBorderColorRGB     = classlite.declareConstantField(nil),
+    _mAlternativeBorderColor    = classlite.declareConstantField(nil),
 }
 
 DialogueBuilder.endDialogue             = __createBuilderMethod(_ASS_CONST_SEP_LINE)
@@ -344,23 +436,35 @@ DialogueBuilder.addFontSize     = __createBuilderMethod(
     "\\fs",
     __toNonDefaultFontSize)    -- fontSize
 
-function DialogueBuilder:__doInitStyle(idx)
-    local function __getStyleDefinitionValue(name, styleIdx)
-        local found, idx = utils.linearSearchArray(_ASS_PAIRS_STYLE_DEFINITIONS, name)
-        return found and _ASS_PAIRS_STYLE_DEFINITIONS[idx + 1][styleIdx]
+function DialogueBuilder:__doInitStyle(idx, altBorderColor)
+    local function __getValue(name, styleIdx)
+        for _, styleName, __, defData in _iterateStyleDefinations()
+        do
+            if styleName == name
+            then
+                return defData[styleIdx]
+            end
+        end
+        return nil
     end
 
-    self._mStyleName        = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_STYLENAME, idx)
-    self._mDefaultFontColor = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTCOLOR, idx)
-    self._mDefaultFontSize  = __getStyleDefinitionValue(_ASS_VALNAME_STYLE_FONTSIZE, idx)
+    local borderColor               = __getValue(_ASS_VALNAME_STYLE_BORDERCOLOR, idx)
+    local fontColor                 = __getValue(_ASS_VALNAME_STYLE_FONTCOLOR, idx)
+    self._mAlternativeBorderColor   = altBorderColor
+    self._mDefaultBorderColorRGB    = __getRGBHex(borderColor)
+    self._mDefaultFontColorRGB      = __getRGBHex(fontColor)
+    self._mStyleName                = __getValue(_ASS_VALNAME_STYLE_STYLENAME, idx)
+    self._mDefaultFontSize          = __getValue(_ASS_VALNAME_STYLE_FONTSIZE, idx)
 end
 
 function DialogueBuilder:initDanmakuStyle()
-    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_DANMAKU)
+    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_DANMAKU,
+                       _ASS_CONST_BORDERCOLOR_DANMKAU_ALT)
 end
 
 function DialogueBuilder:initSubtitleStyle()
-    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE)
+    self:__doInitStyle(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE,
+                       _ASS_CONST_BORDERCOLOR_SUBTITLE_ALT)
 end
 
 function DialogueBuilder:clear()
@@ -382,10 +486,10 @@ classlite.declareClass(DialogueBuilder)
 
 return
 {
-    writeScriptInfo         = writeScriptInfo,
-    writeStyleHeader        = writeStyleHeader,
-    writeDanmakuStyle       = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_DANMAKU),
-    writeSubtitleStyle      = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE),
-    writeEventsHeader       = writeEventsHeader,
-    DialogueBuilder         = DialogueBuilder,
+    writeScriptInfo     = writeScriptInfo,
+    writeStyleHeader    = writeStyleHeader,
+    writeDanmakuStyle   = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_DANMAKU),
+    writeSubtitleStyle  = __createWriteStyleFunction(_ASS_CONST_STYLE_DEF_IDX_SUBTITLE),
+    writeEventsHeader   = writeEventsHeader,
+    DialogueBuilder     = DialogueBuilder,
 }

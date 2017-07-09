@@ -341,14 +341,27 @@ classlite.declareClass(MockNetworkConnection, unportable.NetworkConnection)
 
 local MockApplication =
 {
-    _mNetworkConnection = classlite.declareClassField(MockNetworkConnection),
-    _mMockFileSystem    = classlite.declareClassField(MockFileSystem),
+    _mNetworkConnection     = classlite.declareClassField(MockNetworkConnection),
+    _mMockFileSystem        = classlite.declareClassField(MockFileSystem),
+    __mTempFilePathCount    = classlite.declareConstantField(0),
 
     _initDanmakuSourcePlugins = constants.FUNC_EMPTY,
 }
 
 function MockApplication:createReadOnlyStringFile(content)
     return self._mStringFilePool:obtainReadOnlyStringFile(content)
+end
+
+function MockApplication:_getTempFilePath()
+    local dir = "/tmp"
+    local count = self.__mTempFilePathCount
+    if count == 0
+    then
+        self:createDir(dir)
+    end
+    count = count + 1
+    self.__mTempFilePathCount = count
+    return unportable.joinPath(dir, tostring(count))
 end
 
 function MockApplication:_getCurrentDirPath()

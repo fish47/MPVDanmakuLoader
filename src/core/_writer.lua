@@ -151,9 +151,11 @@ function DanmakuWriter:writeDanmakusToFile(pools, cfg, screenW, screenH, f)
             local w, h = _measureDanmakuText(danmakuText, fontSize)
             local y = calc:calculate(w, h, startTime, lifeTime)
 
+            local fontColor = danmakuData.fontColor
             builder:startDialogue(layer, startTime, startTime + lifeTime)
             builder:startStyle()
-            builder:addFontColor(danmakuData.fontColor)
+            builder:addFontColor(fontColor)
+            builder:addBorderColor(fontColor)
             builder:addFontSize(fontSize)
             writePosFunc(cfg, builder, screenW, screenH, w, y)
             builder:endStyle()

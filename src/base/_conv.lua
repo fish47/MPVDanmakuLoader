@@ -70,7 +70,6 @@ local function splitARGBHex(num)
 end
 
 
-
 local _TIME_CONV_MS_PER_SECOND  = 1000
 local _TIME_CONV_MS_PER_MINUTE  = 60 * 1000
 local _TIME_CONV_MS_PER_HOUR    = 60 * 60 * 1000
@@ -200,4 +199,5 @@ return
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
     splitARGBHex                = splitARGBHex,
+    getRGBHex                   = getRGBHex,
 }

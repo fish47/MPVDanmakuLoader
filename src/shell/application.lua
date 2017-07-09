@@ -31,7 +31,7 @@ function _TempFileGuard:dispose()
         return
     end
 
-    local function __delete(path, app)
+    local function __delete(path, _, _, app)
         app:deletePath(path)
     end
     utils.forEachSetElement(fileSet, __delete, app)
@@ -43,7 +43,7 @@ function _TempFileGuard:allocateTempFilePath()
     local app = self._mApplication
     if app
     then
-        -- 不知道临时路径返回值会不会相同，保险起见写个空文件吧
+        -- 保险起见写个空文件，防止下次返回相同的值
         local tmpPath = app:_getTempFilePath()
         if utils.writeAndCloseFile(app, tmpPath, constants.STR_EMPTY)
         then
