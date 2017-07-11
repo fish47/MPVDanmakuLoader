@@ -26,8 +26,8 @@ function MockPlugin:getName()
     return self._mName
 end
 
-function MockPlugin:downloadDanmakuRawDatas(ids, outDatas)
-    utils.appendArrayElements(outDatas, ids)
+function MockPlugin:downloadDanmakuRawDataList(ids, outList)
+    utils.appendArrayElements(outList, ids)
 end
 
 function MockPlugin:isMatchedRawDataFile(fullPath)
@@ -37,6 +37,24 @@ function MockPlugin:isMatchedRawDataFile(fullPath)
 end
 
 classlite.declareClass(MockPlugin, pluginbase.IDanmakuSourcePlugin)
+
+
+local DanmakuSourceManagerImpl =
+{
+    _mAllocationCount   = classlite.declareConstantField(0),
+}
+
+function DanmakuSourceManagerImpl:_createDanmakuSource(...)
+    local ret = mock.MockDanmakuSourceManager._createDanmakuSource(self, ...)
+    self._mAllocationCount = self._mAllocationCount + 1
+    return ret
+end
+
+function DanmakuSourceManagerImpl:getAllocationCount()
+    return self._mAllocationCount
+end
+
+classlite.declareClass(DanmakuSourceManagerImpl, mock.MockDanmakuSourceManager)
 
 
 TestDanmakuSourceManager =
@@ -50,7 +68,7 @@ TestDanmakuSourceManager =
 function TestDanmakuSourceManager:setUp()
     self._mApplication = mock.MockApplication:new()
     self._mApplication:updateConfiguration()
-    self._mDanmakuSourceManager = mock.MockDanmakuSourceManager:new()
+    self._mDanmakuSourceManager = DanmakuSourceManagerImpl:new()
     self._mDanmakuSourceManager:setApplication(self._mApplication)
     self._mRandomSourceIDCount = 0
     self._mRandomFilePathCount = 0
@@ -187,6 +205,7 @@ function TestDanmakuSourceManager:testAddAndRemoveCachedSource()
         __assertDanmakuSourcesValid(sources, srcPlugins, srcIDs, srcOffsets)
         lu.assertEquals(#sources, count - 1)
     end
+    lu.assertEquals(manager:getAllocationCount(), sourceCount)
 end
 
 
@@ -210,13 +229,13 @@ function TestDanmakuSourceManager:testUpdateSource()
         lu.assertNotNil(source)
 
         -- 因为某些文件下载不来，应该是更新失败的
-        local orgDownloadFunc = plugin.downloadDanmakuRawDatas
-        plugin.downloadDanmakuRawDatas = constants.FUNC_EMPTY
+        local orgDownloadFunc = plugin.downloadDanmakuRawDataList
+        plugin.downloadDanmakuRawDataList = constants.FUNC_EMPTY
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 1)
 
         -- 更改回来应该可以更新成功了
-        plugin.downloadDanmakuRawDatas = orgDownloadFunc
+        plugin.downloadDanmakuRawDataList = orgDownloadFunc
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 2)
 
@@ -288,7 +307,8 @@ function TestDanmakuSourceManager:testAddAndRemoveLocalSource()
     local plugin = MockPlugin:new("mock_plugin")
     app:_addDanmakuSourcePlugin(plugin)
 
-    local sourceCount = math.random(10, 30)
+    -- local sourceCount = math.random(10, 30)
+    local sourceCount = 1
     local localFiles = {}
     local sources = {}
     self:_createRandomFiles(sourceCount, localFiles)

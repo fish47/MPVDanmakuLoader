@@ -36,7 +36,7 @@ local MPVDanmakuLoaderShell =
 
     __mVideoIDs                 = classlite.declareTableField(),
     __mStartTimeOffsets         = classlite.declareTableField(),
-    __mDanmakuRawDatas          = classlite.declareTableField(),
+    __mDanmakuRawDataList       = classlite.declareTableField(),
     __mToBeUpdatedSources       = classlite.declareTableField(),
     __mPlugins                  = classlite.declareTableField(),
 
@@ -296,10 +296,7 @@ end
 
 function MPVDanmakuLoaderShell:_showDeleteDanmakuSource()
     local function __deleteSource(self, sources, idx)
-        if self._mDanmakuSourceManager:deleteDanmakuSourceByIndex(sources, idx)
-        then
-            table.remove(sources, idx)
-        end
+        self._mDanmakuSourceManager:deleteDanmakuSourceByIndex(sources, idx)
     end
 
     return self:__doShowDanmakuSources(self._mUIStrings.title_delete_danmaku_source,
@@ -401,14 +398,14 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
         if plugin:search(url, result)
         then
             local ids = utils.clearTable(self.__mVideoIDs)
-            local rawDatas = utils.clearTable(self.__mDanmakuRawDatas)
+            local dataList = utils.clearTable(self.__mDanmakuRawDataList)
             local vid = result.videoIDs[result.preferredIDIndex]
             table.insert(ids, vid)
 
             guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
-            plugin:downloadDanmakuRawDatas(ids, rawDatas)
+            plugin:downloadDanmakuRawDataList(ids, dataList)
 
-            local data = rawDatas[1]
+            local data = dataList[1]
             if types.isString(data)
             then
                 local offset = _SHELL_TIMEOFFSET_START

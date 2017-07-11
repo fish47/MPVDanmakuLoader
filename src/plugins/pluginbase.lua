@@ -8,14 +8,14 @@ local danmakupool   = require("src/core/danmakupool")
 
 local IDanmakuSourcePlugin =
 {
-    _mApplication   = classlite.declareConstantField(nil),
+    _mApplication               = classlite.declareConstantField(nil),
 
-    getName                 = constants.FUNC_EMPTY,
-    parseFile               = constants.FUNC_EMPTY,
-    parseData               = constants.FUNC_EMPTY,
-    search                  = constants.FUNC_EMPTY,
-    getVideoDurations       = constants.FUNC_EMPTY,
-    downloadDanmakuRawDatas = constants.FUNC_EMPTY,
+    getName                     = constants.FUNC_EMPTY,
+    parseFile                   = constants.FUNC_EMPTY,
+    parseData                   = constants.FUNC_EMPTY,
+    search                      = constants.FUNC_EMPTY,
+    getVideoDurations           = constants.FUNC_EMPTY,
+    downloadDanmakuRawDataList  = constants.FUNC_EMPTY,
 }
 
 local function __initConnectionRequestFlags(conn, acceptXML, uncompress)
@@ -76,9 +76,9 @@ function _AbstractDanmakuSourcePlugin:parseFile(filePath, ...)
     end
 end
 
-function _AbstractDanmakuSourcePlugin:downloadDanmakuRawDatas(videoIDs, outDatas)
+function _AbstractDanmakuSourcePlugin:downloadDanmakuRawDataList(videoIDs, outList)
     local iterFunc = self._doDownloadDanmakuRawData
-    return __doInvokeVideoIDsBasedMethod(self, videoIDs, outDatas, iterFunc)
+    return __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
 end
 
 function _AbstractDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)

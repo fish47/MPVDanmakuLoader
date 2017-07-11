@@ -163,7 +163,7 @@ function BiliBiliDanmakuSourcePlugin:search(keyword, result)
     return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
 end
 
-function BiliBiliDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+function BiliBiliDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
     self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_BILI_FMT_URL_DAMAKU, videoID)
 end

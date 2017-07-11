@@ -1,3 +1,4 @@
+local _demoapp      = require("demo/_demoapp")
 local utils         = require("src/base/utils")
 local types         = require("src/base/types")
 local classlite     = require("src/base/classlite")
@@ -74,8 +75,8 @@ function MockRemoteDanmakuSourcePlugin:search(keyword, result)
     end
 end
 
-function MockRemoteDanmakuSourcePlugin:downloadDanmakuRawDatas(videoIDs, outDatas)
-    utils.appendArrayElements(outDatas, videoIDs)
+function MockRemoteDanmakuSourcePlugin:downloadDanmakuRawDataList(videoIDs, outList)
+    utils.appendArrayElements(outList, videoIDs)
 end
 
 function MockRemoteDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)
@@ -90,7 +91,7 @@ classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourceP
 
 local MockShell =
 {
-    _mApplication           = classlite.declareClassField(mock.MockApplication),
+    _mApplication           = classlite.declareClassField(_demoapp.DemoApplication),
     _mDanmakuSourceManager  = classlite.declareClassField(mock.MockDanmakuSourceManager),
 }
 
@@ -147,3 +148,4 @@ app:setLogFunction(print)
 app:init()
 app:updateConfiguration()
 shell:showMainWindow()
+app:dispose()

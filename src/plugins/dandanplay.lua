@@ -152,7 +152,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
 end
 
 
-function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
     self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_DDP_FMT_URL_DANMAKU, videoID)
 end

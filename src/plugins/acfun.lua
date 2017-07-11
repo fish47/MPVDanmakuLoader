@@ -177,7 +177,7 @@ function AcfunDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
     return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
 end
 
-function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID, outDatas)
+function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
     self:_initRequestFlagsForCompressedXML(conn)
     return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
 end
