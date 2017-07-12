@@ -307,8 +307,7 @@ function TestDanmakuSourceManager:testAddAndRemoveLocalSource()
     local plugin = MockPlugin:new("mock_plugin")
     app:_addDanmakuSourcePlugin(plugin)
 
-    -- local sourceCount = math.random(10, 30)
-    local sourceCount = 1
+    local sourceCount = math.random(10, 30)
     local localFiles = {}
     local sources = {}
     self:_createRandomFiles(sourceCount, localFiles)
