@@ -3,13 +3,16 @@
 import os
 import re
 import sys
+import time
 import zlib
+import gzip
 import codecs
 import socket
 import shutil
 import hashlib
 import urllib2
 import operator
+import StringIO
 import functools
 import threading
 import subprocess
@@ -41,6 +44,9 @@ _IMPL_FUNC_RET_CODE_ASSERT_FAILED = 2
 
 _REQUEST_ARG_UNCOMPRESS = 1
 _REQUEST_ARG_ACCEPT_XML = 2
+
+_REQUEST_BATCH_SIZE = 3
+_REQUEST_BATCH_DELAY = 0.4
 
 _REQUEST_HEADER_USER_AGENT = ("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:44.0) Gecko/20100101 Firefox/44.0")
 _REQUEST_HEADER_ACCEPT_XML = ("Accept", "application/xml")
@@ -103,9 +109,9 @@ def __do_create_tuple_arg(name, hook=None):
         count = 1
         try:
             count += int(args[idx])
-            limit = max(len(args), count)
-            for i in xrange(idx + 1, limit):
-                val = args[i]
+            limit = min(len(args) - idx, count)
+            for i in xrange(1, limit):
+                val = args[idx + i]
                 if hook and callable(hook):
                     val = hook(val)
                 ret.append(val)
@@ -198,13 +204,12 @@ def _impl_func(*arg_decls):
             new_args = __convert_to_impl_func_args(args, arg_decls)
             try:
                 pieces = []
-                ret = func(new_args)
+                ret = func(*new_args)
                 if ret and isinstance(ret, tuple) and len(ret) > 1:
-                    tmp_path = ret[0]
-                    ret = ret[1:]
+                    tmp_path, val = ret
                     pieces.append(_IMPL_FUNC_RET_CALLBACK_FUNCTION_NAME)
                     pieces.append(_LUA_PRIMITIVE_FUNCTION_PARENTHESIS_LEFT)
-                    __generate_impl_func_result_print_results(ret, pieces, 0)
+                    __generate_impl_func_result_print_results(val, pieces, 0)
                     pieces.append(_LUA_PRIMITIVE_FUNCTION_PARENTHESIS_RIGHT)
                     __print_output("".join(pieces), tmp_path)
             except AssertionError:
@@ -220,16 +225,14 @@ def _impl_func(*arg_decls):
 
 
 @_impl_func(_create_str_arg("path"))
-def create_dirs(args):
-    (path,) = args
+def create_dirs(path):
     __assert_path(path, False)
     os.makedirs(path)
     return None, True
 
 
 @_impl_func(_create_str_arg("path"))
-def delete_path(args):
-    (path,) = args
+def delete_path(path):
     __assert_path(path, True)
     if os.path.isdir(path):
         shutil.rmtree(path)
@@ -240,9 +243,8 @@ def delete_path(args):
 
 @_impl_func(_create_str_arg("src_path"),
             _create_str_arg("dst_path"))
-def move_path(args):
+def move_path(src_path, dst_path):
     # 要求传完整路径，不要依赖类似 mv aa bb/ 的行为
-    (src_path, dst_path) = args
     __assert_path(src_path, True)
     __assert_path(dst_path, False)
     shutil.move(src_path, dst_path)
@@ -252,9 +254,8 @@ def move_path(args):
 @_impl_func(_create_str_arg("content"),
             _create_str_tuple_arg("cmd_args"),
             _create_str_arg("tmp_path"))
-def redirect_external_command(args):
-    (content, cmd_args, tmp_path) = args
-    cmd_args = __assert_none_empty_string_tuple(args[1])
+def redirect_external_command(content, cmd_args, tmp_path):
+    __assert_none_empty_string_tuple(cmd_args)
     if not content and tmp_path:
         __assert_path(tmp_path, True, is_file=True)
         with open(tmp_path) as f:
@@ -267,8 +268,7 @@ def redirect_external_command(args):
 
 @_impl_func(_create_str_arg("path"),
             _create_str_arg("tmp_path"))
-def read_utf8_file(args):
-    (path, tmp_path) = args
+def read_utf8_file(path, tmp_path):
     __assert_path(path, True, is_file=True)
     with codecs.open(path) as f:
         return tmp_path, f.read()
@@ -276,8 +276,7 @@ def read_utf8_file(args):
 
 @_impl_func(_create_str_arg("path"),
             _create_int_arg("byte_count"))
-def calculate_file_md5(args):
-    (path, byte_count) = args
+def calculate_file_md5(path, byte_count):
     byte_count = byte_count or -1
     __assert_path(path, True, is_file=True)
     with open(path) as f:
@@ -289,31 +288,41 @@ def calculate_file_md5(args):
             _create_int_arg("timeout"),
             _create_int_tuple_arg("flags"),
             _create_str_arg("tmp_path"))
-def request_urls(args):
+def request_urls(urls, timeout, flags, tmp_path):
     def __do_request_url(idx, req_url, req_timeout, req_flags, l, req_results):
-        req_arg_bits = req_flags[idx]
-        is_accept_xml = (req_arg_bits & _REQUEST_ARG_ACCEPT_XML)
-        is_uncompress = (req_arg_bits & _REQUEST_ARG_UNCOMPRESS)
+        content = None
+        try:
+            time.sleep(i / _REQUEST_BATCH_SIZE * _REQUEST_BATCH_DELAY)
+            req_arg_bits = req_flags[idx]
+            is_accept_xml = (req_arg_bits & _REQUEST_ARG_ACCEPT_XML)
+            is_uncompress = (req_arg_bits & _REQUEST_ARG_UNCOMPRESS)
 
-        req = urllib2.Request(req_url)
-        req.add_header(*_REQUEST_HEADER_USER_AGENT)
-        if is_accept_xml:
-            req.add_header(*_REQUEST_HEADER_ACCEPT_XML)
+            req = urllib2.Request(req_url)
+            req.add_header(*_REQUEST_HEADER_USER_AGENT)
+            if is_accept_xml:
+                req.add_header(*_REQUEST_HEADER_ACCEPT_XML)
 
-        response = urllib2.urlopen(req, timeout=req_timeout)
-        content = response.read()
-        if is_uncompress and response.info().get('Content-Encoding') == 'gzip':
-            content = zlib.decompress(content)
-
+            response = urllib2.urlopen(req, timeout=req_timeout)
+            content = response.read()
+            if is_uncompress:
+                encoding = response.info().get('Content-Encoding')
+                if encoding == 'gzip':
+                    string_file = StringIO.StringIO(content)
+                    with gzip.GzipFile(fileobj=string_file) as gf:
+                        content = gf.read()
+                    string_file.close()
+                elif encoding == 'deflate':
+                    content = zlib.decompress(content)
+            response.close()
+        except:
+            pass
         l.acquire()
         req_results[idx] = content
         l.release()
-        response.close()
 
     lock = threading.Lock()  # 虽然有 GIL 保险起见还是加个锁吧
     urllib2.install_opener(urllib2.build_opener())  # 防止多线程执行时多次初始化
 
-    (urls, timeout, flags, tmp_path) = args
     timeout = timeout or socket._GLOBAL_DEFAULT_TIMEOUT
     url_count = len(urls)
     __assert_equals(url_count, len(flags))

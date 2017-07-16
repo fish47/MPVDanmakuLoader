@@ -1,4 +1,4 @@
-local lu        = require("test/luaunit")
+local lu        = require("lib/luaunit")
 local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local _poscalc  = require("src/core/_poscalc")

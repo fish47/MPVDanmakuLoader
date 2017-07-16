@@ -1,3 +1,5 @@
+local lu            = require("lib/luaunit")
+local mock          = require("common/mock")
 local constants     = require("src/base/constants")
 local utils         = require("src/base/utils")
 local danmaku       = require("src/core/danmaku")
@@ -6,8 +8,6 @@ local srt           = require("src/plugins/srt")
 local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
-local lu            = require("test/luaunit")
-local mock          = require("test/mock")
 
 
 local function __createSetUpMethod(pluginClz)

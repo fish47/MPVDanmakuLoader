@@ -1,4 +1,4 @@
-local _demoapp      = require("demo/_demoapp")
+local mock          = require("common/mock")
 local types         = require("src/base/types")
 local utils         = require("src/base/utils")
 local config        = require("src/shell/config")
@@ -18,13 +18,13 @@ local ApplicationImpl =
 }
 
 function ApplicationImpl:_updateConfiguration(cfg)
-    _demoapp.DemoApplication._updateConfiguration(self, cfg)
+    mock.DemoApplication._updateConfiguration(self, cfg)
     cfg.compareSourceIDHook = function()
         return true
     end
 end
 
-classlite.declareClass(ApplicationImpl, _demoapp.DemoApplication)
+classlite.declareClass(ApplicationImpl, mock.DemoApplication)
 
 
 local function __initPluginListBoxProps(listboxProps, app)

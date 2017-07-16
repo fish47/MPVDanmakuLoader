@@ -18,21 +18,18 @@ local IDanmakuSourcePlugin =
     downloadDanmakuRawDataList  = constants.FUNC_EMPTY,
 }
 
-local function __initConnectionRequestFlags(conn, acceptXML, uncompress)
+
+local function __initConnectionRequestFlags(app, acceptXML, uncompress)
+    local conn = app:getNetworkConnection()
     conn:resetRequestFlags()
     conn:setAcceptXML(acceptXML)
     conn:setUncompress(uncompress)
     return conn
 end
 
-function IDanmakuSourcePlugin:_initRequestFlagsForCompressedXML(conn)
-    return __initConnectionRequestFlags(conn, true, true)
+function IDanmakuSourcePlugin:_startRequestCompressedXML()
+    return __initConnectionRequestFlags(self._mApplication, true, true)
 end
-
-function IDanmakuSourcePlugin:_initRequestFlagsForXML(conn)
-    return __initConnectionRequestFlags(conn, true, false)
-end
-
 
 function IDanmakuSourcePlugin:setApplication(app)
     self._mApplication = app
@@ -48,13 +45,13 @@ local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
 
     if types.isTable(videoIDs) and types.isTable(outList)
     then
-        local conn = self._mApplication:getNetworkConnection()
         for _, videoID in ipairs(videoIDs)
         do
-            local ret = iterFunc(self, conn, videoID, outList)
-            if types.isString(ret)
+            local conn, url, func = iterFunc(self, videoID, outList)
+            if conn and types.isString(url)
             then
-                conn:receiveLater(ret, __appendResult, outList)
+                local receiveFunc = func or __appendResult
+                conn:receiveLater(url, receiveFunc, url)
             end
         end
         conn:flushReceiveQueue()

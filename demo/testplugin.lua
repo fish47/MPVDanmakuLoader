@@ -1,3 +1,4 @@
+local mock          = require("common/mock")
 local constants     = require("src/base/constants")
 local classlite     = require("src/base/classlite")
 local types         = require("src/base/types")
@@ -5,27 +6,26 @@ local utils         = require("src/base/utils")
 local unportable    = require("src/base/unportable")
 local pluginbase    = require("src/plugins/pluginbase")
 local application   = require("src/shell/application")
-local mocks         = require("test/mocks")
 
 
 local _TITLE_WINDOW     = "TestPlugin"
 local _TITLE_ENTRY      = "输入搜索命令"
 
-local MockApplicationWithBuiltinPlugins =
+local DemoApplicationWithNetwork =
 {
-    _mNetworkConnection     = classlite.declareClassField(unportable.CURLNetworkConnection),
-
-    _initDanmakuSourcePlugins = application.MPVDanmakuLoaderApp._initDanmakuSourcePlugins,
+    _mNetworkConnection     = classlite.declareClassField(unportable.NetworkConnection),
 }
 
-classlite.declareClass(MockApplicationWithBuiltinPlugins, mocks.MockApplication)
+classlite.declareClass(DemoApplicationWithNetwork, mock.DemoApplication)
 
 
-local app = MockApplicationWithBuiltinPlugins:new()
+local app = DemoApplicationWithNetwork:new()
 local result = pluginbase.DanmakuSourceSearchResult:new()
 local guiBuilder = unportable.ZenityGUIBuilder:new()
 local entryProps = unportable.EntryProperties:new()
 local listboxProps = unportable.ListBoxProperties:new()
+guiBuilder:setApplication(app)
+app:updateConfiguration()
 
 while true
 do
@@ -42,7 +42,7 @@ do
     for _, p in app:iterateDanmakuSourcePlugins()
     do
         result:reset()
-        if p:search(keyword, result)
+        if p:search(keyword, result, false)
         then
             plugin = p
             break
@@ -75,3 +75,5 @@ do
         guiBuilder:showListBox(listboxProps)
     end
 end
+
+app:dispose()

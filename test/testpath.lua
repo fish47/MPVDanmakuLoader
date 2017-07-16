@@ -1,4 +1,4 @@
-local lu            = require("test/luaunit")
+local lu            = require("lib/luaunit")
 local unportable    = require("src/base/unportable")
 
 

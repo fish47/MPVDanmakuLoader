@@ -87,7 +87,7 @@ local MPVDanmakuLoaderApp =
     _mConfiguration         = classlite.declareTableField(),
     _mDanmakuPools          = classlite.declareClassField(danmakupool.DanmakuPools),
     _mNetworkConnection     = classlite.declareClassField(unportable.NetworkConnection),
-    _mPyScriptCmdExecutor   = classlite.declareClassField(unportable.PyScriptCommandExecutor),
+    _mPyScriptExecutor      = classlite.declareClassField(unportable.PyScriptExecutor),
     _mDanmakuSourcePlugins  = classlite.declareTableField(),
     _mUniquePathGenerator   = classlite.declareClassField(unportable.UniquePathGenerator),
     _mLogFunction           = classlite.declareConstantField(nil),
@@ -105,7 +105,7 @@ local MPVDanmakuLoaderApp =
 
 function MPVDanmakuLoaderApp:new()
     self._mTempFileGuard:setApplication(self)
-    self:__initPyScriptCmdExecutor()
+    self:__initPyScriptExecutor()
     self:__initNetworkConnection()
 
     -- 在这些统一做 monkey patch 可以省一些的重复代码，例如文件操作那堆 Log
@@ -118,8 +118,8 @@ function MPVDanmakuLoaderApp:_getTempFilePath()
     return os.tmpname()
 end
 
-function MPVDanmakuLoaderApp:__initPyScriptCmdExecutor()
-    local executor = self._mPyScriptCmdExecutor
+function MPVDanmakuLoaderApp:__initPyScriptExecutor()
+    local executor = self._mPyScriptExecutor
     local tempFileGuard = self._mTempFileGuard
     executor:setApplication(self)
     executor:extractScript(tempFileGuard:allocateTempFilePath())
@@ -129,7 +129,7 @@ end
 function MPVDanmakuLoaderApp:__initNetworkConnection()
     local conn = self._mNetworkConnection
     conn:reset()
-    conn:setPyScriptCommandExecutor(self._mPyScriptCmdExecutor)
+    conn:setPyScriptExecutor(self._mPyScriptExecutor)
 end
 
 function MPVDanmakuLoaderApp:__initConfigurationSchemeTable()
@@ -167,6 +167,7 @@ function MPVDanmakuLoaderApp:__attachMethodLoggingHooks()
             then
                 self:_printLog(_TAG_PLUGIN, "search(%q) -> %s", keyword, plugin:getName())
             end
+            return ret
         end
         return retFunc
     end
@@ -384,11 +385,11 @@ function MPVDanmakuLoaderApp:listFiles(dir, outList)
 end
 
 function MPVDanmakuLoaderApp:createDir(dir)
-    return self._mPyScriptCmdExecutor:createDirs(dir)
+    return self._mPyScriptExecutor:createDirs(dir)
 end
 
 function MPVDanmakuLoaderApp:deletePath(fullPath)
-    return self._mPyScriptCmdExecutor:deletePath(fullPath)
+    return self._mPyScriptExecutor:deletePath(fullPath)
 end
 
 function MPVDanmakuLoaderApp:readFile(fullPath)
@@ -398,7 +399,7 @@ function MPVDanmakuLoaderApp:readFile(fullPath)
 end
 
 function MPVDanmakuLoaderApp:readUTF8File(fullPath)
-    local content = self._mPyScriptCmdExecutor:readUTF8File(fullPath)
+    local content = self._mPyScriptExecutor:readUTF8File(fullPath)
     return types.isString(content)
         and self._mStringFilePool:obtainReadOnlyStringFile(content)
         or nil
@@ -462,9 +463,9 @@ function MPVDanmakuLoaderApp:getVideoFileMD5()
     if not md5
     then
         local fullPath = self.__mVideoFilePath
-        local executor = self._mPyScriptCmdExecutor
+        local executor = self._mPyScriptExecutor
         md5 = executor:calculateFileMD5(fullPath, _APP_MD5_BYTE_COUNT)
-        self.__mVideoFileMD5 = md5
+        self.__mVideoFileMD5 = md5 or constants.STR_EMPTY
     end
     return md5
 end
@@ -514,7 +515,7 @@ end
 function MPVDanmakuLoaderApp:executeExternalCommand(cmdArgs, stdin)
     if types.isString(stdin)
     then
-        local excutor = self._mPyScriptCmdExecutor
+        local excutor = self._mPyScriptExecutor
         return excutor:redirectExternalCommand(cmdArgs, stdin)
     else
         return self:_spawnSubprocess(cmdArgs)

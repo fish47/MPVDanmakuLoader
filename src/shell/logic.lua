@@ -120,7 +120,7 @@ function MPVDanmakuLoaderShell:_showSearchDanmakuSource()
     for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
     do
         result:reset()
-        if plugin:search(input, result)
+        if plugin:search(input, result, false)
         then
             return self:__showSelectNewDanmakuSource(plugin, result)
         end
@@ -180,9 +180,10 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
     local offsets = utils.clearTable(self.__mStartTimeOffsets)
     __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
 
+    -- 不一定下载成功，添加弹幕源有参数检查
     local sources = self._mDanmakuSources
-    local sourceMgr = self._mDanmakuSourceManager
-    local source = sourceMgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
+    local mrg = self._mDanmakuSourceManager
+    mgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
 
     return self:_showMain()
 end
@@ -395,7 +396,7 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
     guiBuilder:advanceProgressBar(handler, 10, uiStrings.load_progress_search)
     for _, plugin in app:iterateDanmakuSourcePlugins()
     do
-        if plugin:search(url, result)
+        if plugin:search(url, result, true)
         then
             local ids = utils.clearTable(self.__mVideoIDs)
             local dataList = utils.clearTable(self.__mDanmakuRawDataList)
