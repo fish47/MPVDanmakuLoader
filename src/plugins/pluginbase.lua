@@ -27,7 +27,7 @@ local function __initConnectionRequestFlags(app, acceptXML, uncompress)
     return conn
 end
 
-function IDanmakuSourcePlugin:_startRequestCompressedXML()
+function IDanmakuSourcePlugin:_startRequestUncompressedXML()
     return __initConnectionRequestFlags(self._mApplication, true, true)
 end
 

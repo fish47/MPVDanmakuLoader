@@ -8,8 +8,8 @@ local pluginbase    = require("src/plugins/pluginbase")
 
 local _DDP_PLUGIN_NAME              = "DanDanPlay"
 
-local _DDP_FMT_URL_DANMAKU          = "http://acplay.net/api/v1/comment/%s"
-local _DDP_FMT_URL_SEARCH           = "http://acplay.net/api/v1/searchall/%s"
+local _DDP_FMT_URL_DANMAKU          = "https://api.acplay.net/api/v1/comment/%s"
+local _DDP_FMT_URL_SEARCH           = "https://api.acplay.net/api/v1/searchall/%s"
 
 local _DDP_PATTERN_VIDEO_TITLE      = '<Anime Title="(.-)"'
 local _DDP_PATTERN_EPISODE_TITLE    = '<Episode Id="(%d+)" Title="(.-)"'
@@ -153,8 +153,8 @@ end
 
 
 function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
-    self:_initRequestFlagsForCompressedXML(conn)
-    return string.format(_DDP_FMT_URL_DANMAKU, videoID)
+    local url = string.format(_DDP_FMT_URL_DANMAKU, videoID)
+    return self:_startRequestUncompressedXML(), url
 end
 
 classlite.declareClass(DanDanPlayDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
