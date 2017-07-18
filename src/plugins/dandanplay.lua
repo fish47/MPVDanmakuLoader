@@ -102,9 +102,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
         return false
     end
 
-    local conn = self._mApplication:getNetworkConnection()
-    self:_initRequestFlagsForCompressedXML(conn)
-
+    local conn = self:_startRequestUncompressedXML()
     local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
     local data = conn:receive(url)
     if types.isNilOrEmptyString(data)
@@ -147,7 +145,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
 
     result.isSplited = false
     result.videoTitleColumnCount = 2
-    result.preferredIDIndex = 1
+    result.preferredIDIndex = nil
     return true
 end
 
@@ -162,5 +160,7 @@ classlite.declareClass(DanDanPlayDanmakuSourcePlugin, pluginbase._PatternBasedDa
 
 return
 {
+    _DDP_FMT_URL_DANMAKU            = _DDP_FMT_URL_DANMAKU,
+    _DDP_FMT_URL_SEARCH             = _DDP_FMT_URL_SEARCH,
     DanDanPlayDanmakuSourcePlugin   = DanDanPlayDanmakuSourcePlugin,
 }

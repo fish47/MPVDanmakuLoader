@@ -1,17 +1,17 @@
-local lu                = require("lib/luaunit")
-local testpluginbase    = require("common/testpluginbase")
-local danmakupool       = require("src/core/danmakupool")
-local dandanplay        = require("src/plugins/dandanplay")
+local lu            = require("lib/luaunit")
+local testutils     = require("common/testutils")
+local danmakupool   = require("src/core/danmakupool")
+local dandanplay    = require("src/plugins/dandanplay")
 
 
 TestParseDanDanPlay =
 {
-    setUp       = testpluginbase.createSetUp(dandanplay.DanDanPlayDanmakuSourcePlugin),
-    tearDown    = testpluginbase.tearDown,
+    setUp       = testutils.createSetUp(dandanplay.DanDanPlayDanmakuSourcePlugin),
+    tearDown    = testutils.tearDown,
 }
 
 function TestParseDanDanPlay:testParse()
-    testpluginbase.parseData(self, [[
+    testutils.parseData(self, [[
 <Comment Time="191.38" Mode="1" Color="16777215" Timestamp="1415593473" Pool="0" UId="-1" CId="1415593473">死枪果然基佬</Comment>
 <Comment Time="450.07" Mode="1" Color="16777215" Timestamp="1414926576" Pool="0" UId="-1" CId="1414926576">字幕组你又调皮了</Comment>
 <Comment Time="949.49" Mode="1" Color="16707842" Timestamp="1415960581" Pool="0" UId="-1" CId="1415960581">yooooooooooo</Comment>
@@ -30,7 +30,50 @@ function TestParseDanDanPlay:testParse()
 end
 
 function TestParseDanDanPlay:testSearch()
-    local result = self._mSearchResult()
+    local result = self._mSearchResult
+    local conn = self._mApplication:getNetworkConnection()
+    local keyword = "刀剑神域"
+    local searchKeyword = "ddp:" .. keyword
+    local plugin = self._mPlugin
+    conn:setResponse(string.format(dandanplay._DDP_FMT_URL_SEARCH, keyword),[[
+<SearchResult HasMore="false">
+    <Anime Title="刀剑神域II" Type="1">
+        <Episode Id="103760001" Title="第1话 銃の世界"/>
+        <Episode Id="103760002" Title="第2话 氷の狙撃手"/>
+        <Episode Id="103760003" Title="第3话 鮮血の記憶"/>
+        ...
+    </Anime>
+    <Anime Title="刀剑神域 序列之争" Type="4">
+        <Episode Id="116810001" Title="剧场版"/>
+    </Anime>
+    <Anime Title="刀剑神域" Type="1">
+        <Episode Id="86920001" Title="第1话 剣の世界"/>
+        <Episode Id="86920002" Title="第2话 ビーター"/>
+        <Episode Id="86920003" Title="第3话 赤鼻のトナカイ"/>
+        ...
+    </Anime>
+</SearchResult>
+    ]])
+    lu.assertTrue(plugin:search(searchKeyword, result))
+    lu.assertFalse(result.isSplited)
+    lu.assertIsNil(result.preferredIDIndex)
+    lu.assertEquals(result.videoTitleColumnCount, 2)
+    lu.assertEquals(result.videoIDs,
+    {
+        "103760001", "103760002",
+        "116810001",
+        "86920001", "86920002", "86920003"
+    })
+    lu.assertEquals(result.videoTitles,
+    {
+        "刀剑神域II",          "第1话 銃の世界",
+        "刀剑神域II",          "第2话 氷の狙撃手",
+        "刀剑神域II",          "第3话 鮮血の記憶",
+        "刀剑神域 序列之争",    "剧场版",
+        "刀剑神域",            "第1话 剣の世界",
+        "刀剑神域",            "第2话 ビーター",
+        "刀剑神域",            "第1话 剣の世界",
+    })
 end
 
 
