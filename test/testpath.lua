@@ -1,4 +1,5 @@
 local lu            = require("lib/luaunit")
+local testutils     = require("common/testutils")
 local unportable    = require("src/base/unportable")
 
 
@@ -46,5 +47,5 @@ function TestPath:testSplitPath()
     __doTest("/a", "/", 'a')
 end
 
-lu.LuaUnit.verbosity = 2
-os.exit(lu.LuaUnit.run())
+
+testutils.runTestCases()

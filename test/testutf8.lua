@@ -1,6 +1,7 @@
-local lu    = require("lib/luaunit")
-local utf8  = require("src/base/utf8")
-local utils = require("src/base/utils")
+local lu        = require("lib/luaunit")
+local testutils = require("common/testutils")
+local utf8      = require("src/base/utf8")
+local utils     = require("src/base/utils")
 
 local __UTF8_TEST_CASES =
 {
@@ -52,5 +53,5 @@ function TestIterateUTF8CodePoints:testEncode()
     end
 end
 
-lu.LuaUnit.verbosity = 2
-os.exit(lu.LuaUnit.run())
+
+testutils.runTestCases()

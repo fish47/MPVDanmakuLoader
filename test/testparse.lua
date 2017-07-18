@@ -1,5 +1,6 @@
 local lu            = require("lib/luaunit")
 local mock          = require("common/mock")
+local testutils     = require("common/testutils")
 local constants     = require("src/base/constants")
 local utils         = require("src/base/utils")
 local danmaku       = require("src/core/danmaku")
@@ -279,5 +280,4 @@ function TestParseDanDanPlay:testParse()
 end
 
 
-lu.LuaUnit.verbosity = 2
-os.exit(lu.LuaUnit.run())
+testutils.runTestCases()

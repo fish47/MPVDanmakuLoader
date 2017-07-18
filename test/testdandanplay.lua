@@ -1,17 +1,27 @@
 local lu            = require("lib/luaunit")
 local testutils     = require("common/testutils")
+local classlite     = require("src/base/classlite")
 local danmakupool   = require("src/core/danmakupool")
 local dandanplay    = require("src/plugins/dandanplay")
 
 
-TestParseDanDanPlay =
+local _PluginImpl = {}
+
+function _PluginImpl:_captureSearchKeyword(input)
+    return input
+end
+
+classlite.declareClass(_PluginImpl, dandanplay.DanDanPlayDanmakuSourcePlugin)
+
+
+TestDanDanPlay =
 {
-    setUp       = testutils.createSetUp(dandanplay.DanDanPlayDanmakuSourcePlugin),
-    tearDown    = testutils.tearDown,
+    setUp       = testutils.createSetUpPluginMethod(_PluginImpl),
+    tearDown    = testutils.tearDownPlugin,
 }
 
-function TestParseDanDanPlay:testParse()
-    testutils.parseData(self, [[
+function TestDanDanPlay:testParse()
+    testutils.parseDanmakuData(self, [[
 <Comment Time="191.38" Mode="1" Color="16777215" Timestamp="1415593473" Pool="0" UId="-1" CId="1415593473">死枪果然基佬</Comment>
 <Comment Time="450.07" Mode="1" Color="16777215" Timestamp="1414926576" Pool="0" UId="-1" CId="1414926576">字幕组你又调皮了</Comment>
 <Comment Time="949.49" Mode="1" Color="16707842" Timestamp="1415960581" Pool="0" UId="-1" CId="1415960581">yooooooooooo</Comment>
@@ -29,13 +39,14 @@ function TestParseDanDanPlay:testParse()
     lu.assertEquals(danmakuData.danmakuID, 1415960581)
 end
 
-function TestParseDanDanPlay:testSearch()
+
+function TestDanDanPlay:testSearch()
     local result = self._mSearchResult
     local conn = self._mApplication:getNetworkConnection()
     local keyword = "刀剑神域"
-    local searchKeyword = "ddp:" .. keyword
     local plugin = self._mPlugin
-    conn:setResponse(string.format(dandanplay._DDP_FMT_URL_SEARCH, keyword),[[
+    local searchURL = plugin:_getKeywordSearchURL(keyword)
+    conn:setResponse(searchURL, [[
 <SearchResult HasMore="false">
     <Anime Title="刀剑神域II" Type="1">
         <Episode Id="103760001" Title="第1话 銃の世界"/>
@@ -54,13 +65,13 @@ function TestParseDanDanPlay:testSearch()
     </Anime>
 </SearchResult>
     ]])
-    lu.assertTrue(plugin:search(searchKeyword, result))
+    lu.assertTrue(plugin:search(keyword, result))
     lu.assertFalse(result.isSplited)
     lu.assertIsNil(result.preferredIDIndex)
     lu.assertEquals(result.videoTitleColumnCount, 2)
     lu.assertEquals(result.videoIDs,
     {
-        "103760001", "103760002",
+        "103760001", "103760002", "103760003",
         "116810001",
         "86920001", "86920002", "86920003"
     })
@@ -72,10 +83,9 @@ function TestParseDanDanPlay:testSearch()
         "刀剑神域 序列之争",    "剧场版",
         "刀剑神域",            "第1话 剣の世界",
         "刀剑神域",            "第2话 ビーター",
-        "刀剑神域",            "第1话 剣の世界",
+        "刀剑神域",            "第3话 赤鼻のトナカイ",
     })
 end
 
 
-lu.LuaUnit.verbosity = 2
-os.exit(lu.LuaUnit.run())
+testutils.runTestCases()

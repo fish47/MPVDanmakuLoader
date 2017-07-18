@@ -1,4 +1,5 @@
 local lu        = require("lib/luaunit")
+local testutils = require("common/testutils")
 local types     = require("src/base/types")
 local utils     = require("src/base/utils")
 local constants = require("src/base/constants")
@@ -65,5 +66,4 @@ function TestSerialize:testInject()
 end
 
 
-lu.LuaUnit.verbosity = 2
-os.exit(lu.LuaUnit.run())
+testutils.runTestCases()

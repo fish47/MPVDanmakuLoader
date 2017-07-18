@@ -6,7 +6,7 @@ local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local function createSetUp(pluginClz)
+local function createSetUpPluginMethod(pluginClz)
     local ret = function(self)
         local app = mock.MockApplication:new()
         app:updateConfiguration()
@@ -24,7 +24,7 @@ local function createSetUp(pluginClz)
 end
 
 
-local function tearDown(self)
+local function tearDownPlugin(self)
     utils.disposeSafely(self._mApplication)
     utils.disposeSafely(self._mConfiguration)
     utils.disposeSafely(self._mPlugin)
@@ -36,7 +36,7 @@ local function tearDown(self)
 end
 
 
-local function parseData(self, text)
+local function parseDanmakuData(self, text)
     local app = self._mApplication
     local pools = app:getDanmakuPools()
     local sourceID = pools:allocateDanmakuSourceID()
@@ -48,9 +48,16 @@ local function parseData(self, text)
 end
 
 
+local function runTestCases()
+    lu.LuaUnit.verbosity = 2
+    os.exit(lu.LuaUnit.run())
+end
+
+
 return
 {
-    createSetUp     = createSetUp,
-    tearDown        = tearDownTestCase,
-    parseData       = parseData,
+    createSetUpPluginMethod     = createSetUpPluginMethod,
+    tearDownPlugin              = tearDownPlugin,
+    parseDanmakuData            = parseDanmakuData,
+    runTestCases                = runTestCases,
 }

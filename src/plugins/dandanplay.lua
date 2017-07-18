@@ -71,6 +71,14 @@ function DanDanPlayDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuDat
 end
 
 
+function DanDanPlayDanmakuSourcePlugin:_getKeywordSearchURL(keyword)
+    return string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
+end
+
+function DanDanPlayDanmakuSourcePlugin:_captureSearchKeyword(input)
+    return types.isString(input) and input:match(_DDP_PATTERN_SEARCH_KEYWORD) or nil
+end
+
 function DanDanPlayDanmakuSourcePlugin:search(input, result)
     local function __captureIndexesAndStrings(data, pattern, indexes, table1, table2)
         -- 收集匹配的字符串
@@ -96,14 +104,14 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
     end
 
 
-    local keyword = input:match(_DDP_PATTERN_SEARCH_KEYWORD)
+    local keyword = self:_captureSearchKeyword(input)
     if not keyword
     then
         return false
     end
 
     local conn = self:_startRequestUncompressedXML()
-    local url = string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
+    local url = self:_getKeywordSearchURL(keyword)
     local data = conn:receive(url)
     if types.isNilOrEmptyString(data)
     then
@@ -160,7 +168,5 @@ classlite.declareClass(DanDanPlayDanmakuSourcePlugin, pluginbase._PatternBasedDa
 
 return
 {
-    _DDP_FMT_URL_DANMAKU            = _DDP_FMT_URL_DANMAKU,
-    _DDP_FMT_URL_SEARCH             = _DDP_FMT_URL_SEARCH,
     DanDanPlayDanmakuSourcePlugin   = DanDanPlayDanmakuSourcePlugin,
 }
