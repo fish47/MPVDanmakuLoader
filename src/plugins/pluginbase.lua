@@ -43,19 +43,32 @@ local function __doInvokeVideoIDsBasedMethod(self, videoIDs, outList, iterFunc)
         utils.pushArrayElement(outList, ret)
     end
 
-    if types.isTable(videoIDs) and types.isTable(outList)
+    if not types.isNonEmptyArray(videoIDs) or not types.isNonEmptyArray(outList)
     then
-        for _, videoID in ipairs(videoIDs)
-        do
-            local conn, url, func = iterFunc(self, videoID, outList)
-            if conn and types.isString(url)
-            then
-                local receiveFunc = func or __appendResult
-                conn:receiveLater(url, receiveFunc, url)
-            end
-        end
-        conn:flushReceiveQueue()
+        return false
     end
+
+    local oldOutListCount = #outList
+    local requestDownloadCount = #videoIDs
+    for _, videoID in ipairs(videoIDs)
+    do
+        local conn, url, func = iterFunc(self, videoID, outList)
+        if conn and types.isString(url)
+        then
+            local receiveFunc = func or __appendResult
+            conn:receiveLater(url, receiveFunc, url)
+        end
+    end
+    conn:flushReceiveQueue()
+
+    -- 如果下不动或者中途出错，数量就对不上
+    local curOutListCount = #outList
+    if curOutListCount - oldOutListCount ~= requestDownloadCount
+    then
+        utils.clearArray(oldOutListCount, curOutListCount)
+        return false
+    end
+    return true
 end
 
 
@@ -149,7 +162,7 @@ local DanmakuSourceSearchResult =
     videoIDs                = classlite.declareTableField(),
     videoTitles             = classlite.declareTableField(),
     videoTitleColumnCount   = classlite.declareConstantField(1),
-    preferredIDIndex        = classlite.declareConstantField(1),
+    preferredIndex          = classlite.declareConstantField(1),
 }
 
 classlite.declareClass(DanmakuSourceSearchResult)

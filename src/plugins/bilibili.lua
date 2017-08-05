@@ -32,8 +32,8 @@ local _BILI_FMT_URL_DAMAKU      = "http://comment.bilibili.com/%s.xml"
 local _BILI_FMT_URL_VIDEO_INFO  = "http://interface.bilibili.com/player?id=cid:%s"
 
 
-local _BILI_PATTERN_SEARCH_URL_1P   = "www%.bilibili%.[^/]*/video/av(%d+)"
-local _BILI_PATTERN_SEARCH_URL_NP   = "www%.bilibili%.[^/]*/video/av(%d+)/index_(%d*).html"
+local _BILI_PATTERN_SEARCH_URL_1P   = "www%.bilibili%.[^/]+/video/av(%d+)"
+local _BILI_PATTERN_SEARCH_URL_NP   = "www%.bilibili%.[^/]+/video/av(%d+)/index_(%d*).html"
 local _BILI_PATTERN_SEARCH_AVID     = "bili:av(%d+)"
 local _BILI_PATTERN_SEARCH_CID      = "bili:cid(%d+)"
 
@@ -79,10 +79,10 @@ function BiliBiliDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
         return
     end
 
-    local size = math.floor(tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize)
+    local size = tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize
     local text = utils.unescapeXMLString(__sanitizeString(text))
     text = text:gsub(_BILI_CONST_NEWLINE, constants.STR_NEWLINE)
-    danmakuData.fontSize = size
+    danmakuData.fontSize = math.floor(size)
     danmakuData.fontColor = tonumber(fontColor)
     danmakuData.startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
     danmakuData.danmakuID = tonumber(danmakuID)
@@ -110,7 +110,7 @@ function BiliBiliDanmakuSourcePlugin:search(keyword, result, fast)
     if cid
     then
         result.isSplited = false
-        result.preferredIDIndex = _BILI_DEFAULT_VIDEO_INDEX
+        result.preferredIndex = _BILI_DEFAULT_VIDEO_INDEX
         table.insert(result.videoIDs, cid)
         table.insert(result.videoTitles, string.format(_BILI_FMT_SEARCH_CID_TITLE, cid))
     else
@@ -119,7 +119,7 @@ function BiliBiliDanmakuSourcePlugin:search(keyword, result, fast)
         then
             return false
         end
-        result.preferredIDIndex = index
+        result.preferredIndex = index
 
         -- 如果是快速搜索，优先解释当前分集的数据
         local firstParseIndex = types.chooseValue(fast, index, _BILI_DEFAULT_VIDEO_INDEX)
@@ -162,7 +162,7 @@ function BiliBiliDanmakuSourcePlugin:search(keyword, result, fast)
             result.isSplited = true
             if fast
             then
-                result.preferredIDIndex = 1
+                result.preferredIndex = 1
             end
         else
             -- 单P视频

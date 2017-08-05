@@ -8,8 +8,9 @@ local uiconstants   = require("src/shell/uiconstants")
 local sourcemgr     = require("src/shell/sourcemgr")
 
 
-local _SHELL_TIMEOFFSET_START       = 0
-local _SHELL_DESCRIPTION_VID_SEP    = ","
+local _SHELL_TIMEOFFSET_START           = 0
+local _SHELL_VIDEO_TITLE_COLUMN_COUNT   = 1
+local _SHELL_DESCRIPTION_VID_SEP        = ","
 
 
 local MPVDanmakuLoaderShell =
@@ -116,19 +117,9 @@ function MPVDanmakuLoaderShell:_showSearchDanmakuSource()
         return self:_showMain()
     end
 
-    local result = self.__mSearchResult
-    for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
-    do
-        result:reset()
-        if plugin:search(input, result, false)
-        then
-            return self:__showSelectNewDanmakuSource(plugin, result)
-        end
-    end
-
-    -- 即使没有搜索结果也要弹一下
-    result:reset()
-    return self:__showSelectNewDanmakuSource(nil, result)
+    -- 即使没有搜索结果也要弹一个空白列表
+    local plugin, result = self:__searchPlugin(input)
+    return self:__showSelectNewDanmakuSource(plugin, result)
 end
 
 
@@ -144,13 +135,26 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
 
     local function __getDanmakuTimeOffsets(plugin, videoIDs, timeOffsets)
         -- 最后一个分集视频的时长不需要知道
+        local succeed = true
         local lastVID = utils.popArrayElement(videoIDs)
         if not types.isEmptyTable(videoIDs)
         then
-            plugin:getVideoDurations(videoIDs, timeOffsets)
+            succeed = plugin:getVideoDurations(videoIDs, timeOffsets)
         end
         table.insert(timeOffsets, 1, _SHELL_TIMEOFFSET_START)
         table.insert(videoIDs, lastVID)
+        return succeed
+    end
+
+    -- 注意参数有可能为空
+    local isSplited = false
+    local videoTitles = nil
+    local videoTitleColCount = _SHELL_VIDEO_TITLE_COLUMN_COUNT
+    if result
+    then
+        isSplited = result.isSplited
+        videoTitles = result.videoTitles
+        videoTitleColCount = result.videoTitleColumnCount
     end
 
     local uiStrings = self._mUIStrings
@@ -158,15 +162,16 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
     props:reset()
     self:__initWindowProperties(props, self._mUISizes.select_new_danmaku_source)
     props.listBoxTitle = uiStrings.title_select_new_danmaku_source
-    props.isMultiSelectable = result.isSplited
-    utils.appendArrayElements(props.listBoxElements, result.videoTitles)
+    props.isMultiSelectable = isSplited
+    utils.appendArrayElements(props.listBoxElements, videoTitles)
     __initListBoxHeaders(props,
-                            uiStrings.fmt_select_new_danmaku_source_header,
-                            result.videoTitleColumnCount)
+                         uiStrings.fmt_select_new_danmaku_source_header,
+                         videoTitleColCount)
 
     local selectedIndexes = utils.clearTable(self.__mSelectedIndexes)
     if not self._mGUIBuilder:showListBox(props, selectedIndexes)
     then
+        -- 空列表或者没有选中列表项
         return self:_showSearchDanmakuSource()
     end
 
@@ -178,12 +183,14 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
 
     local desc = table.concat(videoIDs, _SHELL_DESCRIPTION_VID_SEP)
     local offsets = utils.clearTable(self.__mStartTimeOffsets)
-    __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
-
-    -- 不一定下载成功，添加弹幕源有参数检查
-    local sources = self._mDanmakuSources
-    local mrg = self._mDanmakuSourceManager
-    mgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
+    local succeed = __getDanmakuTimeOffsets(plugin, videoIDs, offsets)
+    if succeed
+    then
+        -- 添加弹幕源时还有参数检查
+        local sources = self._mDanmakuSources
+        local mrg = self._mDanmakuSourceManager
+        mgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
+    end
 
     return self:_showMain()
 end
@@ -381,6 +388,19 @@ function MPVDanmakuLoaderShell:showMainWindow()
     return self:_showMain()
 end
 
+function MPVDanmakuLoaderShell:__searchPlugin(keyword)
+    local result = self.__mSearchResult
+    for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
+    do
+        result:reset()
+        local found = plugin:search(keyword, result)
+        if found
+        then
+            return plugin, result
+        end
+    end
+    return nil
+end
 
 function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
     local uiStrings = self._mUIStrings
@@ -390,34 +410,30 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
     self:__initWindowProperties(progressBarProps)
 
     local succeed = false
-    local result = self.__mSearchResult
     local app = self._mApplication
     local handler = guiBuilder:showProgressBar(progressBarProps)
     guiBuilder:advanceProgressBar(handler, 10, uiStrings.load_progress_search)
-    for _, plugin in app:iterateDanmakuSourcePlugins()
-    do
-        if plugin:search(url, result, true)
+
+    local plugin, result = self:__searchPlugin(url)
+    if plugin and result
+    then
+        local ids = utils.clearTable(self.__mVideoIDs)
+        local dataList = utils.clearTable(self.__mDanmakuRawDataList)
+        local vid = result.videoIDs[result.preferredIndex]
+        table.insert(ids, vid)
+        guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
+        local downloaded = plugin:downloadDanmakuRawDataList(ids, dataList)
+        if downloaded
         then
-            local ids = utils.clearTable(self.__mVideoIDs)
-            local dataList = utils.clearTable(self.__mDanmakuRawDataList)
-            local vid = result.videoIDs[result.preferredIDIndex]
-            table.insert(ids, vid)
-
-            guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
-            plugin:downloadDanmakuRawDataList(ids, dataList)
-
             local data = dataList[1]
-            if types.isString(data)
-            then
-                local offset = _SHELL_TIMEOFFSET_START
-                local name = plugin:getName()
-                local pools = app:getDanmakuPools()
-                local sourceID = pools:allocateDanmakuSourceID(name, vid, nil, offset)
-                guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
-                plugin:parseData(data, sourceID, offset)
-                self:__doCommitDanmakus()
-                succeed = true
-            end
+            local offset = _SHELL_TIMEOFFSET_START
+            local name = plugin:getName()
+            local pools = app:getDanmakuPools()
+            local sourceID = pools:allocateDanmakuSourceID(name, vid, nil, offset)
+            guiBuilder:advanceProgressBar(handler, 90, uiStrings.load_progress_parse)
+            plugin:parseData(data, sourceID, offset)
+            self:__doCommitDanmakus()
+            succeed = true
         end
     end
 

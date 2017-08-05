@@ -6,30 +6,30 @@ local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local _ACFUN_PLUGIN_NAME                = "Acfun"
+local _ACFUN_PLUGIN_NAME            = "Acfun"
 
-local _ACFUN_DEFAULT_DURATION           = 0
-local _ACFUN_FACTOR_TIME_STAMP          = 1000
+local _ACFUN_DEFAULT_DURATION       = 0
+local _ACFUN_FACTOR_TIME_STAMP      = 1000
 
-local _ACFUN_DEFAULT_VIDEO_INDEX        = 1
+local _ACFUN_DEFAULT_VIDEO_INDEX    = 1
 
-local _ACFUN_PATTERN_VID                = '<a%s*data-vid="([%d]+)"'
-local _ACFUN_PATTERN_DURATION           = '"time"%s*:%s*([%d]+)%s*,'
-local _ACFUN_PATTERN_DANMAKU_INFO_KEY   = '"c"%s*:%s*'
-local _ACFUN_PATTERN_DANMAKU_TEXT_KEY   = '"m"%s*:%s*'
-local _ACFUN_PATTERN_DANMAKU_INFO_VALUE = "([%d%.]+),"     -- 出现时间
-                                          .. "(%d+),"      -- 颜色
-                                          .. "(%d+),"      -- 弹幕类型
-                                          .. "(%d+),"      -- 字体大小
-                                          .. "[^,]+,"      -- 用户 ID ？
-                                          .. "(%d+),"      -- 弹幕 ID ？
-                                          .. "[^,]+"       -- hash ？
+local _ACFUN_PATTERN_VID                    = '<a%s*data-vid="([%d]+)"'
+local _ACFUN_PATTERN_DURATION               = '"time"%s*:%s*([%d]+)%s*,'
+local _ACFUN_PATTERN_DANMAKU_INFO_KEY       = '"c"%s*:%s*'
+local _ACFUN_PATTERN_DANMAKU_TEXT_KEY       = '"m"%s*:%s*'
+local _ACFUN_PATTERN_DANMAKU_INFO_VALUES    = "([%d%.]+),"     -- 出现时间
+                                              .. "(%d+),"      -- 颜色
+                                              .. "(%d+),"      -- 弹幕类型
+                                              .. "(%d+),"      -- 字体大小
+                                              .. "[^,]+,"      -- 用户 ID ？
+                                              .. "(%d+),"      -- 弹幕 ID ？
+                                              .. "[^,]+"       -- hash ？
 
 local _ACFUN_PATTERN_TITLE_1P           = "<h2>(.-)</h2>"
 local _ACFUN_PATTERN_VID_AND_TITLE      = '<a%s+data%-vid="(%d+)".->(.-)</a>'
 local _ACFUN_PATTERN_SANITIZE_TITLE     = "<i.-</i>"
 
-local _ACFUN_PATTERN_SEARCH_URL         = "http://www.acfun.tv/v/ac([%d_]+)"
+local _ACFUN_PATTERN_SEARCH_URL         = "http://www%.acfun%.[^/]+/v/ac([%d_]+)"
 local _ACFUN_PATTERN_SEARCH_ACID        = "acfun:ac([%d_]+)"
 local _ACFUN_PATTERN_SEARCH_VID         = "acfun:vid(%d+)"
 local _ACFUN_PATTERN_SEARCH_PART_INDEX  = "^%d*_(%d+)$"
@@ -64,7 +64,7 @@ function AcfunDanmakuSourcePlugin:search(input, result)
     if vid
     then
         result.isSplited = false
-        result.preferredIDIndex = _ACFUN_DEFAULT_DURATION
+        result.preferredIndex = _ACFUN_DEFAULT_DURATION
         table.insert(result.videoIDs, vid)
         table.insert(result.videoTitles, string.format(_ACFUN_FMT_SEARCH_VID_TITLE, vid))
     else
@@ -115,7 +115,7 @@ function AcfunDanmakuSourcePlugin:search(input, result)
         local partIdx = acid:match(_ACFUN_PATTERN_SEARCH_PART_INDEX)
         partIdx = partIdx and tonumber(partIdx)
         result.isSplited = partCount > 1
-        result.preferredIDIndex = partIdx or _ACFUN_DEFAULT_VIDEO_INDEX
+        result.preferredIndex = partIdx or _ACFUN_DEFAULT_VIDEO_INDEX
     end
 
     result.videoTitleColumnCount = 1
@@ -135,9 +135,14 @@ function AcfunDanmakuSourcePlugin:_startExtractDanmakus(rawData)
         end
 
         findIdx = endIdx1 + 1
-        local posText, endIdx2 = utils.findJSONString(rawData, findIdx)
-        local start, color, layer, size, id = posText:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUE)
+        local line, endIdx2 = utils.findJSONString(rawData, findIdx)
         if not endIdx2
+        then
+            return
+        end
+
+        local start, color, layer, size, id = line:match(_ACFUN_PATTERN_DANMAKU_INFO_VALUES)
+        if not start
         then
             return
         end
@@ -169,7 +174,7 @@ function AcfunDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
         return
     end
 
-    danmakuData.startTime = tonumber(startTime * _ACFUN_FACTOR_TIME_STAMP)
+    danmakuData.startTime = tonumber(startTime) * _ACFUN_FACTOR_TIME_STAMP
     danmakuData.fontSize = tonumber(fontSize)
     danmakuData.fontColor = tonumber(fontColor)
     danmakuData.danmakuID = tonumber(danmakuID)
@@ -177,27 +182,29 @@ function AcfunDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
     return _ACFUN_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
 end
 
-function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
-    self:_initRequestFlagsForCompressedXML(conn)
-    return string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
+function AcfunDanmakuSourcePlugin:_doDownloadDanmakuRawData(videoID)
+    local url = string.format(_ACFUN_FMT_URL_DANMAKU, videoID)
+    return self:_startRequestUncompressedXML(), url
 end
 
-
-function AcfunDanmakuSourcePlugin:_doGetVideoDuration(conn, videoID, outDurations)
+function AcfunDanmakuSourcePlugin:_doGetVideoDuration(videoID, outDurations)
     local function __parseDuration(data, outDurations)
         local duration = nil
         if types.isString(data)
         then
             local seconds = data:match(_ACFUN_PATTERN_DURATION)
-            duration = seconds and utils.convertHHMMSSToTime(0, 0, tonumber(seconds), 0)
+            if seconds
+            then
+                seconds = tonumber(seconds)
+                duration = utils.convertHHMMSSToTime(0, 0, seconds, 0)
+            end
         end
         duration = duration or _ACFUN_DEFAULT_DURATION
         table.insert(outDurations, duration)
     end
 
     local url = string.format(_ACFUN_FMT_URL_VIDEO_INFO, videoID)
-    self:_initRequestFlagsForCompressedXML(conn)
-    conn:receiveLater(url, __parseDuration, outDurations)
+    return self:_startRequestCompressedXML(), url, __parseDuration
 end
 
 classlite.declareClass(AcfunDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)

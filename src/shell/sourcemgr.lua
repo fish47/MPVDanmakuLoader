@@ -48,10 +48,8 @@ local function __downloadDanmakuRawDataFiles(app, plugin, videoIDs, outFilePaths
 
     -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
     local rawDataList = utils.clearTable(outFilePaths)
-    plugin:downloadDanmakuRawDataList(videoIDs, rawDataList)
-
-    -- 有文件下不动的时候，数量就对不上
-    if not hasCreatedDir or #rawDataList ~= #videoIDs
+    local downloaded = plugin:downloadDanmakuRawDataList(videoIDs, rawDataList)
+    if not downloaded
     then
         utils.clearTable(rawDataList)
         return false
@@ -676,7 +674,8 @@ function DanmakuSourceManager:addCachedDanmakuSource(sources, plugin, desc,
     local app = self._mApplication
     local datetime = app:getCurrentDateTime()
     local filePaths = utils.clearTable(self.__mDownloadedFilePaths)
-    if __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
+    local downloaded = __downloadDanmakuRawDataFiles(app, plugin, videoIDs, filePaths)
+    if downloaded
     then
         local source = self:__obtainDanmakuSource(_CachedRemoteDanmakuSource)
         if source and source:_init(plugin, datetime, desc, videoIDs, filePaths, offsets)

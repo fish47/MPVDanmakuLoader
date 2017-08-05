@@ -29,6 +29,7 @@ end
 
 function MockPlugin:downloadDanmakuRawDataList(ids, outList)
     utils.appendArrayElements(outList, ids)
+    return true
 end
 
 function MockPlugin:isMatchedRawDataFile(fullPath)

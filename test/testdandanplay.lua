@@ -67,7 +67,6 @@ function TestDanDanPlay:testSearch()
     ]])
     lu.assertTrue(plugin:search(keyword, result))
     lu.assertFalse(result.isSplited)
-    lu.assertIsNil(result.preferredIDIndex)
     lu.assertEquals(result.videoTitleColumnCount, 2)
     lu.assertEquals(result.videoIDs,
     {

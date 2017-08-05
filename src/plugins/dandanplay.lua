@@ -151,14 +151,12 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
         end
     end
 
-    result.isSplited = false
     result.videoTitleColumnCount = 2
-    result.preferredIDIndex = nil
     return true
 end
 
 
-function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(conn, videoID)
+function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(videoID)
     local url = string.format(_DDP_FMT_URL_DANMAKU, videoID)
     return self:_startRequestUncompressedXML(), url
 end

@@ -16,7 +16,7 @@ local MockRemoteDanmakuSourcePlugin =
     _mVideoDurations        = classlite.declareTableField(),
     _mVideoTitles           = classlite.declareTableField(),
     _mVideoTitleColCounts   = classlite.declareTableField(),
-    _mPreferredIDIndexes    = classlite.declareTableField(),
+    _mPreferredIndexes      = classlite.declareTableField(),
     __mVideoIDCount         = classlite.declareConstantField(0),
 }
 
@@ -57,7 +57,7 @@ function MockRemoteDanmakuSourcePlugin:addSearchResult(keyword, titles, isSplite
         self._mVideoTitleColCounts[keyword] = colCount
         self._mIsSplitedFlags[keyword] = types.toBoolean(isSplited)
         self._mVideoTitles[keyword] = utils.appendArrayElements({}, titles)
-        self._mPreferredIDIndexes[keyword] = math.random(videoIDCount)
+        self._mPreferredIndexes[keyword] = math.random(videoIDCount)
     end
 end
 
@@ -66,7 +66,7 @@ function MockRemoteDanmakuSourcePlugin:search(keyword, result)
     if videoIDs
     then
         result.isSplited = self._mIsSplitedFlags[keyword]
-        result.preferredIDIndex = self._mPreferredIDIndexes[keyword]
+        result.preferredIndex = self._mPreferredIndexes[keyword]
         result.videoTitleColumnCount = self._mVideoTitleColCounts[keyword]
         utils.appendArrayElements(result.videoIDs, videoIDs)
         utils.appendArrayElements(result.videoTitles, self._mVideoTitles[keyword])
@@ -76,6 +76,7 @@ end
 
 function MockRemoteDanmakuSourcePlugin:downloadDanmakuRawDataList(videoIDs, outList)
     utils.appendArrayElements(outList, videoIDs)
+    return true
 end
 
 function MockRemoteDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)
@@ -83,6 +84,7 @@ function MockRemoteDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)
     do
         table.insert(outDurations, self._mVideoDurations[videoID])
     end
+    return true
 end
 
 classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)

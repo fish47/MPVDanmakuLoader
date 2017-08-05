@@ -399,7 +399,7 @@ return
     mergeTable                  = mergeTable,
     clearArray                  = clearArray,
     packArray                   = packArray,
-    unpackArray                 = unpack or table.unpack,
+    unpackArray                 = table.unpack,
     iterateTable                = iterateTable,
     iterateArray                = iterateArray,
     forEachArrayElement         = forEachArrayElement,
