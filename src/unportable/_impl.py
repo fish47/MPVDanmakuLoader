@@ -312,7 +312,7 @@ def request_urls(urls, timeout, flags, tmp_path):
                         content = gf.read()
                     string_file.close()
                 elif encoding == 'deflate':
-                    content = zlib.decompress(content)
+                    content = zlib.decompress(content, -zlib.MAX_WBITS)
             response.close()
         except:
             pass

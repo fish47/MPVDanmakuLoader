@@ -11,7 +11,7 @@ function _PluginImpl:_captureSearchKeyword(input)
     return input
 end
 
-classlite.declareClass(_PluginImpl, dandanplay.DanDanPlayDanmakuSourcePlugin)
+classlite.declareClass(_PluginImpl, dandanplay.DanDanPlayPlugin)
 
 
 TestDanDanPlay =
@@ -66,7 +66,6 @@ function TestDanDanPlay:testSearch()
 </SearchResult>
     ]])
     lu.assertTrue(plugin:search(keyword, result))
-    lu.assertFalse(result.isSplited)
     lu.assertEquals(result.videoTitleColumnCount, 2)
     lu.assertEquals(result.videoIDs,
     {

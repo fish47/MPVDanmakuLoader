@@ -105,20 +105,21 @@ function NetworkConnection:__setRequestFlag(flag, val)
     then
         flags = bit32.bor(flags, flag)
     else
-        if bit32.test(flags, flag)
+        if bit32.btest(flags, flag)
         then
             flags = flags - flag
         end
     end
     self.__mCurrentReqFlags = flags
+    return flags
 end
 
 function NetworkConnection:setUncompress(val)
-    self:__setRequestFlag(_executor._REQ_URL_FLAG_UNCOMPRESS, val)
+    return self:__setRequestFlag(_executor._REQ_URL_FLAG_UNCOMPRESS, val)
 end
 
 function NetworkConnection:setAcceptXML(val)
-    self:__setRequestFlag(_executor._REQ_URL_FLAG_ACCEPT_XML, val)
+    return self:__setRequestFlag(_executor._REQ_URL_FLAG_ACCEPT_XML, val)
 end
 
 function NetworkConnection:receive(url)

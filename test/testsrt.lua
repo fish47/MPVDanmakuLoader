@@ -6,7 +6,7 @@ local srt           = require("src/plugins/srt")
 
 TestParseSRT =
 {
-    setUp       = testutils.createSetUpPluginMethod(srt.SRTDanmakuSourcePlugin),
+    setUp       = testutils.createSetUpPluginMethod(srt.SRTPlugin),
     tearDown    = testutils.tearDownPlugin,
 }
 

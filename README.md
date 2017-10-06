@@ -13,7 +13,7 @@
 ![screenshot](https://raw.githubusercontent.com/fish47/MPVDanmakuLoader/resources/screenshots.gif)
 
 ## Features
-* ACFun / BiliBili / DanDanPlay 弹幕解释
+* BiliBili / DanDanPlay 弹幕解释
 * 多弹幕源同屏显示
 * 分P弹幕源合并
 * 离线弹幕源管理
@@ -46,8 +46,8 @@ Ctrl+d script-binding mpvdanmakuloader/load
 
 
 ## SearchSyntax
-* 输入视频网址，目前只支持 ACFun / BiliBili
-* 根据视频ID搜索，如 `acfun:acXXX` `acfun:vidXXX` `bili:avXXX` `bili:cidXXX`
+* 输入视频网址，目前只支持 BiliBili
+* 根据视频ID搜索，如 `bili:avXXX` `bili:cidXXX`
 * 根据关键字搜索，如 `ddp:XXX`
 
 

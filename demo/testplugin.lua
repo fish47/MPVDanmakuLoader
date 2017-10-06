@@ -56,7 +56,6 @@ do
         listboxProps.windowWidth = 600
         listboxProps.windowHeight = 400
         listboxProps.listBoxTitle = plugin:getName()
-        listboxProps.isMultiSelectable = result.isSplited
         listboxProps.listBoxColumnCount = result.videoTitleColumnCount + 1
 
         -- 加一列 VideoID

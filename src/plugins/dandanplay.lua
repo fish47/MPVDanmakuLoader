@@ -6,30 +6,32 @@ local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local _DDP_PLUGIN_NAME              = "DanDanPlay"
+local _PLUGIN_NAME              = "DanDanPlay"
 
-local _DDP_FMT_URL_DANMAKU          = "https://api.acplay.net/api/v1/comment/%s"
-local _DDP_FMT_URL_SEARCH           = "https://api.acplay.net/api/v1/searchall/%s"
+local _FMT_URL_DANMAKU          = "https://api.acplay.net/api/v1/comment/%s"
+local _FMT_URL_SEARCH           = "https://api.acplay.net/api/v1/searchall/%s"
 
-local _DDP_PATTERN_VIDEO_TITLE      = '<Anime Title="(.-)"'
-local _DDP_PATTERN_EPISODE_TITLE    = '<Episode Id="(%d+)" Title="(.-)"'
-local _DDP_PATTERN_SEARCH_KEYWORD   = "ddp:%s*(.+)%s*$"
-local _DDP_PATTERN_COMMENT          = "<Comment"
-                                      .. '%s+Time="([%d.]+)"'
-                                      .. '%s+Mode="(%d+)"'
-                                      .. '%s+Color="(%d+)"'
-                                      .. '%s+Timestamp="%d+"'
-                                      .. '%s+Pool="%d+"'
-                                      .. '%s+UId="%-?[%d]+"'
-                                      .. '%s+CId="(%d+)"'
-                                      .. "%s*>"
-                                      .. "([^<]+)"
-                                      .. "</Comment>"
+local _PATTERN_VIDEO_TITLE      = '<Anime Title="(.-)"'
+local _PATTERN_EPISODE_TITLE    = '<Episode Id="(%d+)" Title="(.-)"'
+local _PATTERN_SEARCH_KEYWORD   = "ddp:%s*(.+)%s*$"
+local _PATTERN_COMMENT          = "<Comment"
+                                    .. '%s+Time="([%d.]+)"'
+                                    .. '%s+Mode="(%d+)"'
+                                    .. '%s+Color="(%d+)"'
+                                    .. '%s+Timestamp="%d+"'
+                                    .. '%s+Pool="%d+"'
+                                    .. '%s+UId="%-?[%d]+"'
+                                    .. '%s+CId="(%d+)"'
+                                    .. "%s*>"
+                                    .. "([^<]+)"
+                                    .. "</Comment>"
 
 
-local _DDP_FACTOR_TIME_STAMP        = 1000
+local _CONST_FACTOR_TIME_STAMP      = 1000
+local _CONST_VIDEO_INDEX_DEFAULT    = 1
+local _CONST_COLUMN_COUNT_TITLE     = 2
 
-local _DDP_POS_TO_LAYER_MAP =
+local _POS_TO_LAYER_MAP =
 {
     [6] = danmakupool.LAYER_MOVING_L2R,
     [1] = danmakupool.LAYER_MOVING_R2L,
@@ -38,7 +40,7 @@ local _DDP_POS_TO_LAYER_MAP =
 }
 
 
-local DanDanPlayDanmakuSourcePlugin =
+local DanDanPlayPlugin =
 {
     __mVideoIDs         = classlite.declareTableField(),
     __mVideoTitles      = classlite.declareTableField(),
@@ -47,39 +49,40 @@ local DanDanPlayDanmakuSourcePlugin =
     __mCaptureIndexes2  = classlite.declareTableField(),
 }
 
-function DanDanPlayDanmakuSourcePlugin:getName()
-    return _DDP_PLUGIN_NAME
+function DanDanPlayPlugin:getName()
+    return _PLUGIN_NAME
 end
 
-function DanDanPlayDanmakuSourcePlugin:_startExtractDanmakus(rawData)
-    return rawData:gmatch(_DDP_PATTERN_COMMENT)
+function DanDanPlayPlugin:_startExtractDanmakus(rawData)
+    return rawData:gmatch(_PATTERN_COMMENT)
 end
 
-function DanDanPlayDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
+function DanDanPlayPlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
     local startTime, layer, fontColor, danmakuID, text = iterFunc()
     if not startTime
     then
         return
     end
 
-    danmakuData.startTime = tonumber(startTime) * _DDP_FACTOR_TIME_STAMP
+    danmakuData.startTime = tonumber(startTime) * _CONST_FACTOR_TIME_STAMP
     danmakuData.fontSize = cfg.danmakuFontSize
     danmakuData.fontColor = tonumber(fontColor)
     danmakuData.danmakuID = tonumber(danmakuID)
     danmakuData.danmakuText = utils.unescapeXMLString(text)
-    return _DDP_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
+    return _POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
 end
 
 
-function DanDanPlayDanmakuSourcePlugin:_getKeywordSearchURL(keyword)
-    return string.format(_DDP_FMT_URL_SEARCH, utils.escapeURLString(keyword))
+function DanDanPlayPlugin:_getKeywordSearchURL(keyword)
+    return string.format(_FMT_URL_SEARCH, utils.escapeURLString(keyword))
 end
 
-function DanDanPlayDanmakuSourcePlugin:_captureSearchKeyword(input)
-    return types.isString(input) and input:match(_DDP_PATTERN_SEARCH_KEYWORD) or nil
+function DanDanPlayPlugin:_captureSearchKeyword(input)
+    return types.isString(input) and input:match(_PATTERN_SEARCH_KEYWORD) or nil
 end
 
-function DanDanPlayDanmakuSourcePlugin:search(input, result)
+
+function DanDanPlayPlugin:search(input, result)
     local function __captureIndexesAndStrings(data, pattern, indexes, table1, table2)
         -- 收集匹配的字符串
         for str1, str2 in data:gmatch(pattern)
@@ -107,7 +110,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
     local keyword = self:_captureSearchKeyword(input)
     if not keyword
     then
-        return false
+        return
     end
 
     local conn = self:_startRequestUncompressedXML()
@@ -115,7 +118,7 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
     local data = conn:receive(url)
     if types.isNilOrEmptyString(data)
     then
-        return false
+        return
     end
 
     local videoIDs = utils.clearTable(self.__mVideoIDs)
@@ -125,11 +128,11 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
     local indexes2 = utils.clearTable(self.__mCaptureIndexes2)
 
     -- 剧集标题
-    __captureIndexesAndStrings(data, _DDP_PATTERN_VIDEO_TITLE, indexes1, titles)
+    __captureIndexesAndStrings(data, _PATTERN_VIDEO_TITLE, indexes1, titles)
     utils.forEachArrayElement(titles, utils.unescapeXMLString)
 
     -- 分集标题
-    __captureIndexesAndStrings(data, _DDP_PATTERN_EPISODE_TITLE, indexes2, videoIDs, subtitles)
+    __captureIndexesAndStrings(data, _PATTERN_EPISODE_TITLE, indexes2, videoIDs, subtitles)
     utils.forEachArrayElement(subtitles, utils.unescapeXMLString)
 
     -- 剧集标题比分集标题出现得早，例如
@@ -151,20 +154,20 @@ function DanDanPlayDanmakuSourcePlugin:search(input, result)
         end
     end
 
-    result.videoTitleColumnCount = 2
-    return true
+    result.videoTitleColumnCount = _CONST_COLUMN_COUNT_TITLE
+    return _CONST_VIDEO_INDEX_DEFAULT
 end
 
 
-function DanDanPlayDanmakuSourcePlugin:_doDownloadDanmakuRawData(videoID)
-    local url = string.format(_DDP_FMT_URL_DANMAKU, videoID)
-    return self:_startRequestUncompressedXML(), url
+function DanDanPlayPlugin:_prepareToDownloadDanmaku(conn, videoID)
+    self:_startRequestUncompressedXML(conn)
+    return string.format(_FMT_URL_DANMAKU, videoID)
 end
 
-classlite.declareClass(DanDanPlayDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
+classlite.declareClass(DanDanPlayPlugin, pluginbase._AbstractDanmakuSourcePlugin)
 
 
 return
 {
-    DanDanPlayDanmakuSourcePlugin   = DanDanPlayDanmakuSourcePlugin,
+    DanDanPlayPlugin   = DanDanPlayPlugin,
 }

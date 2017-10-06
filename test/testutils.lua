@@ -84,16 +84,16 @@ end
 
 
 
-TestFindJSONString = {}
+TestFindJSON = {}
 
-function TestFindJSONString:__doTest(text, findStart, captured, nextFindStart)
+function TestFindJSON:__doTest(text, findStart, captured, nextFindStart)
     local ret1, ret2 = utils.findJSONString(text, findStart)
     lu.assertEquals(ret1, captured)
     lu.assertEquals(ret2, nextFindStart)
 end
 
 
-function TestFindJSONString:testFindEmptyString()
+function TestFindJSON:testFindEmptyString()
     --              12345678
     self:__doTest([[""345]], nil, "", 3)
     self:__doTest([[12345""]], nil, "", 8)
@@ -101,7 +101,7 @@ function TestFindJSONString:testFindEmptyString()
 end
 
 
-function TestFindJSONString:testFindString()
+function TestFindJSON:testFindString()
     local function __doTest(text, findStart, captured, nextFindStart)
         local ret1, ret2 = utils.findJSONString(text, findStart)
         lu.assertEquals(ret1, captured)
@@ -114,8 +114,24 @@ function TestFindJSONString:testFindString()
     __doTest([["AA"56789]], 2, nil)
     __doTest([["AA"56789]], 5, nil)
     __doTest([[12345"AA"]], 1, "AA", 10)
-    __doTest([[123"AA\""]], 1, "AA\"", 10)
+    __doTest([[123"AA\""]], 1, [[AA"]], 10)
     __doTest([[1"AA\"1"9]], 1, "AA\"1", 9)
+    __doTest([[1"AA\\"9"]], 1, [[AA\]], 8)
+    __doTest([[1"a\\\"a"]], 1, [[a\"a]], 10)
+end
+
+
+function TestFindJSON:testFindKeyValue()
+    local function __doTest(text, key, result)
+        local ret = utils.findJSONKeyValue(text, key)
+        lu.assertEquals(ret, result)
+    end
+
+    __doTest([["key" :  "value"]], "key", "value")
+    __doTest([["key1":null, "key2",]], "key1", nil)
+    __doTest([["key1", "key2", "key3"]], "key2", nil)
+    __doTest([["key1":"value1", "key2":"value2"]], "key2", "value2")
+    __doTest([["key1", "key1" : "value1"]], "key1", "value1")
 end
 
 

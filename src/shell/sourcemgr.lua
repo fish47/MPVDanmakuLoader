@@ -48,7 +48,7 @@ local function __downloadDanmakuRawDataFiles(app, plugin, videoIDs, outFilePaths
 
     -- 先用此数组来暂存下载内容，下载完写文件后再转为路径
     local rawDataList = utils.clearTable(outFilePaths)
-    local downloaded = plugin:downloadDanmakuRawDataList(videoIDs, rawDataList)
+    local downloaded = plugin:downloadDanmakus(videoIDs, rawDataList)
     if not downloaded
     then
         utils.clearTable(rawDataList)

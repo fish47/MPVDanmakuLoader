@@ -56,8 +56,8 @@ end
 
 return
 {
-    createSetUpPluginMethod     = createSetUpPluginMethod,
-    tearDownPlugin              = tearDownPlugin,
-    parseDanmakuData            = parseDanmakuData,
-    runTestCases                = runTestCases,
+    createSetUpPluginMethod         = createSetUpPluginMethod,
+    tearDownPlugin                  = tearDownPlugin,
+    parseDanmakuData                = parseDanmakuData,
+    runTestCases                    = runTestCases,
 }

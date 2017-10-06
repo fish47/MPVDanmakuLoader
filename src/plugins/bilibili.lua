@@ -6,49 +6,47 @@ local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 
 
-local _BILI_PLUGIN_NAME         = "BiliBili"
+local _PLUGIN_NAME          = "BiliBili"
 
-local _BILI_PATTERN_DANMAKU     = '<d%s+p="'
-                                  .. "([%d%.]+),"       -- 起始时间
-                                  .. "(%d+),"           -- 移动类型
-                                  .. "(%d+),"           -- 字体大小
-                                  .. "(%d+),"           -- 字体颜色
-                                  .. "[^>]+,"
-                                  .. "[^>]+,"           -- 据说是 弹幕池 ID ，但一般都是 0
-                                  .. "[^>]+,"
-                                  .. "(%d+)"            -- 弹幕 ID
-                                  .. '">([^<]+)</d>'
+local _PATTERN_DANMAKU      = '<d%s+p="'
+                                .. "([%d%.]+),"       -- 起始时间
+                                .. "(%d+),"           -- 移动类型
+                                .. "(%d+),"           -- 字体大小
+                                .. "(%d+),"           -- 字体颜色
+                                .. "[^>]+,"
+                                .. "[^>]+,"           -- 据说是 弹幕池 ID ，但一般都是 0
+                                .. "[^>]+,"
+                                .. "(%d+)"            -- 弹幕 ID
+                                .. '">([^<]+)</d>'
 
-local _BILI_PATTERN_DURATION    = "<duration>(%d+):?(%d+)</duration>"
-local _BILI_PATTERN_TITLE_1P    = "<title>(.-)</title>"
-local _BILI_PATTERN_TITLE_NP    = "<option value=.->%d+、(.-)</option>"
-local _BILI_PATTERN_CID_1       = "EmbedPlayer%(.-cid=(%d+).-%)"
-local _BILI_PATTERN_CID_2       = '<iframe.-src=".-cid=(%d+).-"'
-local _BILI_PATTERN_SANITIZE    = "[\x00-\x08\x0b\x0c\x0e-\x1f]"
+local _PATTERN_TITLE_1P     = '<h1 title="(.-)">'
+local _PATTERN_TITLE_NP     = "<option value=.-cid='(%d+)'>%d+、(.-)</option>"
+local _PATTERN_CID_1P       = "EmbedPlayer%(.-cid=(%d+).-%)"
+local _PATTERN_SANITIZE     = "[\x00-\x08\x0b\x0c\x0e-\x1f]"
 
-local _BILI_FMT_URL_VIDEO_1P    = "http://www.bilibili.com/video/av%s/"
-local _BILI_FMT_URL_VIDEO_NP    = "http://www.bilibili.com/video/av%s/index_%d.html"
-local _BILI_FMT_URL_DAMAKU      = "http://comment.bilibili.com/%s.xml"
-local _BILI_FMT_URL_VIDEO_INFO  = "http://interface.bilibili.com/player?id=cid:%s"
+local _FMT_SEARCH_URL_VIDEO_1P      = "http://www.bilibili.com/video/av%s/"
+local _FMT_SEARCH_URL_VIDEO_NP      = "http://www.bilibili.com/video/av%s/index_%d.html"
+local _FMT_SEARCH_URL_DAMAKU        = "http://comment.bilibili.com/%s.xml"
+local _FMT_SEARCH_URL_BANGUMI_INFO  = "http://bangumi.bilibili.com/web_api/episode/%s.json"
+local _FMT_SEARCH_TITLE_CID         = "cid-%s"
 
+local _PATTERN_SEARCH_1P        = ".-www%.bilibili%.[^/]+/video/av(%d+)"
+local _PATTERN_SEARCH_NP_1      = ".-www%.bilibili%.[^/]+/video/av(%d+)/index_(%d+)"
+local _PATTERN_SEARCH_NP_2      = ".-www%.bilibili%.[^/]+/video/av(%d+)/.-#page=(%d+)"
+local _PATTERN_SEARCH_BANGUMI   = ".-bangumi.bilibili.[^/]+/anime/%d+/play#(%d+)"
+local _PATTERN_SEARCH_AVID      = "bili:av(%d+)"
+local _PATTERN_SEARCH_CID       = "bili:cid(%d+)"
 
-local _BILI_PATTERN_SEARCH_URL_1P   = "www%.bilibili%.[^/]+/video/av(%d+)"
-local _BILI_PATTERN_SEARCH_URL_NP   = "www%.bilibili%.[^/]+/video/av(%d+)/index_(%d*).html"
-local _BILI_PATTERN_SEARCH_AVID     = "bili:av(%d+)"
-local _BILI_PATTERN_SEARCH_CID      = "bili:cid(%d+)"
+local _CONST_STR_NEWLINE            = "/n"
+local _CONST_JSON_BANGUMI_CID       = "longTitle"
+local _CONST_JSON_BANGUMI_TITLE     = "danmaku"
 
-local _BILI_FMT_SEARCH_CID_TITLE    = "cid%s"
-
-local _BILI_CONST_NEWLINE           = "/n"
-
-local _BILI_FACTOR_TIME_STAMP       = 1000
-local _BILI_FACTOR_FONT_SIZE        = 25
-
-local _BILI_DEFAULT_DURATION        = 0
-local _BILI_DEFAULT_VIDEO_INDEX     = 1
+local _CONST_VIDEO_INDEX_DEFAULT    = 1
+local _CONST_FACTOR_TIME_STAMP      = 1000
+local _CONST_FACTOR_FONT_SIZE       = 25
 
 -- 暂时不处理神弹幕
-local _BILI_POS_TO_LAYER_MAP =
+local _POS_TO_LAYER_MAP =
 {
     [6] = danmakupool.LAYER_MOVING_L2R,
     [1] = danmakupool.LAYER_MOVING_R2L,
@@ -58,164 +56,168 @@ local _BILI_POS_TO_LAYER_MAP =
 
 
 local function __sanitizeString(str)
-    return str:gsub(_BILI_PATTERN_SANITIZE, constants.STR_EMPTY)
+    local ret = str:gsub(_PATTERN_SANITIZE, constants.STR_EMPTY)
+    return ret
 end
 
 
-local BiliBiliDanmakuSourcePlugin = {}
+local BiliBiliPlugin = {}
 
-function BiliBiliDanmakuSourcePlugin:getName()
-    return _BILI_PLUGIN_NAME
+function BiliBiliPlugin:getName()
+    return _PLUGIN_NAME
 end
 
-function BiliBiliDanmakuSourcePlugin:_startExtractDanmakus(rawData)
-    return rawData:gmatch(_BILI_PATTERN_DANMAKU)
+function BiliBiliPlugin:_startExtractDanmakus(rawData)
+    return rawData:gmatch(_PATTERN_DANMAKU)
 end
 
-function BiliBiliDanmakuSourcePlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
+function BiliBiliPlugin:_extractDanmaku(iterFunc, cfg, danmakuData)
     local startTime, layer, fontSize, fontColor, danmakuID, text = iterFunc()
     if not startTime
     then
         return
     end
 
-    local size = tonumber(fontSize) / _BILI_FACTOR_FONT_SIZE * cfg.danmakuFontSize
+    local size = tonumber(fontSize) / _CONST_FACTOR_FONT_SIZE * cfg.danmakuFontSize
     local text = utils.unescapeXMLString(__sanitizeString(text))
-    text = text:gsub(_BILI_CONST_NEWLINE, constants.STR_NEWLINE)
+    text = text:gsub(_CONST_STR_NEWLINE, constants.STR_NEWLINE)
     danmakuData.fontSize = math.floor(size)
     danmakuData.fontColor = tonumber(fontColor)
-    danmakuData.startTime = tonumber(startTime) * _BILI_FACTOR_TIME_STAMP
+    danmakuData.startTime = tonumber(startTime) * _CONST_FACTOR_TIME_STAMP
     danmakuData.danmakuID = tonumber(danmakuID)
     danmakuData.danmakuText = text
-    return _BILI_POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
+    return _POS_TO_LAYER_MAP[tonumber(layer)] or danmakupool.LAYER_SKIPPED
+end
+
+local function __getVideoIDAndIndex(keyword)
+    local function __match(input, pattern, ...)
+        if pattern
+        then
+            local id, idx = input:match(pattern)
+            if id
+            then
+                return id, idx
+            else
+                return __match(input, ...)
+            end
+        end
+    end
+
+    local id, idx = __match(keyword, _PATTERN_SEARCH_NP_1, _PATTERN_SEARCH_NP_2)
+    id = id or keyword:match(_PATTERN_SEARCH_1P)
+    id = id or keyword:match(_PATTERN_SEARCH_AVID)
+    idx = idx and types.toInt(idx) or _CONST_VIDEO_INDEX_DEFAULT
+    return id, idx
+end
+
+local function __addTitleAndCID(result, title, cid)
+    table.insert(result.videoIDs, cid)
+    table.insert(result.videoTitles, __sanitizeString(title))
 end
 
 
-function BiliBiliDanmakuSourcePlugin:search(keyword, result, fast)
-    local function __getVideoIDAndIndex(keyword)
-        local id, idx = keyword:match(_BILI_PATTERN_SEARCH_URL_NP)
-        id = id or keyword:match(_BILI_PATTERN_SEARCH_URL_1P)
-        id = id or keyword:match(_BILI_PATTERN_SEARCH_AVID)
-        idx = idx and tonumber(idx) or _BILI_DEFAULT_VIDEO_INDEX
-        return id, idx
+function BiliBiliPlugin:_searchCID(result, cid)
+    local title = string.format(_FMT_SEARCH_TITLE_CID, cid)
+    __addTitleAndCID(result, title, cid)
+    return _CONST_VIDEO_INDEX_DEFAULT
+end
+
+function BiliBiliPlugin:_getVideoPageURL(avID, idx)
+    return (idx ~= _CONST_VIDEO_INDEX_DEFAULT)
+        and string.format(_FMT_SEARCH_URL_VIDEO_1P, avID)
+        or string.format(_FMT_SEARCH_URL_VIDEO_NP, avID, idx)
+end
+
+function BiliBiliPlugin:_searchAV(result, avID, idx)
+    local url = self:_getVideoPageURL(avID, idx)
+    local data = self:_startRequestUncompressedData():receive(url)
+    if not data
+    then
+        return
     end
 
-    local function __parseCID(data, outCIDs)
-        local cid = data:match(_BILI_PATTERN_CID_1)
-        cid = cid or data:match(_BILI_PATTERN_CID_2)
-        utils.pushArrayElement(outCIDs, cid)
+    -- 可能是 np 视频
+    local partCount = 0
+    for cid, partName in data:gmatch(_PATTERN_TITLE_NP)
+    do
+        local title = utils.unescapeXMLString(partName)
+        partCount = partCount + 1
+        __addTitleAndCID(result, title, cid)
     end
 
-    local cid = keyword:match(_BILI_PATTERN_SEARCH_CID)
+    -- 可能是 1p 视频
+    if partCount == 0
+    then
+        local _, __, title = data:find(_PATTERN_TITLE_1P)
+        local _, __, cid = data:find(_PATTERN_CID_1P)
+        if title and cid
+        then
+            partCount = 1
+            __addTitleAndCID(result, title, cid)
+        end
+    end
+
+    if partCount > 0
+    then
+        return idx
+    end
+end
+
+function BiliBiliPlugin:_getBangumiInfoURL(bangumiID)
+    return string.format(_FMT_SEARCH_URL_BANGUMI_INFO, bangumiID)
+end
+
+function BiliBiliPlugin:_searchBangumi(result, bangumiID)
+    local url = self:_getBangumiInfoURL(bangumiID)
+    local data = self:_startRequestUncompressedData():receive(url)
+    if not data
+    then
+        return
+    end
+
+    local cid = utils.findJSONKeyValue(data, _CONST_JSON_BANGUMI_TITLE)
+    local title = utils.findJSONKeyValue(data, _CONST_JSON_BANGUMI_CID)
+    if cid and title
+    then
+        __addTitleAndCID(result, title, cid)
+        return _CONST_VIDEO_INDEX_DEFAULT
+    end
+end
+
+
+function BiliBiliPlugin:search(keyword, result)
+    -- 直接用 cid 搜索，暂时不支持反查视频标题
+    local cid = keyword:match(_PATTERN_SEARCH_CID)
     if cid
     then
-        result.isSplited = false
-        result.preferredIndex = _BILI_DEFAULT_VIDEO_INDEX
-        table.insert(result.videoIDs, cid)
-        table.insert(result.videoTitles, string.format(_BILI_FMT_SEARCH_CID_TITLE, cid))
-    else
-        local avID, index = __getVideoIDAndIndex(keyword)
-        if not avID
-        then
-            return false
-        end
-        result.preferredIndex = index
-
-        -- 如果是快速搜索，优先解释当前分集的数据
-        local firstParseIndex = types.chooseValue(fast, index, _BILI_DEFAULT_VIDEO_INDEX)
-        local conn = self:_startRequestCompressedXML()
-        local data = (firstParseIndex == _BILI_DEFAULT_VIDEO_INDEX)
-            and conn:receive(string.format(_BILI_FMT_URL_VIDEO_1P, avID))
-            or conn:receive(string.format(_BILI_FMT_URL_VIDEO_NP, avID, firstParseIndex))
-        if not data
-        then
-            return false
-        end
-
-        -- 分P视频
-        --TODO <option cid
-        local partIdx = 1
-        for partName in data:gmatch(_BILI_PATTERN_TITLE_NP)
-        do
-            if partIdx == index or not fast
-            then
-                partName = __sanitizeString(partName)
-                partName = utils.unescapeXMLString(partName)
-                if partIdx == firstParseIndex
-                then
-                    __parseCID(data, result.videoIDs)
-                else
-                    local url = string.format(_BILI_FMT_URL_VIDEO_NP, avID, partIdx)
-                    conn:receiveLater(url, __parseCID, result.videoIDs)
-                end
-                table.insert(result.videoTitles, partName)
-            end
-            partIdx = partIdx + 1
-        end
-        conn:flushReceiveQueue()
-
-
-        if partIdx > 1
-        then
-            -- 多P视频
-            -- 如果是快速搜索，只会解释出一个结果
-            result.isSplited = true
-            if fast
-            then
-                result.preferredIndex = 1
-            end
-        else
-            -- 单P视频
-            local title = data:match(_BILI_PATTERN_TITLE_1P)
-            if not title
-            then
-                return false
-            end
-
-            title = __sanitizeString(title)
-            title = utils.unescapeXMLString(title)
-            table.insert(result.videoTitles, title)
-            __parseCID(data, result.videoIDs)
-        end
+        return self:_searchCID(cid)
     end
 
-    result.videoTitleColumnCount = 1
-    return #result.videoIDs > 0 and #result.videoIDs == #result.videoTitles
-end
-
-function BiliBiliDanmakuSourcePlugin:_doDownloadDanmakuRawData(videoID)
-    local url = string.format(_BILI_FMT_URL_DAMAKU, videoID)
-    return self:_startRequestCompressedXML(), url
-end
-
-function BiliBiliDanmakuSourcePlugin:_doGetVideoDuration(videoID, outDurations)
-    local function __parseDuration(rawData, outDurations)
-        local duration = _BILI_DEFAULT_DURATION
-        if types.isString(rawData)
-        then
-            -- 时频长度一般以 "MM:SS" 表示
-            -- 例如少于 1 分钟的视频，会不会用 "SS" 格式？
-            local piece1, piece2 = rawData:match(_BILI_PATTERN_DURATION)
-            if piece1 or piece2
-            then
-                local minutes = (piece1 and piece2) and piece1 or 0
-                local seconds = piece2 or piece1
-                minutes = tonumber(minutes)
-                seconds = tonumber(seconds)
-                duration = utils.convertHHMMSSToTime(0, minutes, seconds, 0)
-            end
-        end
-        table.insert(outDurations, duration)
+    -- 用 av 号搜索，如果是 np 视频后面还有 index_*.html
+    local avID, idx = __getVideoIDAndIndex(keyword)
+    if avID
+    then
+        return self:_searchAV(result, avID, idx)
     end
 
-    local url = string.format(_BILI_FMT_URL_VIDEO_INFO, videoID)
-    return self:_startRequestCompressedXML(), url, __parseDuration
+    -- 番号搜索
+    local bangumiID = keyword:match(_PATTERN_SEARCH_BANGUMI)
+    if bangumiID
+    then
+        return self:_searchBangumi(result, bangumiID)
+    end
 end
 
-classlite.declareClass(BiliBiliDanmakuSourcePlugin, pluginbase._PatternBasedDanmakuSourcePlugin)
+
+function BiliBiliPlugin:_prepareToDownloadDanmaku(conn, videoID)
+    self:_startRequestUncompressedXML(conn)
+    return string.format(_FMT_SEARCH_URL_DAMAKU, videoID)
+end
+
+classlite.declareClass(BiliBiliPlugin, pluginbase._AbstractDanmakuSourcePlugin)
 
 
 return
 {
-    BiliBiliDanmakuSourcePlugin     = BiliBiliDanmakuSourcePlugin,
+    BiliBiliPlugin      = BiliBiliPlugin,
 }

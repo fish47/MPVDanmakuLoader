@@ -8,118 +8,35 @@ local pluginbase    = require("src/plugins/pluginbase")
 local logic         = require("src/shell/logic")
 
 
-local MockRemoteDanmakuSourcePlugin =
-{
-    _mName                  = classlite.declareConstantField(nil),
-    _mVideoIDsMap           = classlite.declareTableField(),
-    _mIsSplitedFlags        = classlite.declareTableField(),
-    _mVideoDurations        = classlite.declareTableField(),
-    _mVideoTitles           = classlite.declareTableField(),
-    _mVideoTitleColCounts   = classlite.declareTableField(),
-    _mPreferredIndexes      = classlite.declareTableField(),
-    __mVideoIDCount         = classlite.declareConstantField(0),
-}
-
-function MockRemoteDanmakuSourcePlugin:new(name)
-    self._mName = name
-end
-
-function MockRemoteDanmakuSourcePlugin:getName()
-    return self._mName
-end
-
-function MockRemoteDanmakuSourcePlugin:dispose()
-    utils.forEachTableValue(self._mVideoIDsMap, utils.clearTable)
-    utils.forEachTableValue(self._mVideoDurations, utils.clearTable)
-    utils.forEachTableValue(self._mVideoTitles, utils.clearTable)
-end
-
-function MockRemoteDanmakuSourcePlugin:addSearchResult(keyword, titles, isSplited, colCount)
-    local app = self._mApplication
-    local videoIDsMap = self._mVideoIDsMap
-    colCount = colCount or 1
-    if not videoIDsMap[keyword]
-    then
-        local pluginName = self:getName()
-        local videoIDs = {}
-        local videoIDStart = self.__mVideoIDCount
-        local videoIDCount = math.floor(#titles / colCount)
-        for i = 1, videoIDCount
-        do
-            local videoIDNum = i + videoIDStart
-            local videoID = string.format("%s_%d", pluginName, videoIDNum)
-            table.insert(videoIDs, videoID)
-            self._mVideoDurations[videoID] = math.random(1000)
-        end
-
-        videoIDsMap[keyword] = videoIDs
-        self.__mVideoIDCount = videoIDStart + videoIDCount
-        self._mVideoTitleColCounts[keyword] = colCount
-        self._mIsSplitedFlags[keyword] = types.toBoolean(isSplited)
-        self._mVideoTitles[keyword] = utils.appendArrayElements({}, titles)
-        self._mPreferredIndexes[keyword] = math.random(videoIDCount)
-    end
-end
-
-function MockRemoteDanmakuSourcePlugin:search(keyword, result)
-    local videoIDs = self._mVideoIDsMap[keyword]
-    if videoIDs
-    then
-        result.isSplited = self._mIsSplitedFlags[keyword]
-        result.preferredIndex = self._mPreferredIndexes[keyword]
-        result.videoTitleColumnCount = self._mVideoTitleColCounts[keyword]
-        utils.appendArrayElements(result.videoIDs, videoIDs)
-        utils.appendArrayElements(result.videoTitles, self._mVideoTitles[keyword])
-        return true
-    end
-end
-
-function MockRemoteDanmakuSourcePlugin:downloadDanmakuRawDataList(videoIDs, outList)
-    utils.appendArrayElements(outList, videoIDs)
-    return true
-end
-
-function MockRemoteDanmakuSourcePlugin:getVideoDurations(videoIDs, outDurations)
-    for _, videoID in utils.iterateArray(videoIDs)
-    do
-        table.insert(outDurations, self._mVideoDurations[videoID])
-    end
-    return true
-end
-
-classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
-
-
 local MockShell =
 {
-    _mApplication           = classlite.declareClassField(mock.DemoApplication),
     _mDanmakuSourceManager  = classlite.declareClassField(mock.MockDanmakuSourceManager),
 }
 
-
-function MockShell:new()
-    logic.MPVDanmakuLoaderShell.new(self)
-
-    local app = self._mApplication
-    app:setLogFunction(print)
-    self:setApplication(app)
-
-    local plugin1 = MockRemoteDanmakuSourcePlugin:new("Plugin1")
-    local plugin2 = MockRemoteDanmakuSourcePlugin:new("Plugin2")
-    app:_addDanmakuSourcePlugin(plugin1)
-    app:_addDanmakuSourcePlugin(plugin2)
-
-    local orgInitFunc = app.init
-    app.init = function(self, ...)
-        orgInitFunc(self, ...)
-        plugin1:addSearchResult("a", { "Title1", "Title2", "Title3", "Title4" }, true)
-        plugin1:addSearchResult("b",
-                                { "Title1", "Subtitle1", "Title2", "Subtitle2" },
-                                false,
-                                2)
-
-        plugin2:addSearchResult("c", { "Title1", "Title2" })
+function MockShell:setApplication(app)
+    local function _ensurePlugin(app, name, func)
+        if not app:getPluginByName(name)
+        then
+            local plugin = mock.MockRemoteDanmakuSourcePlugin:new(name)
+            func(plugin)
+            app:_addDanmakuSourcePlugin(plugin)
+        end
     end
+
+    local function __initPlugin1(plugin)
+        plugin:addSearchResult("a", { "Title1", "Title2", "Title3", "Title4" })
+        plugin:addSearchResult("b",
+                               { "Title1", "Subtitle1", "Title2", "Subtitle2" },
+                               2)
+    end
+
+    local function __initPlugin2(plugin)
+        plugin:addSearchResult("c", { "Title1", "Title2" })
+    end
+
+    logic.MPVDanmakuLoaderShell.setApplication(self, app)
+    _ensurePlugin(app, "Plugin1", __initPlugin1)
+    _ensurePlugin(app, "Plugin2", __initPlugin2)
 end
 
 
@@ -144,9 +61,11 @@ classlite.declareClass(MockShell, logic.MPVDanmakuLoaderShell)
 
 
 local shell = MockShell:new()
-local app = shell._mApplication
+local app = mock.DemoApplication:new()
 app:setLogFunction(print)
 app:init()
 app:updateConfiguration()
+shell:setApplication(app)
 shell:showMainWindow()
+shell:dispose()
 app:dispose()

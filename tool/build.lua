@@ -202,10 +202,11 @@ local function main()
 
     local destFile = io.stdout
     destFile:write(_STR_MERGE_FILES_START)
-    -- __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PRIVATE)
-    -- __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PUBLIC)
-    -- __writeFiles(destFile, _writeMain, _filelist.FILE_LIST_SRC_MAIN)
+    __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PRIVATE)
+    __writeFiles(destFile, __writeModuleFile, _filelist.FILE_LIST_SRC_PUBLIC)
     __writeTemplates(destFile, _filelist.FILE_LIST_TEMPLATE)
+    destFile:write(_STR_MERGE_FILES_END)
+    __writeFiles(destFile, _writeMain, _filelist.FILE_LIST_SRC_MAIN)
     destFile:close()
 end
 

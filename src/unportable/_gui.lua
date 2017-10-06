@@ -104,6 +104,52 @@ local QuestionProperties =
 classlite.declareClass(QuestionProperties, _WidgetPropertiesBase)
 
 
+local _GUIBuilderBase =
+{
+    _mApplication   = classlite.declareConstantField(nil),
+
+    showTextInfo        = constants.FUNC_EMPTY,
+    showEntry           = constants.FUNC_EMPTY,
+    showListBox         = constants.FUNC_EMPTY,
+    showFileSelection   = constants.FUNC_EMPTY,
+    showQuestion        = constants.FUNC_EMPTY,
+    showProgressBar     = constants.FUNC_EMPTY,
+    advanceProgressBar  = constants.FUNC_EMPTY,
+    finishProgressBar   = constants.FUNC_EMPTY,
+}
+
+function _GUIBuilderBase:setApplication(app)
+    self._mApplication = app
+end
+
+classlite.declareClass(_GUIBuilderBase)
+
+
+local OVERLAY_DURATION_MESSAGE  = 3
+local OVERLAY_FMT_MESSAGE       = "[%0d%%] %s"
+
+local OverlayGUIBuilder = {}
+
+function OverlayGUIBuilder:__updateOSDMessage(text)
+    self._mApplication:setOSDMessage(text, OVERLAY_MESSAGE_DURATION_SECONDS)
+end
+
+function OverlayGUIBuilder:showProgressBar(prop)
+    -- ignored
+end
+
+function OverlayGUIBuilder:advanceProgressBar(handler, percentage, message)
+    local text = string.format(OVERLAY_FMT_MESSAGE, percentage, message)
+    self:__updateOSDMessage(text)
+end
+
+function OverlayGUIBuilder:finishProgressBar(handler)
+    self:__updateOSDMessage(constants.STR_EMPTY)
+end
+
+classlite.declareClass(OverlayGUIBuilder, _GUIBuilderBase)
+
+
 local _ZENITY_RESULT_RSTRIP_COUNT       = 2
 local _ZENITY_DEFAULT_OUTPUT            = constants.STR_EMPTY
 local _ZENITY_SEP_LISTBOX_INDEX         = "|"
@@ -112,13 +158,8 @@ local _ZENITY_PATTERN_SPLIT_INDEXES     = "(%d+)"
 
 local ZenityGUIBuilder =
 {
-    _mApplication   = classlite.declareConstantField(nil),
     __mArguments    = classlite.declareTableField(),
 }
-
-function ZenityGUIBuilder:setApplication(app)
-    self._mApplication = app
-end
 
 function ZenityGUIBuilder:__prepareZenityCommand(props)
     local app = self._mApplication
@@ -282,18 +323,6 @@ function ZenityGUIBuilder:showFileSelection(props, outPaths)
 end
 
 
-function ZenityGUIBuilder:showProgressBar(props)
-    --TODO
-end
-
-function ZenityGUIBuilder:advanceProgressBar(handler, percentage, message)
-    --TODO
-end
-
-function ZenityGUIBuilder:finishProgressBar(handler)
-    --TODO
-end
-
 function ZenityGUIBuilder:showQuestion(props)
     local arguments = self:__prepareZenityCommand(props)
     _addOption(arguments, "--question")
@@ -303,7 +332,7 @@ function ZenityGUIBuilder:showQuestion(props)
     return self:__getZenityCommandResult(arguments)
 end
 
-classlite.declareClass(ZenityGUIBuilder)
+classlite.declareClass(ZenityGUIBuilder, _GUIBuilderBase)
 
 
 return

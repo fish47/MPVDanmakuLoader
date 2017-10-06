@@ -520,11 +520,78 @@ end
 
 classlite.declareClass(DemoApplication, MockApplication)
 
+
+local MockRemoteDanmakuSourcePlugin =
+{
+    _mName                  = classlite.declareConstantField(nil),
+    _mVideoIDsMap           = classlite.declareTableField(),
+    _mVideoTitles           = classlite.declareTableField(),
+    _mVideoTitleColCounts   = classlite.declareTableField(),
+    __mVideoIDCount         = classlite.declareConstantField(0),
+}
+
+function MockRemoteDanmakuSourcePlugin:new(name)
+    self._mName = name
+end
+
+function MockRemoteDanmakuSourcePlugin:getName()
+    return self._mName
+end
+
+function MockRemoteDanmakuSourcePlugin:dispose()
+    utils.forEachTableValue(self._mVideoIDsMap, utils.clearTable)
+    utils.forEachTableValue(self._mVideoTitles, utils.clearTable)
+end
+
+function MockRemoteDanmakuSourcePlugin:addSearchResult(keyword, titles, colCount)
+    local app = self._mApplication
+    local videoIDsMap = self._mVideoIDsMap
+    colCount = colCount or 1
+    if not videoIDsMap[keyword]
+    then
+        local pluginName = self:getName()
+        local videoIDs = {}
+        local videoIDStart = self.__mVideoIDCount
+        local videoIDCount = math.floor(#titles / colCount)
+        for i = 1, videoIDCount
+        do
+            local videoIDNum = i + videoIDStart
+            local videoID = string.format("%s_%d", pluginName, videoIDNum)
+            table.insert(videoIDs, videoID)
+        end
+
+        videoIDsMap[keyword] = videoIDs
+        self.__mVideoIDCount = videoIDStart + videoIDCount
+        self._mVideoTitleColCounts[keyword] = colCount
+        self._mVideoTitles[keyword] = utils.appendArrayElements({}, titles)
+    end
+end
+
+function MockRemoteDanmakuSourcePlugin:search(keyword, result)
+    local videoIDs = self._mVideoIDsMap[keyword]
+    if videoIDs
+    then
+        result.videoTitleColumnCount = self._mVideoTitleColCounts[keyword]
+        utils.appendArrayElements(result.videoIDs, videoIDs)
+        utils.appendArrayElements(result.videoTitles, self._mVideoTitles[keyword])
+        return true
+    end
+end
+
+function MockRemoteDanmakuSourcePlugin:downloadDanmakus(videoIDs, outList)
+    utils.appendArrayElements(outList, videoIDs)
+    return true
+end
+
+classlite.declareClass(MockRemoteDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
+
+
 return
 {
-    MockFileSystem              = MockFileSystem,
-    MockNetworkConnection       = MockNetworkConnection,
-    MockApplication             = MockApplication,
-    MockDanmakuSourceManager    = MockDanmakuSourceManager,
-    DemoApplication             = DemoApplication,
+    MockFileSystem                  = MockFileSystem,
+    MockNetworkConnection           = MockNetworkConnection,
+    MockApplication                 = MockApplication,
+    MockDanmakuSourceManager        = MockDanmakuSourceManager,
+    DemoApplication                 = DemoApplication,
+    MockRemoteDanmakuSourcePlugin   = MockRemoteDanmakuSourcePlugin,
 }

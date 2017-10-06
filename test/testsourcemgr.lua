@@ -27,7 +27,7 @@ function MockPlugin:getName()
     return self._mName
 end
 
-function MockPlugin:downloadDanmakuRawDataList(ids, outList)
+function MockPlugin:downloadDanmakus(ids, outList)
     utils.appendArrayElements(outList, ids)
     return true
 end
@@ -231,13 +231,13 @@ function TestDanmakuSourceManager:testUpdateSource()
         lu.assertNotNil(source)
 
         -- 因为某些文件下载不来，应该是更新失败的
-        local orgDownloadFunc = plugin.downloadDanmakuRawDataList
-        plugin.downloadDanmakuRawDataList = constants.FUNC_EMPTY
+        local orgDownloadFunc = plugin.downloadDanmakus
+        plugin.downloadDanmakus = constants.FUNC_EMPTY
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 1)
 
         -- 更改回来应该可以更新成功了
-        plugin.downloadDanmakuRawDataList = orgDownloadFunc
+        plugin.downloadDanmakus = orgDownloadFunc
         manager:updateDanmakuSources(sources, sources)
         lu.assertEquals(#sources, 2)
 

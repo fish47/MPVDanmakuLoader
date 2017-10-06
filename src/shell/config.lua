@@ -40,11 +40,12 @@ local _CONFIGURATION_DEFINATIONS =
     "rawDataDirName",               { _VALIDATOR_STRING_NON_EMPTY,  "rawdata" },
     "metaDataFileName",             { _VALIDATOR_STRING_NON_EMPTY,  "sourcemeta.lua" },
 
+    "loadDanmakuOnURLPlayed",       { _VALIDATOR_BOOL,              true },
     "enableDebugLog",               { _VALIDATOR_BOOL,              false },
-    "pauseOnPopWindow",             { _VALIDATOR_BOOL,              false },
+    "pauseOnWindowShown",           { _VALIDATOR_BOOL,              false },
     "saveGeneratedASS",             { _VALIDATOR_BOOL,              false },
     "networkTimeout",               { _VALIDATOR_INT_GE_ONE,        5 },
-    "promptOnReplaceMainSubtitle",  { _VALIDATOR_BOOL,              true }
+    "promptOnReplacingSubtitle",    { _VALIDATOR_BOOL,              true }
 }
 
 local _CONFIGURATION_HOOK_FUNCTION_NAMES =

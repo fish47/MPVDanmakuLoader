@@ -7,7 +7,6 @@ local unportable    = require("src/base/unportable")
 local danmakupool   = require("src/core/danmakupool")
 local pluginbase    = require("src/plugins/pluginbase")
 local srt           = require("src/plugins/srt")
-local acfun         = require("src/plugins/acfun")
 local bilibili      = require("src/plugins/bilibili")
 local dandanplay    = require("src/plugins/dandanplay")
 local config        = require("src/shell/config")
@@ -254,7 +253,7 @@ function MPVDanmakuLoaderApp:updateConfiguration()
     end
     pools:setCompareSourceIDHook(cfg.modifySourceIDHook)
     self._mNetworkConnection:setTimeout(cfg.networkTimeout)
-    self:setLogFunction(cfg.enableDebugLog and print)
+    self:setLogFunction(types.chooseValue(cfg.enableDebugLog, print, nil))
 end
 
 function MPVDanmakuLoaderApp:getPluginByName(name)
@@ -278,10 +277,9 @@ end
 
 function MPVDanmakuLoaderApp:_initDanmakuSourcePlugins()
     local plugins = utils.clearTable(self._mDanmakuSourcePlugins)
-    self:_addDanmakuSourcePlugin(srt.SRTDanmakuSourcePlugin:new())
-    self:_addDanmakuSourcePlugin(acfun.AcfunDanmakuSourcePlugin:new())
-    self:_addDanmakuSourcePlugin(bilibili.BiliBiliDanmakuSourcePlugin:new())
-    self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayDanmakuSourcePlugin:new())
+    self:_addDanmakuSourcePlugin(srt.SRTPlugin:new())
+    self:_addDanmakuSourcePlugin(bilibili.BiliBiliPlugin:new())
+    self:_addDanmakuSourcePlugin(dandanplay.DanDanPlayPlugin:new())
 end
 
 function MPVDanmakuLoaderApp:iterateDanmakuSourcePlugins()
@@ -368,6 +366,13 @@ end
 function MPVDanmakuLoaderApp:getMainSubtitleID()
     local sid = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
     return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
+end
+
+function MPVDanmakuLoaderApp:setOSDMessage(msg, seconds)
+    if types.isString(msg)
+    then
+        mp.osd_message(msg, seconds)
+    end
 end
 
 function MPVDanmakuLoaderApp:isVideoPaused()

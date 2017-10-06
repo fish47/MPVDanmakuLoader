@@ -130,16 +130,16 @@ local function _parseSRTFile(cfg, pool, file, srcID, offset, danmakuData)
 end
 
 
-local SRTDanmakuSourcePlugin =
+local SRTPlugin =
 {
     _mDanmakuData   = classlite.declareClassField(danmaku.DanmakuData),
 }
 
-function SRTDanmakuSourcePlugin:getName()
+function SRTPlugin:getName()
     return _SRT_PLUGIN_NAME
 end
 
-function SRTDanmakuSourcePlugin:parseFile(filePath, sourceID, timeOffset)
+function SRTPlugin:parseFile(filePath, sourceID, timeOffset)
     local app = self._mApplication
     local file = app:readUTF8File(filePath)
     if types.isOpenedFile(file)
@@ -153,11 +153,11 @@ function SRTDanmakuSourcePlugin:parseFile(filePath, sourceID, timeOffset)
     end
 end
 
-classlite.declareClass(SRTDanmakuSourcePlugin, pluginbase.IDanmakuSourcePlugin)
+classlite.declareClass(SRTPlugin, pluginbase.IDanmakuSourcePlugin)
 
 
 return
 {
     _parseSRTFile           = _parseSRTFile,
-    SRTDanmakuSourcePlugin  = SRTDanmakuSourcePlugin,
+    SRTPlugin  = SRTPlugin,
 }

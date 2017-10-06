@@ -6,7 +6,7 @@ local bilibili      = require("src/plugins/bilibili")
 
 TestParseBiliBili =
 {
-    setUp       = testutils.createSetUpPluginMethod(bilibili.BiliBiliDanmakuSourcePlugin),
+    setUp       = testutils.createSetUpPluginMethod(bilibili.BiliBiliPlugin),
     tearDown    = testutils.tearDownPlugin,
 }
 
@@ -42,5 +42,80 @@ function TestParseBiliBili:testParse()
     lu.assertEquals(danmakuData.fontColor, 15772458)
 end
 
+function TestParseBiliBili:testSearch1P()
+end
+
+function TestParseBiliBili:testSearchNP()
+    local avID = "123"
+    local result = self._mSearchResult
+    local plugin = self._mPlugin
+    local conn = self._mApplication:getNetworkConnection()
+end
+
+function TestParseBiliBili:testSearch()
+    -- Bangumi
+    local bangumiID = "123"
+    local result = self._mSearchResult
+    local plugin = self._mPlugin
+    local conn = self._mApplication:getNetworkConnection()
+    conn:setResponse(plugin:_getBangumiInfoURL(bangumiID), [[
+{
+    // http://bangumi.bilibili.com/web_api/episode/65171.json
+    ...
+    "danmaku" : "16635884",
+    "longTitle" : "真天使小凌濑不可能降临于一个人住的我家",
+    ...
+}
+    ]])
+    local ret = plugin:_searchBangumi(result, bangumiID)
+    lu.assertEquals(ret, 1)
+    lu.assertEquals(result.videoIDs, { "16635884" })
+    lu.assertEquals(result.videoTitles, { "真天使小凌濑不可能降临于一个人住的我家" })
+
+
+    -- NP
+    for i = 1, 5
+    do
+        local avID = "1234"
+        conn:setResponse(plugin:_getVideoPageURL(avID, idx), [[
+// http://www.bilibili.com/video/av3270297
+...
+<option value='/video/av3270297/index_1.html' cid='5162446'>1、P1</option>
+<option value='/video/av3270297/index_2.html' cid='5162447'>2、P2</option>
+<option value='/video/av3270297/index_3.html' cid='5162448'>3、P3</option>
+<option value='/video/av3270297/index_4.html' cid='5162449'>4、P4</option>
+<option value='/video/av3270297/index_5.html' cid='5162450'>5、P5</option>
+...
+        ]])
+        result:reset()
+        ret = plugin:_searchAV(result, avID, idx)
+        lu.assertEquals(ret, idx)
+        lu.assertEquals(result.videoTitles, { "P1", "P2", "P3", "P4", "P5" })
+        lu.assertEquals(result.videoIDs, {
+            "5162446",
+            "5162447",
+            "5162448",
+            "5162449",
+            "5162450",
+        })
+    end
+
+
+    -- 1P
+    local avID = "1234"
+    conn:setResponse(plugin:_getVideoPageURL(avID, 1), [[
+// https://www.bilibili.com/video/av2271112
+...
+<h1 title="【循环向】跟着雷总摇起来！Are you OK！">...</h1>
+...
+EmbedPlayer('player', "//static.hdslb.com/play.swf", "cid=3540266&aid=2271112&pre_ad=0")
+...
+    ]])
+    result:reset()
+    ret = plugin:_searchAV(result, avID, 1)
+    lu.assertEquals(ret, 1)
+    lu.assertEquals(result.videoIDs, { "3540266" })
+    lu.assertEquals(result.videoTitles, { "【循环向】跟着雷总摇起来！Are you OK！" })
+end
 
 testutils.runTestCases()

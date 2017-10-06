@@ -44,8 +44,8 @@ local function __returnBool(ret)
     return ret == _RET_CODE_SUCCEED
 end
 
-local function __returnValueIfSucceed(ret, str)
-    return types.chooseValue(ret == _RET_CODE_SUCCEED, str)
+local function __returnValueIfSucceed(ret, outValues)
+    return types.chooseValue(ret == _RET_CODE_SUCCEED, outValues[1])
 end
 
 
@@ -118,7 +118,9 @@ end
 
 function PyScriptExecutor:_getScriptContent()
     -- 下面内容会被构建脚本修改
-    return __SCRIPT_CONTENT__
+    return [===[
+__SCRIPT_CONTENT__
+]===]
 end
 
 function PyScriptExecutor:__prepareArguments()
@@ -137,9 +139,9 @@ function PyScriptExecutor:__prepareArguments()
 end
 
 function PyScriptExecutor:__execute(checkArgsFunc,
-                                           buildArgsFunc,
-                                           returnFunc,
-                                           ...)
+                                    buildArgsFunc,
+                                    returnFunc,
+                                    ...)
     local args, rets = self:__prepareArguments()
     if not args or not checkArgsFunc(...)
     then
@@ -196,7 +198,8 @@ function PyScriptExecutor:readUTF8File(path)
         _appendKeyValue(args, "tmp_path", tempPath)
     end
     local tempPath = self._mTempFilePath
-    return self:__execute(types.isNonEmptyString, _build, __returnValueIfSucceed,
+    return self:__execute(types.isNonEmptyString,
+                          _build, __returnValueIfSucceed,
                           path, tempPath)
 end
 

@@ -117,9 +117,10 @@ end
 
 local _JSON_PATTERN_ESCAPABLE_CHARS     = '\\([\\\"/bfnrt])'
 local _JSON_PATTERN_ESCAPABLE_UNICODE   = '\\u(%x%x%x%x)'
-local _JOSN_PATTERN_NONEMPTY_STRING     = '"(.-[^\\])"'
-local _JSON_CONST_STRING_START          = '\"'
-local _JSON_CONST_EMPTY_STRING          = '""'
+local _JSON_PATTERN_KEY_VALUE_SEP       = '%s*:%s*'
+local _JSON_PATTERN_QUOTE_OR_ESCAPE     = '[\\\"]'
+local _JSON_CONST_STRING_QUOTE          = '\"'
+local _JSON_CONST_STRING_ESCAPE         = "\\"
 local _JSON_UNICODE_NUMBER_BASE         = 16
 local _JSON_SPECIAL_CHAR_MAP            =
 {
@@ -156,26 +157,64 @@ local function unescapeJSONString(text)
 end
 
 
+local function __clampFindIndex(idx)
+    return types.chooseValue(types.isNumber(idx), idx, 1)
+end
+
 local function findJSONString(text, findStartIdx)
-    findStartIdx = types.isNumber(findStartIdx) and findStartIdx or 1
-    local pos = text:find(_JSON_CONST_STRING_START, findStartIdx, true)
-    if pos
+    findStartIdx = __clampFindIndex(findStartIdx)
+    local pos = text:find(_JSON_CONST_STRING_QUOTE, findStartIdx, true)
+    if not pos
     then
-        -- 特判空字符串，暂时找不到一个同时匹配空字符串正则表达式囧
-        local lastIdx = pos + #_JSON_CONST_EMPTY_STRING - 1
-        if text:sub(pos, lastIdx) == _JSON_CONST_EMPTY_STRING
+        return
+    end
+
+    local nextPos = pos
+    while true
+    do
+        nextPos = text:find(_JSON_PATTERN_QUOTE_OR_ESCAPE, nextPos + 1)
+        if not nextPos
         then
-            return constants.STR_EMPTY, lastIdx + 1
+            return
         end
 
-        local startIdx, endIdx, captured = text:find(_JOSN_PATTERN_NONEMPTY_STRING, pos)
-        if captured
+        local ch = text:sub(nextPos, nextPos)
+        if ch == _JSON_CONST_STRING_ESCAPE
         then
-            return unescapeJSONString(captured), endIdx + 1
+            -- 跳过转义字符
+            nextPos = nextPos + 1
+        else
+            local captured = text:sub(pos + 1, nextPos - 1)
+            return unescapeJSONString(captured), nextPos + 1
         end
     end
 end
 
+local function findJSONKeyValue(text, key, findStartIdx)
+    local findIdx = __clampFindIndex(findStartIdx)
+    while true
+    do
+        local pos = text:find(key, findIdx, true)
+        if not pos
+        then
+            return
+        end
+
+        local _, sepLastIdx = text:find(_JSON_PATTERN_KEY_VALUE_SEP, pos)
+        if not sepLastIdx or sepLastIdx + 1 >= #text
+        then
+            return
+        end
+
+        local nextIdx = sepLastIdx + 1
+        if text:sub(nextIdx, nextIdx) == _JSON_CONST_STRING_QUOTE
+        then
+            return findJSONString(text, nextIdx)
+        end
+
+        findIdx = nextIdx
+    end
+end
 
 
 local _URL_ESCAPED_CHAR_FORMAT      = "%%%02X"
@@ -196,6 +235,7 @@ return
     escapeURLString             = escapeURLString,
     unescapeJSONString          = unescapeJSONString,
     findJSONString              = findJSONString,
+    findJSONKeyValue            = findJSONKeyValue,
     convertTimeToHMS            = convertTimeToHMS,
     convertHHMMSSToTime         = convertHHMMSSToTime,
     splitARGBHex                = splitARGBHex,

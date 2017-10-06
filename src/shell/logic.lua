@@ -15,33 +15,33 @@ local _SHELL_DESCRIPTION_VID_SEP        = ","
 
 local MPVDanmakuLoaderShell =
 {
-    _mApplication               = classlite.declareConstantField(nil),
-    _mDanmakuSourceManager      = classlite.declareClassField(sourcemgr.DanmakuSourceManager),
+    _mApplication           = classlite.declareConstantField(nil),
+    _mDanmakuSourceManager  = classlite.declareClassField(sourcemgr.DanmakuSourceManager),
 
-    _mUIStrings                 = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
-    _mUISizes                   = classlite.declareConstantField(uiconstants.UI_SIZES_ZENITY),
+    _mUIStrings             = classlite.declareConstantField(uiconstants.UI_STRINGS_CN),
+    _mUISizes               = classlite.declareConstantField(uiconstants.UI_SIZES_ZENITY),
 
-    _mGUIBuilder                = classlite.declareClassField(unportable.ZenityGUIBuilder),
-    __mTextInfoProperties       = classlite.declareClassField(unportable.TextInfoProperties),
-    __mListBoxProperties        = classlite.declareClassField(unportable.ListBoxProperties),
-    __mEntryProperties          = classlite.declareClassField(unportable.EntryProperties),
-    __mFileSelectionProperties  = classlite.declareClassField(unportable.FileSelectionProperties),
-    __mProgressBarProperties    = classlite.declareClassField(unportable.ProgressBarProperties),
-    __mQuestionProperties       = classlite.declareClassField(unportable.QuestionProperties),
+    _mGUIBuilder            = classlite.declareClassField(unportable.ZenityGUIBuilder),
+    __mTextInfoProps        = classlite.declareClassField(unportable.TextInfoProperties),
+    __mListBoxProps         = classlite.declareClassField(unportable.ListBoxProperties),
+    __mEntryProperties      = classlite.declareClassField(unportable.EntryProperties),
+    __mProgressBarProps     = classlite.declareClassField(unportable.ProgressBarProperties),
+    __mQuestionProps        = classlite.declareClassField(unportable.QuestionProperties),
+    __mFileSelectionProps   = classlite.declareClassField(unportable.FileSelectionProperties),
 
-    _mDanmakuSources            = classlite.declareTableField(),
+    _mDanmakuSources        = classlite.declareTableField(),
 
-    __mSelectedIndexes          = classlite.declareTableField(),
-    __mSelectedFilePaths        = classlite.declareTableField(),
-    __mOptionStrings            = classlite.declareTableField(),
+    __mSelectedIndexes      = classlite.declareTableField(),
+    __mSelectedFilePaths    = classlite.declareTableField(),
+    __mOptionStrings        = classlite.declareTableField(),
 
-    __mVideoIDs                 = classlite.declareTableField(),
-    __mStartTimeOffsets         = classlite.declareTableField(),
-    __mDanmakuRawDataList       = classlite.declareTableField(),
-    __mToBeUpdatedSources       = classlite.declareTableField(),
-    __mPlugins                  = classlite.declareTableField(),
+    __mVideoIDs             = classlite.declareTableField(),
+    __mStartTimeOffsets     = classlite.declareTableField(),
+    __mDanmakuRawDataList   = classlite.declareTableField(),
+    __mToBeUpdatedSources   = classlite.declareTableField(),
+    __mPlugins              = classlite.declareTableField(),
 
-    __mSearchResult             = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
+    __mSearchResult         = classlite.declareClassField(pluginbase.DanmakuSourceSearchResult),
 }
 
 function MPVDanmakuLoaderShell:dispose()
@@ -60,7 +60,7 @@ end
 
 function MPVDanmakuLoaderShell:__showSelectPlugins()
     local plugins = utils.clearTable(self.__mPlugins)
-    local props = self.__mListBoxProperties
+    local props = self.__mListBoxProps
     props:reset()
     self:__initWindowProperties(props, self._mUISizes.select_plugin)
     props.listBoxTitle = self._mUIStrings.title_select_plugin
@@ -80,7 +80,7 @@ function MPVDanmakuLoaderShell:__showSelectPlugins()
 end
 
 function MPVDanmakuLoaderShell:_showSelectFiles(outPaths)
-    local props = self.__mFileSelectionProperties
+    local props = self.__mFileSelectionProps
     props:reset()
     self:__initWindowProperties(props)
     props.isMultiSelectable = true
@@ -134,35 +134,26 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
     end
 
     local function __getDanmakuTimeOffsets(plugin, videoIDs, timeOffsets)
-        -- 最后一个分集视频的时长不需要知道
-        local succeed = true
-        local lastVID = utils.popArrayElement(videoIDs)
-        if not types.isEmptyTable(videoIDs)
-        then
-            succeed = plugin:getVideoDurations(videoIDs, timeOffsets)
-        end
-        table.insert(timeOffsets, 1, _SHELL_TIMEOFFSET_START)
-        table.insert(videoIDs, lastVID)
-        return succeed
+        -- 合并分段弹幕功能砍了，如果有刚需再加回来
+        utils.clearTable(timeOffsets)
+        utils.pushArrayElement(timeOffsets, _SHELL_TIMEOFFSET_START)
+        return true
     end
 
     -- 注意参数有可能为空
-    local isSplited = false
     local videoTitles = nil
     local videoTitleColCount = _SHELL_VIDEO_TITLE_COLUMN_COUNT
     if result
     then
-        isSplited = result.isSplited
         videoTitles = result.videoTitles
         videoTitleColCount = result.videoTitleColumnCount
     end
 
     local uiStrings = self._mUIStrings
-    local props = self.__mListBoxProperties
+    local props = self.__mListBoxProps
     props:reset()
     self:__initWindowProperties(props, self._mUISizes.select_new_danmaku_source)
     props.listBoxTitle = uiStrings.title_select_new_danmaku_source
-    props.isMultiSelectable = isSplited
     utils.appendArrayElements(props.listBoxElements, videoTitles)
     __initListBoxHeaders(props,
                          uiStrings.fmt_select_new_danmaku_source_header,
@@ -188,7 +179,7 @@ function MPVDanmakuLoaderShell:__showSelectNewDanmakuSource(plugin, result)
     then
         -- 添加弹幕源时还有参数检查
         local sources = self._mDanmakuSources
-        local mrg = self._mDanmakuSourceManager
+        local mgr = self._mDanmakuSourceManager
         mgr:addCachedDanmakuSource(sources, plugin, desc, videoIDs, offsets)
     end
 
@@ -199,7 +190,7 @@ end
 function MPVDanmakuLoaderShell:__doShowDanmakuSources(title, iterFunc,
                                                       selectedJumpFunc,
                                                       noselectedJumpFunc)
-    local props = self.__mListBoxProperties
+    local props = self.__mListBoxProps
     props:reset()
     self:__initWindowProperties(props, self._mUISizes.show_danmaku_sources)
     props.listBoxTitle = title
@@ -271,7 +262,7 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
     if not app:getConfiguration().promptOnReplaceMainSubtitle and mainSID
     then
         local uiStrings = self._mUIStrings
-        local questionProps = self.__mQuestionProperties
+        local questionProps = self.__mQuestionProps
         questionProps:reset()
         self:__initWindowProperties(questionProps)
         questionProps.questionText = uiStrings.select_subtitle_should_replace
@@ -281,7 +272,7 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
     end
 
     app:setMainSubtitleByID(sid)
-    app:setSecondarySubtitleByID(shouldReplace and mainSID)
+    app:setSecondarySubtitleByID(types.chooseValue(shouldReplace, mainSID, nil))
 end
 
 function MPVDanmakuLoaderShell:__commitDanmakus()
@@ -344,7 +335,7 @@ end
 
 function MPVDanmakuLoaderShell:_showMain()
     local uiStrings = self._mUIStrings
-    local props = self.__mListBoxProperties
+    local props = self.__mListBoxProps
     props:reset()
     self:__initWindowProperties(props, self._mUISizes.main)
     props.listBoxTitle = uiStrings.title_main
@@ -393,10 +384,10 @@ function MPVDanmakuLoaderShell:__searchPlugin(keyword)
     for _, plugin in self._mApplication:iterateDanmakuSourcePlugins()
     do
         result:reset()
-        local found = plugin:search(keyword, result)
-        if found
+        local preferredIdx = plugin:search(keyword, result)
+        if preferredIdx
         then
-            return plugin, result
+            return plugin, result, preferredIdx
         end
     end
     return nil
@@ -405,7 +396,7 @@ end
 function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
     local uiStrings = self._mUIStrings
     local guiBuilder = self._mGUIBuilder
-    local progressBarProps = self.__mProgressBarProperties
+    local progressBarProps = self.__mProgressBarProps
     progressBarProps:reset()
     self:__initWindowProperties(progressBarProps)
 
@@ -414,15 +405,15 @@ function MPVDanmakuLoaderShell:loadDanmakuFromURL(url)
     local handler = guiBuilder:showProgressBar(progressBarProps)
     guiBuilder:advanceProgressBar(handler, 10, uiStrings.load_progress_search)
 
-    local plugin, result = self:__searchPlugin(url)
+    local plugin, result, preferredIdx = self:__searchPlugin(url)
     if plugin and result
     then
         local ids = utils.clearTable(self.__mVideoIDs)
         local dataList = utils.clearTable(self.__mDanmakuRawDataList)
-        local vid = result.videoIDs[result.preferredIndex]
+        local vid = result.videoIDs[preferredIdx]
         table.insert(ids, vid)
         guiBuilder:advanceProgressBar(handler, 60, uiStrings.load_progress_download)
-        local downloaded = plugin:downloadDanmakuRawDataList(ids, dataList)
+        local downloaded = plugin:downloadDanmakus(ids, dataList)
         if downloaded
         then
             local data = dataList[1]
