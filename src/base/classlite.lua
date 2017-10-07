@@ -360,19 +360,25 @@ end
 local function _createDeconstructor(clzDef)
     local baseClz = __gParentClasses[clzDef]
     local baseDeconstructor = baseClz and baseClz[_METHOD_NAME_DECONSTRUCT]
-    local deconstructor = clzDef[_METHOD_NAME_DECONSTRUCT] or baseDeconstructor
+    local childDeconstructor = clzDef[_METHOD_NAME_DECONSTRUCT]
 
     local ret = function(self)
-        -- 有可能没有父类而且没有明确的析构方法
-        if deconstructor
+        -- 析构当前类
+        if childDeconstructor
         then
-            deconstructor(self)
+            childDeconstructor(self)
         end
 
-        -- 在父类析构方法体中执行最后的操作
+        -- 析构上一级父类
+        if baseDeconstructor
+        then
+            baseDeconstructor(self)
+        end
+
+        -- 在最顶层父类析构方法体中执行最后的操作
         if not baseClz
         then
-            -- 销毁所有字段
+            -- 析构所有字段
             __invokeInstanceMethod(self, _METHOD_NAME_DEINIT_FIELDS)
 
             -- 销毁整个对象

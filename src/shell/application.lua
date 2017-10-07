@@ -31,7 +31,7 @@ function _TempFileGuard:dispose()
     end
 
     local function __delete(path, _, _, app)
-        app:deletePath(path)
+        app:deletePath(path, true)
     end
     utils.forEachSetElement(fileSet, __delete, app)
     utils.clearTable(fileSet)
@@ -394,8 +394,14 @@ function MPVDanmakuLoaderApp:createDir(dir)
     return self._mPyScriptExecutor:createDirs(dir)
 end
 
-function MPVDanmakuLoaderApp:deletePath(fullPath)
-    return self._mPyScriptExecutor:deletePath(fullPath)
+function MPVDanmakuLoaderApp:deletePath(fullPath, useBuiltinRemove)
+    if useBuiltinRemove
+    then
+        os.remove(fullPath)
+        return true
+    else
+        return self._mPyScriptExecutor:deletePath(fullPath)
+    end
 end
 
 function MPVDanmakuLoaderApp:readFile(fullPath)

@@ -5,14 +5,14 @@ local utils     = require("src/base/utils")
 local classlite = require("src/base/classlite")
 
 
-TestClassLite = {}
-
-function TestClassLite:__assertIsDisposed(obj)
+local function __assertIsDisposed(obj)
     lu.assertNotNil(obj)
     lu.assertTrue(types.isEmptyTable(obj))
     lu.assertNil(getmetatable(obj))
 end
 
+
+TestClassLite = {}
 
 function TestClassLite:testCustomConstructor()
     local FooClass =
@@ -31,7 +31,7 @@ function TestClassLite:testCustomConstructor()
     lu.assertEquals(foo.str, "abc")
 
     foo:dispose()
-    self:__assertIsDisposed(foo)
+    __assertIsDisposed(foo)
 end
 
 
@@ -71,11 +71,59 @@ function TestClassLite:testDisposeAutoFields()
     local tableField = foo.fieldC
     table.insert(tableField, 1)
     bar:dispose()
-    self:__assertIsDisposed(foo)
-    self:__assertIsDisposed(bar)
+    __assertIsDisposed(foo)
+    __assertIsDisposed(bar)
 
     lu.assertEquals(fooDisposeCount, 1)
     lu.assertEquals(barDisposeCount, 1)
+end
+
+
+function TestClassLite:testInherentDispose()
+    local isBaseDisposed = false
+    local isChildDisposed = false
+    local fieldValueA = { "1", "2", "3" }
+    local fieldValueB = { "A", "B", "C" }
+
+    local function __assertDispose(obj,
+                                   assertBaseDisposed,
+                                   assertChildDisposed,
+                                   fieldA, fieldB)
+        lu.assertEquals(isBaseDisposed, assertBaseDisposed)
+        lu.assertEquals(isChildDisposed, assertChildDisposed)
+        lu.assertEquals(obj.fieldA, fieldA)
+        lu.assertEquals(obj.fieldB, fieldB)
+    end
+
+    local Base =
+    {
+        fieldA  = classlite.declareTableField(),
+
+        dispose = function(self)
+            __assertDispose(self, false, true, fieldValueA, fieldValueB)
+            isBaseDisposed = true
+        end,
+    }
+    classlite.declareClass(Base)
+
+    local Child =
+    {
+        fieldB  = classlite.declareTableField(),
+
+        dispose = function(self)
+            __assertDispose(self, false, false, fieldValueA, fieldValueB)
+            isChildDisposed = true
+        end,
+    }
+    classlite.declareClass(Child, Base)
+
+    local child = Child:new()
+    utils.appendArrayElements(child.fieldA, fieldValueA)
+    utils.appendArrayElements(child.fieldB, fieldValueB)
+    child:dispose()
+    __assertIsDisposed(child)
+    lu.assertTrue(isBaseDisposed)
+    lu.assertTrue(isChildDisposed)
 end
 
 

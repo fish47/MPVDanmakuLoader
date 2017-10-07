@@ -114,5 +114,5 @@ end
 
 -- 如果传网址会经过 youtube-dl 分析并重定向，为了拿到最初的网址必须加回调
 mp.add_hook("on_load", 5, __markOpenedPath)
-mp.add_hook("shutdown", 50, __destroy)
+mp.register_event("shutdown", __destroy)
 mp.add_key_binding("Alt+D", "load", __onRequestDanmaku)
