@@ -3,6 +3,7 @@ local _gLoaderShell         = nil
 local _gOpenedURL           = nil
 local _gOpenedFilePath      = nil
 local _gIsAppInitialized    = false
+local _gTempOptionTable     = nil
 
 
 local function __ensureApplication()
@@ -68,20 +69,25 @@ local function __onRequestDanmaku()
     end
 end
 
+local function _updateOptions()
+    _gTempOptionTable = _gTempOptionTable or {}
+    _gTempOptionTable.loadDanmakuOnURLPlayed = false
+    mp.options.read_options(_gTempOptionTable)
+end
+
 
 local function __markOpenedPath()
     _gOpenedURL = nil
     _gOpenedFilePath = nil
     _gIsAppInitialized = false
+    _updateOptions()
 
     local path = mp.get_property("stream-open-filename")
     local isURL = path:match(".*://.*")
     if isURL
     then
         _gOpenedURL = path
-        local app = __ensureApplication()
-        local cfg = app:getConfiguration()
-        if cfg.loadDanmakuOnURLPlayed
+        if _gTempOptionTable.loadDanmakuOnURLPlayed
         then
             __loadDanmakuFromURL()
         end

@@ -259,7 +259,7 @@ function MPVDanmakuLoaderShell:__doCommitDanmakus(assFilePath)
 
     local shouldReplace = false
     local mainSID = app:getMainSubtitleID()
-    if not app:getConfiguration().promptOnReplaceMainSubtitle and mainSID
+    if app:getConfiguration().promptOnReplaceMainSubtitle and mainSID
     then
         local uiStrings = self._mUIStrings
         local questionProps = self.__mQuestionProps
@@ -375,8 +375,20 @@ end
 
 
 function MPVDanmakuLoaderShell:showMainWindow()
+    local function __setPaused(app, enable, val)
+        if enable
+        then
+            app:setVideoPaused(val)
+        end
+    end
+
+    local app = self._mApplication
+    local shouldPause = app:getConfiguration().pauseOnWindowShown
+    local isPausedBefore = app:isVideoPaused()
+    __setPaused(app, shouldPause, true)
     self._mDanmakuSourceManager:listDanmakuSources(self._mDanmakuSources)
-    return self:_showMain()
+    self:_showMain()
+    __setPaused(app, shouldPause, isPausedBefore)
 end
 
 function MPVDanmakuLoaderShell:__searchPlugin(keyword)

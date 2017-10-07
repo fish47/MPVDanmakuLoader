@@ -40,7 +40,6 @@ local _CONFIGURATION_DEFINATIONS =
     "rawDataDirName",               { _VALIDATOR_STRING_NON_EMPTY,  "rawdata" },
     "metaDataFileName",             { _VALIDATOR_STRING_NON_EMPTY,  "sourcemeta.lua" },
 
-    "loadDanmakuOnURLPlayed",       { _VALIDATOR_BOOL,              true },
     "enableDebugLog",               { _VALIDATOR_BOOL,              false },
     "pauseOnWindowShown",           { _VALIDATOR_BOOL,              false },
     "saveGeneratedASS",             { _VALIDATOR_BOOL,              false },

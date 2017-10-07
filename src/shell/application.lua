@@ -365,7 +365,8 @@ end
 
 function MPVDanmakuLoaderApp:getMainSubtitleID()
     local sid = mp.get_property(_MPV_PROP_MAIN_SUBTITLE_ID)
-    return sid ~= _MPV_CONST_NO_SUBTITLE_ID and sid
+    local hasSubtitle = types.isNonEmptyString(sid) and sid ~= _MPV_CONST_NO_SUBTITLE_ID
+    return types.chooseValue(hasSubtitle, sid, nil)
 end
 
 function MPVDanmakuLoaderApp:setOSDMessage(msg, seconds)
